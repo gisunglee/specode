@@ -1,0 +1,109 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  ClipboardList,
+  Monitor,
+  Cog,
+  GitBranch,
+  FileSpreadsheet,
+  Bot,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const icons = {
+  LayoutDashboard,
+  ClipboardList,
+  Monitor,
+  Cog,
+  GitBranch,
+  FileSpreadsheet,
+  Bot,
+} as const;
+
+const NAV_ITEMS = [
+  { href: "/", label: "대시보드", icon: "LayoutDashboard" as const },
+  { href: "/requirements", label: "요구사항", icon: "ClipboardList" as const },
+  { href: "/screens", label: "화면", icon: "Monitor" as const },
+  { href: "/functions", label: "기능", icon: "Cog" as const },
+  { href: "/tree", label: "트리 뷰", icon: "GitBranch" as const },
+  { href: "/import-export", label: "엑셀", icon: "FileSpreadsheet" as const },
+  { href: "/ai-tasks", label: "AI 현황", icon: "Bot" as const },
+];
+
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col",
+        collapsed ? "w-16" : "w-56"
+      )}
+    >
+      {/* Logo */}
+      <div className="flex items-center h-14 px-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+            <Bot className="h-5 w-5 text-primary" />
+          </div>
+          {!collapsed && (
+            <span className="font-bold text-sm text-sidebar-foreground whitespace-nowrap">
+              AI Dev Hub
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto p-2 space-y-1">
+        {NAV_ITEMS.map((item) => {
+          const Icon = icons[item.icon];
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-sidebar-accent text-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+              )}
+            >
+              <Icon className="h-4.5 w-4.5 flex-shrink-0" />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Toggle */}
+      <div className="p-2 border-t border-sidebar-border">
+        <button
+          onClick={onToggle}
+          className="flex items-center justify-center w-full rounded-lg px-3 py-2 text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors cursor-pointer"
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4.5 w-4.5" />
+          ) : (
+            <PanelLeftClose className="h-4.5 w-4.5" />
+          )}
+        </button>
+      </div>
+    </aside>
+  );
+}

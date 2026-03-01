@@ -1,0 +1,152 @@
+"use client";
+
+import { useState } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+} from "@tanstack/react-table";
+import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+interface DataGridProps<T> {
+  columns: ColumnDef<T, unknown>[];
+  data: T[];
+  onRowClick?: (row: T) => void;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  onPageChange?: (page: number) => void;
+  selectable?: boolean;
+  onSelectionChange?: (selected: T[]) => void;
+  emptyMessage?: string;
+}
+
+export function DataGrid<T>({
+  columns,
+  data,
+  onRowClick,
+  pagination,
+  onPageChange,
+  emptyMessage = "데이터가 없습니다.",
+}: DataGridProps<T>) {
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const table = useReactTable({
+    data,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    manualPagination: !!pagination,
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id} className="border-b border-border bg-muted/50">
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className={cn(
+                      "px-4 py-3 text-left font-medium text-muted-foreground",
+                      header.column.getCanSort() && "cursor-pointer select-none hover:text-foreground"
+                    )}
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    <div className="flex items-center gap-1">
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.column.getCanSort() && (
+                        <span className="ml-1">
+                          {header.column.getIsSorted() === "asc" ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : header.column.getIsSorted() === "desc" ? (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-4 py-12 text-center text-muted-foreground"
+                >
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className={cn(
+                    "border-b border-border/50 transition-colors hover:bg-muted/30",
+                    onRowClick && "cursor-pointer"
+                  )}
+                  onClick={() => onRowClick?.(row.original)}
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-4 py-3">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between px-2">
+          <p className="text-sm text-muted-foreground">
+            총 {pagination.total}건 중 {(pagination.page - 1) * pagination.pageSize + 1}-
+            {Math.min(pagination.page * pagination.pageSize, pagination.total)}건
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange?.(pagination.page - 1)}
+              disabled={pagination.page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {pagination.page} / {pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange?.(pagination.page + 1)}
+              disabled={pagination.page >= pagination.totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

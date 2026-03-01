@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Requirement {
+  requirementId Int      @id @default(autoincrement()) @map("requirement_id")
+  systemId      String   @unique @map("system_id")
+  name          String   @map("name")
+  description   String?  @map("description")
+  priority      String?  @map("priority")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  screens Screen[]
+
+  @@map("tb_requirement")
+}
+
+model Screen {
+  screenId      Int      @id @default(autoincrement()) @map("screen_id")
+  systemId      String   @unique @map("system_id")
+  displayCode   String?  @map("display_code")
+  name          String   @map("name")
+  screenType    String?  @map("screen_type")
+  requirementId Int      @map("requirement_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  requirement Requirement @relation(fields: [requirementId], references: [requirementId])
+  functions   Function[]
+
+  @@map("tb_screen")
+}
+
+model Function {
+  functionId  Int      @id @default(autoincrement()) @map("function_id")
+  systemId    String   @unique @map("system_id")
+  displayCode String?  @map("display_code")
+  name        String   @map("name")
+  screenId    Int      @map("screen_id")
+
+  spec        String?  @map("spec")
+  dataFlow    String?  @map("data_flow")
+  changeReason String? @map("change_reason")
+
+  status      String   @default("DRAFT") @map("status")
+  requestType String   @default("NEW") @map("request_type")
+  priority    String   @default("MEDIUM") @map("priority")
+
+  aiSummary           String? @map("ai_summary")
+  aiReviewResult      String? @map("ai_review_result")
+  aiConflictFunctions String? @map("ai_conflict_functions")
+  aiImpactAnalysis    String? @map("ai_impact_analysis")
+  aiImplFeedback      String? @map("ai_impl_feedback")
+  aiImplIssues        String? @map("ai_impl_issues")
+  gitlabPrUrl         String? @map("gitlab_pr_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  screen     Screen         @relation(fields: [screenId], references: [screenId])
+  references FuncReference[]
+  relations  FuncRelation[] @relation("SourceFunction")
+  relatedBy  FuncRelation[] @relation("TargetFunction")
+  files      FuncFile[]
+  tasks      AiTask[]
+
+  @@index([status])
+  @@index([screenId])
+  @@map("tb_function")
+}
+
+model FuncReference {
+  funcReferenceId Int      @id @default(autoincrement()) @map("func_reference_id")
+  functionId      Int      @map("function_id")
+  refType         String   @map("ref_type")
+  refValue        String   @map("ref_value")
+  description     String?  @map("description")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  function Function @relation(fields: [functionId], references: [functionId], onDelete: Cascade)
+
+  @@index([functionId])
+  @@index([refType, refValue])
+  @@map("tb_func_reference")
+}
+
+model FuncRelation {
+  funcRelationId   Int      @id @default(autoincrement()) @map("func_relation_id")
+  sourceFunctionId Int      @map("source_function_id")
+  targetFunctionId Int      @map("target_function_id")
+  relationType     String   @map("relation_type")
+  params           String?  @map("params")
+  description      String?  @map("description")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  sourceFunction Function @relation("SourceFunction", fields: [sourceFunctionId], references: [functionId], onDelete: Cascade)
+  targetFunction Function @relation("TargetFunction", fields: [targetFunctionId], references: [functionId], onDelete: Cascade)
+
+  @@index([sourceFunctionId])
+  @@index([targetFunctionId])
+  @@map("tb_func_relation")
+}
+
+model FuncFile {
+  funcFileId  Int      @id @default(autoincrement()) @map("func_file_id")
+  functionId  Int      @map("function_id")
+  aiTaskId    Int?     @map("ai_task_id")
+  filePath    String   @map("file_path")
+  description String?  @map("description")
+  createdBy   String   @default("AI") @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  function Function @relation(fields: [functionId], references: [functionId], onDelete: Cascade)
+  aiTask   AiTask?  @relation(fields: [aiTaskId], references: [aiTaskId], onDelete: SetNull)
+
+  @@index([functionId])
+  @@index([aiTaskId])
+  @@map("tb_func_file")
+}
+
+model AiTask {
+  aiTaskId    Int       @id @default(autoincrement()) @map("ai_task_id")
+  systemId    String    @unique @map("system_id")
+  functionId  Int       @map("function_id")
+  taskType    String    @map("task_type")       // REVIEW | IMPLEMENT | IMPACT | REPROCESS
+  taskStatus  String    @default("PENDING") @map("task_status") // PENDING | RUNNING | DONE | FAILED
+
+  spec        String?   @map("spec")            // AI 호출 시점 spec 스냅샷
+  comment     String?   @map("comment")         // GS 추가 요청 (재처리용, NULL이면 최초 요청)
+  feedback    String?   @map("feedback")        // AI 결과 (마크다운 통째로)
+
+  requestedAt DateTime  @default(now()) @map("requested_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  function Function  @relation(fields: [functionId], references: [functionId], onDelete: Cascade)
+  files    FuncFile[]
+
+  @@index([taskStatus])
+  @@index([functionId])
+  @@map("tb_ai_task")
+}
+
+model Sequence {
+  sequenceId Int    @id @default(autoincrement()) @map("sequence_id")
+  prefix     String @unique @map("prefix")
+  lastValue  Int    @default(0) @map("last_value")
+
+  @@map("tb_sequence")
+}
