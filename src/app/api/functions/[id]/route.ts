@@ -119,7 +119,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         spec: body.spec ?? undefined,
         dataFlow: body.dataFlow ?? undefined,
         changeReason: body.changeReason ?? undefined,
-        requestType: body.requestType ?? undefined,
         priority: body.priority ?? undefined,
       },
     });

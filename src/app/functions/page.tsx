@@ -53,7 +53,6 @@ import {
 import {
   FUNC_STATUS_LABEL,
   PRIORITIES,
-  REQUEST_TYPES,
 } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -154,7 +153,6 @@ function FunctionsContent() {
     name: "",
     displayCode: "",
     screenId: "",
-    requestType: "NEW",
     priority: "MEDIUM",
   });
 
@@ -268,7 +266,6 @@ function FunctionsContent() {
       name: "",
       displayCode: "",
       screenId: screenFilter, // 현재 화면 필터 값을 기본으로 사용
-      requestType: "NEW",
       priority: "MEDIUM",
     });
     setCreateOpen(true);
@@ -504,12 +501,12 @@ function FunctionsContent() {
             </div>
 
             {/*
-             * 📌 상위 화면 — 필수 선택
+             * 📌 소속 화면 — 필수 선택
              *    어떤 화면(Screen)에 이 기능을 등록할지 선택
              *    화면 관리에서 특정 화면 클릭 후 왔다면 자동 선택되어 있음
              */}
             <div className="space-y-1.5">
-              <Label className="text-xs">상위 화면 *</Label>
+              <Label className="text-xs">소속 화면 *</Label>
               <Select
                 value={createForm.screenId}
                 onValueChange={(v) =>
@@ -529,30 +526,9 @@ function FunctionsContent() {
               </Select>
             </div>
 
-            {/* 요청 유형 + 우선순위 — 2-column */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">요청 유형</Label>
-                <Select
-                  value={createForm.requestType}
-                  onValueChange={(v) =>
-                    setCreateForm((f) => ({ ...f, requestType: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {REQUEST_TYPES.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">우선순위</Label>
+            {/* 우선순위 */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">우선순위</Label>
                 <Select
                   value={createForm.priority}
                   onValueChange={(v) =>
@@ -570,7 +546,6 @@ function FunctionsContent() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
             </div>
           </div>
 

@@ -50,7 +50,6 @@ model Function {
   changeReason String? @map("change_reason")
 
   status      String   @default("DRAFT") @map("status")
-  requestType String   @default("NEW") @map("request_type")
   priority    String   @default("MEDIUM") @map("priority")
 
   aiSummary           String? @map("ai_summary")

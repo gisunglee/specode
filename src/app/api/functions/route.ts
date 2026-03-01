@@ -67,7 +67,6 @@ export async function POST(request: NextRequest) {
         screenId: parsed.screenId,
         spec: parsed.spec ?? null,
         dataFlow: parsed.dataFlow ?? null,
-        requestType: parsed.requestType,
         priority: parsed.priority,
         references: parsed.references
           ? {

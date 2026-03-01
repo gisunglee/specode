@@ -38,7 +38,6 @@ export interface FunctionItem {
   dataFlow: string | null;
   changeReason: string | null;
   status: string;
-  requestType: string;
   priority: string;
   aiSummary: string | null;
   aiReviewResult: string | null;

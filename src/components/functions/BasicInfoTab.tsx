@@ -3,8 +3,8 @@
  *
  * 📌 역할:
  *   - 기능의 기본 메타데이터를 표시하고 수정할 수 있는 폼
- *   - 시스템 ID (읽기전용), 표시용 코드, 기능명, 상위 화면 등
- *   - 요청 유형(신규/변경/버그/검토), 우선순위(상/중/하) 선택
+ *   - 시스템 ID (읽기전용), 표시용 코드, 기능명, 소속 화면 등
+ *   - 우선순위(상/중/하) 선택
  *   - 변경 사유 입력 (상태가 CHANGE_REQ이거나 이미 사유가 있을 때)
  *
  * 📌 레이아웃:
@@ -12,7 +12,7 @@
  *   ┌──────────┬──────────┬──────────────────────┐
  *   │ 시스템 ID │ 표시코드  │      기능명 (2칸)     │
  *   ├──────────┴──────────┼──────────┬───────────┤
- *   │   상위 화면 (2칸)     │ 요청유형  │ 우선순위   │
+ *   │   소속 화면 (2칸)     │ 우선순위  │           │
  *   ├──────────────────────┴──────────┴───────────┤
  *   │ [변경 사유 (조건부)]                          │
  *   └─────────────────────────────────────────────┘
@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/select"; // 드롭다운 선택 컴포넌트 (Radix UI 기반)
 
 /* ─── 상수 & 타입 임포트 ─────────────────────────────────── */
-import { REQUEST_TYPES, PRIORITIES } from "@/lib/constants"; // 요청유형, 우선순위 옵션 목록
+import { PRIORITIES } from "@/lib/constants"; // 우선순위 옵션 목록
 import type { FunctionItem } from "@/types"; // 기능 데이터 타입 정의
 
 /**
@@ -77,7 +77,6 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
   const [form, setForm] = useState({
     name: func.name, // 기능명 (필수)
     displayCode: func.displayCode || "", // 표시용 코드 (사용자가 보기 좋은 ID)
-    requestType: func.requestType, // 요청 유형: NEW, CHANGE, BUGFIX, REVIEW_ONLY
     priority: func.priority, // 우선순위: HIGH, MEDIUM, LOW
     changeReason: func.changeReason || "", // 변경 사유 (조건부 표시)
   });
@@ -165,51 +164,16 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
         </div>
       </div>
 
-      {/* ── Row 2: 상위 화면, 요청유형, 우선순위 ─────────────── */}
+      {/* ── Row 2: 소속 화면, 우선순위 ──────────────────────── */}
       <div className="grid grid-cols-4 gap-4">
-        {/* 상위 화면 — 읽기전용 (화면 관리에서 설정) */}
+        {/* 소속 화면 — 읽기전용 (화면 관리에서 설정) */}
         <div className="col-span-2 space-y-1.5">
-          <Label className="text-muted-foreground text-xs">상위 화면</Label>
+          <Label className="text-muted-foreground text-xs">소속 화면</Label>
           <Input
             value={`${func.screen?.systemId ?? ""} ${func.screen?.name ?? ""}`}
             disabled
             className="bg-muted/30"
           />
-        </div>
-
-        {/*
-         * 요청 유형 드롭다운 — Select 컴포넌트 (Radix UI 기반)
-         * 옵션: 신규개발(NEW), 변경요청(CHANGE), 버그수정(BUGFIX), 설계검토만(REVIEW_ONLY)
-         *
-         * 📌 Select 컴포넌트 구조:
-         *   <Select>         — 상태 관리 래퍼 (value, onValueChange)
-         *     <SelectTrigger> — 클릭 가능한 트리거 버튼 (현재 선택값 표시)
-         *       <SelectValue /> — 선택된 값의 라벨 표시
-         *     </SelectTrigger>
-         *     <SelectContent> — 드롭다운 팝오버 (옵션 목록)
-         *       <SelectItem>  — 개별 옵션
-         *     </SelectContent>
-         *   </Select>
-         */}
-        <div className="space-y-1.5">
-          <Label className="text-xs">요청 유형</Label>
-          <Select
-            value={form.requestType}
-            onValueChange={(v) =>
-              setForm((f) => ({ ...f, requestType: v }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {REQUEST_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {/* 우선순위 드롭다운 — 상(HIGH), 중(MEDIUM), 하(LOW) */}

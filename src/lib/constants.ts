@@ -62,13 +62,6 @@ export const ALL_STATUSES = [
 /** Statuses that trigger AI task creation — show "AI에게 요청하시겠습니까?" */
 export const AI_REQUEST_STATUSES = ["REVIEW_REQ", "IMPL_REQ"];
 
-export const REQUEST_TYPES = [
-  { value: "NEW", label: "신규개발" },
-  { value: "CHANGE", label: "변경요청" },
-  { value: "BUGFIX", label: "버그수정" },
-  { value: "REVIEW_ONLY", label: "설계검토만" },
-] as const;
-
 export const PRIORITIES = [
   { value: "HIGH", label: "상" },
   { value: "MEDIUM", label: "중" },
