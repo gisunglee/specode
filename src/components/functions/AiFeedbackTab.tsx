@@ -68,7 +68,7 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
               icon={<FileText className="h-4 w-4" />}
               title="설계 검토 결과"
             >
-              <div className="prose prose-sm max-w-none">
+              <div className="markdown-body text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {func.aiReviewResult}
                 </ReactMarkdown>
@@ -82,7 +82,7 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
               icon={<AlertTriangle className="h-4 w-4 text-yellow-600" />}
               title="충돌 기능 목록"
             >
-              <div className="prose prose-sm max-w-none">
+              <div className="markdown-body text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {func.aiConflictFunctions}
                 </ReactMarkdown>
@@ -96,7 +96,7 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
               icon={<AlertTriangle className="h-4 w-4" />}
               title="영향도 분석"
             >
-              <div className="prose prose-sm max-w-none">
+              <div className="markdown-body text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {func.aiImpactAnalysis}
                 </ReactMarkdown>
@@ -107,7 +107,7 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
           {/* ── 구현 피드백 ──────────────────────────────── */}
           {func.aiImplFeedback && (
             <Section icon={<Code className="h-4 w-4" />} title="구현 피드백">
-              <div className="prose prose-sm max-w-none">
+              <div className="markdown-body text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {func.aiImplFeedback}
                 </ReactMarkdown>
@@ -121,7 +121,7 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
               icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
               title="구현 이슈"
             >
-              <div className="prose prose-sm max-w-none">
+              <div className="markdown-body text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {func.aiImplIssues}
                 </ReactMarkdown>
@@ -203,12 +203,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5 space-y-3">
-      <div className="flex items-center gap-2 font-semibold text-sm">
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="flex items-center gap-2 font-semibold text-sm bg-primary/10 border-b border-primary/20 px-5 py-2.5">
         {icon}
         {title}
       </div>
-      {children}
+      <div className="p-5">{children}</div>
     </div>
   );
 }

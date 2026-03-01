@@ -54,6 +54,7 @@ export interface FunctionItem {
   relatedBy?: FuncRelation[];
   files?: FuncFile[];
   tasks?: AiTask[];
+  attachments?: Attachment[];
 }
 
 export interface FuncReference {
@@ -101,6 +102,21 @@ export interface AiTask {
   completedAt: string | null;
   function?: FunctionItem;
   files?: FuncFile[];
+}
+
+export interface Attachment {
+  attachmentId: number;
+  refTableName: string;
+  refPkId: number;
+  logicalName: string;
+  physicalName: string;
+  filePath: string;
+  fileSize: number;
+  fileExt: string | null;
+  description: string | null;
+  delYn: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 export interface TreeNode {

@@ -39,7 +39,7 @@
 import { use, useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation"; // Next.js 클라이언트 라우터 (페이지 이동용)
-import { ArrowLeft, Info, ChevronDown, History } from "lucide-react"; // 아이콘 라이브러리
+import { ArrowLeft, Info, ChevronDown, History, Bot } from "lucide-react"; // 아이콘 라이브러리
 import { motion } from "framer-motion"; // 애니메이션 라이브러리 (AI 요약 등장 효과)
 
 /* ─── UI 컴포넌트 임포트 ─────────────────────────────────── */
@@ -140,6 +140,7 @@ export default function FunctionDetailPage({
    * 📌 설계정보 타이틀 행의 "AI 요청 이력" 버튼 클릭 시 true → Dialog 표시
    */
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   /**
    * statusSaved: 상태 변경 후 "저장됨" 피드백 표시 여부
@@ -599,20 +600,24 @@ export default function FunctionDetailPage({
           gsComment={gsComment}
           onGsCommentChange={setGsComment}
           headerExtra={
-            /**
-             * 📌 AI 요청 이력 버튼 — 클릭 시 팝업 다이얼로그로 HistoryTab 표시
-             *    설계정보 타이틀 행의 저장 버튼 왼쪽에 위치
-             *    variant="outline": 테두리만 있는 보조 버튼 스타일
-             *    size="sm": 저장 버튼보다 약간 작게
-             */
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setHistoryOpen(true)}
-            >
-              <History className="h-3.5 w-3.5 mr-1.5" />
-              AI 요청 이력
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFeedbackOpen(true)}
+              >
+                <Bot className="h-3.5 w-3.5 mr-1.5" />
+                AI 피드백
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHistoryOpen(true)}
+              >
+                <History className="h-3.5 w-3.5 mr-1.5" />
+                AI 요청 이력
+              </Button>
+            </>
           }
         />
       </section>
@@ -644,6 +649,18 @@ export default function FunctionDetailPage({
             <DialogTitle>AI 요청 이력</DialogTitle>
           </DialogHeader>
           <HistoryTab func={func} />
+        </DialogContent>
+      </Dialog>
+
+      {/* AI 피드백 팝업 다이얼로그 */}
+      <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+        <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="sticky top-0 z-10 bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
+            <DialogTitle>AI 피드백</DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 px-6 py-4">
+            <AiFeedbackTab func={func} />
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -27,7 +27,7 @@
 "use client";
 
 /* ─── React / 라이브러리 임포트 ──────────────────────────── */
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -38,6 +38,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TagInput } from "@/components/common/TagInput";
+import { FileUploadZone } from "@/components/common/FileUploadZone";
+import { FileList } from "@/components/common/FileList";
 import { cn } from "@/lib/utils";
 import type { FunctionItem } from "@/types";
 
@@ -114,6 +116,20 @@ export function DesignInfoTab({
     },
   });
 
+  const handleFileChange = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: ["function", String(func.functionId)],
+    });
+  }, [queryClient, func.functionId]);
+
+  const handleFileDelete = useCallback(
+    async (attachmentId: number) => {
+      await fetch(`/api/attachments/${attachmentId}`, { method: "DELETE" });
+      handleFileChange();
+    },
+    [handleFileChange]
+  );
+
   /** handleSave — 저장 버튼 클릭 핸들러 */
   const handleSave = () => {
     const references = [
@@ -150,7 +166,7 @@ export function DesignInfoTab({
         <h2 className="text-lg font-semibold">설계정보</h2>
         <div className="flex items-center gap-2">
           {headerExtra}
-          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+          <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "저장중..." : "저장"}
           </Button>
         </div>
@@ -203,7 +219,7 @@ export function DesignInfoTab({
 
             {/* ── spec 편집기 / 미리보기 ──────────────────── */}
             {previewMode ? (
-              <div className="rounded-md border border-border bg-muted/10 p-4 min-h-[560px] prose prose-sm max-w-none">
+              <div className="rounded-md border border-border bg-muted/10 p-4 min-h-[560px] markdown-body text-sm">
                 {spec ? (
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {spec}
@@ -336,6 +352,24 @@ export function DesignInfoTab({
                 </div>
               </div>
             )}
+
+            {/* ── 첨부파일 ──────────────────────────────── */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label className="text-xs">첨부파일</Label>
+                <span className="text-[10px] text-muted-foreground">(파일은 즉시 서버에 저장됩니다)</span>
+              </div>
+              <FileList
+                files={func.attachments ?? []}
+                onDelete={handleFileDelete}
+                onDescriptionChange={handleFileChange}
+              />
+              <FileUploadZone
+                refTableName="tb_function"
+                refPkId={func.functionId}
+                onUploadComplete={handleFileChange}
+              />
+            </div>
           </div>
         </div>
 

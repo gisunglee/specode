@@ -50,7 +50,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return apiError("NOT_FOUND", "기능을 찾을 수 없습니다.", 404);
   }
 
-  return apiSuccess(data);
+  const attachments = await prisma.attachment.findMany({
+    where: { refTableName: "tb_function", refPkId: parseInt(id), delYn: "N" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return apiSuccess({ ...data, attachments });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {

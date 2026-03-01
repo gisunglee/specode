@@ -115,7 +115,8 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-100 p-5"
+          onClick={() => router.push("/functions?status=REVIEW_DONE")}
+          className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-100 p-5 cursor-pointer hover:scale-[1.02] transition-transform"
         >
           <div className="flex items-center gap-3">
             <AlertCircle className="h-6 w-6 text-yellow-600" />
@@ -133,7 +134,8 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-violet-100 p-5"
+          onClick={() => router.push("/functions?status=AI_REVIEWING")}
+          className="rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-violet-100 p-5 cursor-pointer hover:scale-[1.02] transition-transform"
         >
           <div className="flex items-center gap-3">
             <Bot className="h-6 w-6 text-purple-600 animate-pulse-glow" />

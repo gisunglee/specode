@@ -154,3 +154,21 @@ model Sequence {
 
   @@map("tb_sequence")
 }
+
+model Attachment {
+  attachmentId Int      @id @default(autoincrement()) @map("attachment_id")
+  refTableName String   @map("ref_table_name")
+  refPkId      Int      @map("ref_pk_id")
+  logicalName  String   @map("logical_name")
+  physicalName String   @map("physical_name")
+  filePath     String   @map("file_path")
+  fileSize     Int      @map("file_size")
+  fileExt      String?  @map("file_ext")
+  description  String?  @map("description")
+  delYn        String   @default("N") @map("del_yn")
+  createdBy    String   @default("GS") @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([refTableName, refPkId])
+  @@map("tb_attachment")
+}

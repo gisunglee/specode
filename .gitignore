@@ -44,5 +44,8 @@ next-env.d.ts
 prisma/dev.db
 prisma/dev.db-journal
 
+# uploads (첨부파일 저장소)
+public/uploads/
+
 # claude code (개인 설정)
 .claude/
