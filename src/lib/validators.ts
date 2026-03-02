@@ -10,7 +10,9 @@ export const screenSchema = z.object({
   name: z.string().min(1, "화면명은 필수입니다."),
   displayCode: z.string().optional().nullable(),
   screenType: z.string().optional().nullable(),
-  requirementId: z.number({ error: "상위 요구사항은 필수입니다." }),
+  requirementId: z.number({ error: "소속 요구사항은 필수입니다." }),
+  spec: z.string().optional().nullable(),
+  layoutData: z.string().optional().nullable(),
 });
 
 export const functionSchema = z.object({

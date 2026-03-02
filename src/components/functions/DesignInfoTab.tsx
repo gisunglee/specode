@@ -6,31 +6,30 @@
  *   - GS 코멘트 입력 (spec 아래) — AI 요청 시 함께 전달되는 메시지
  *   - 참조 테이블, 공통 프로그램, 데이터 흐름 등 보조 정보 (오른쪽)
  *   - 선행/후행/화면이동 관계 테이블 표시
+ *   - 첨부파일 관리 (AttachmentManager 공통 컴포넌트)
  *   - 저장 버튼은 "설계정보" 타이틀 오른쪽에 위치
  *
  * 📌 레이아웃:
  *   설계정보                                                [저장]
  *   ┌─────────────────────────────────┬──────────────────────┐
- *   │  기능 설명 (마크다운 에디터)       │  참조 테이블          │
- *   │  - 편집/미리보기 토글 (좌측)       │  공통 프로그램         │
- *   │  - textarea rows=24              │  데이터 흐름          │
- *   │  GS 코멘트 (spec 아래)            │  관계 테이블          │
+ *   │  기능 설명 (MarkdownEditor)      │  참조 테이블          │
+ *   │                                 │  공통 프로그램         │
+ *   │  GS 코멘트 (spec 아래)           │  데이터 흐름          │
+ *   │                                 │  관계 테이블          │
+ *   │                                 │  첨부파일             │
  *   └─────────────────────────────────┴──────────────────────┘
  *   [변경 사유 (조건부)]
  *
  * 📌 주요 기술:
- *   - "use client": Next.js에서 클라이언트 컴포넌트임을 선언
- *   - useMutation: TanStack Query의 데이터 변경(POST/PUT/DELETE) 훅
- *   - ReactMarkdown: 마크다운 문자열을 HTML로 렌더링하는 라이브러리
- *   - remarkGfm: GitHub Flavored Markdown 플러그인 (표, 체크박스 등 지원)
+ *   - MarkdownEditor: 공통 마크다운 편집/미리보기 컴포넌트
+ *   - AttachmentManager: 공통 첨부파일 관리 컴포넌트
+ *   - useMutation: TanStack Query의 데이터 변경 훅
  */
 "use client";
 
 /* ─── React / 라이브러리 임포트 ──────────────────────────── */
 import { useState, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 /* ─── UI 컴포넌트 임포트 ─────────────────────────────────── */
 import { Button } from "@/components/ui/button";
@@ -38,9 +37,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TagInput } from "@/components/common/TagInput";
-import { FileUploadZone } from "@/components/common/FileUploadZone";
-import { FileList } from "@/components/common/FileList";
-import { cn } from "@/lib/utils";
+import { MarkdownEditor } from "@/components/common/MarkdownEditor";
+import { AttachmentManager } from "@/components/common/AttachmentManager";
 import type { FunctionItem } from "@/types";
 
 /**
@@ -82,7 +80,6 @@ export function DesignInfoTab({
 
   /* ─── 폼 상태 관리 ─────────────────────────────────────── */
   const [spec, setSpec] = useState(func.spec || "");
-  const [previewMode, setPreviewMode] = useState(false);
   const [dataFlow, setDataFlow] = useState(func.dataFlow || "");
   const [changeReason, setChangeReason] = useState("");
 
@@ -116,19 +113,12 @@ export function DesignInfoTab({
     },
   });
 
+  /** 첨부파일 변경 콜백 (업로드/삭제 후 데이터 갱신) */
   const handleFileChange = useCallback(() => {
     queryClient.invalidateQueries({
       queryKey: ["function", String(func.functionId)],
     });
   }, [queryClient, func.functionId]);
-
-  const handleFileDelete = useCallback(
-    async (attachmentId: number) => {
-      await fetch(`/api/attachments/${attachmentId}`, { method: "DELETE" });
-      handleFileChange();
-    },
-    [handleFileChange]
-  );
 
   /** handleSave — 저장 버튼 클릭 핸들러 */
   const handleSave = () => {
@@ -148,19 +138,10 @@ export function DesignInfoTab({
   return (
     <div className="space-y-5">
       {/*
-       * ═══════════════════════════════════════════════════════
-       * 타이틀 행 — "설계정보" 제목 + 저장 버튼
-       *
-       * 📌 저장 버튼을 타이틀 오른쪽 끝에 배치
-       *    flex + justify-between 으로 양쪽 끝 정렬
-       * ═══════════════════════════════════════════════════════
-       */}
-      {/*
        * 📌 타이틀 행 구조:
-       *   설계정보              [AI 요청 이력] [저장]
+       *   설계정보              [AI 피드백] [AI 요청 이력] [저장]
        *
        *   headerExtra는 부모(page.tsx)에서 전달하는 추가 버튼 요소
-       *   예: AI 요청 이력 팝업을 여는 버튼
        */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">설계정보</h2>
@@ -181,62 +162,21 @@ export function DesignInfoTab({
         {/*
          * 2-column 그리드 레이아웃
          * 왼쪽 (3/5): 기능 설명 마크다운 에디터 + GS 코멘트
-         * 오른쪽 (2/5): 참조테이블, 공통프로그램, 데이터흐름, 관계
+         * 오른쪽 (2/5): 참조테이블, 공통프로그램, 데이터흐름, 관계, 첨부파일
          */}
         <div className="grid grid-cols-5 gap-6">
           {/* ═══════════════════════════════════════════════════ */}
           {/* 왼쪽 영역: 기능 설명 + GS 코멘트                      */}
           {/* ═══════════════════════════════════════════════════ */}
           <div className="col-span-3 space-y-4">
-            {/* ── 라벨 + 편집/미리보기 토글 ──────────────────── */}
-            <div className="flex items-center gap-3">
-              <Label>기능 설명 (마크다운) *</Label>
-              <div className="flex rounded-md border border-border overflow-hidden">
-                <button
-                  onClick={() => setPreviewMode(false)}
-                  className={cn(
-                    "px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-                    !previewMode
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card text-muted-foreground hover:bg-muted/50"
-                  )}
-                >
-                  편집
-                </button>
-                <button
-                  onClick={() => setPreviewMode(true)}
-                  className={cn(
-                    "px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-                    previewMode
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-card text-muted-foreground hover:bg-muted/50"
-                  )}
-                >
-                  미리보기
-                </button>
-              </div>
-            </div>
-
-            {/* ── spec 편집기 / 미리보기 ──────────────────── */}
-            {previewMode ? (
-              <div className="rounded-md border border-border bg-muted/10 p-4 min-h-[560px] markdown-body text-sm">
-                {spec ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {spec}
-                  </ReactMarkdown>
-                ) : (
-                  <p className="text-muted-foreground">내용이 없습니다.</p>
-                )}
-              </div>
-            ) : (
-              <Textarea
-                value={spec}
-                onChange={(e) => setSpec(e.target.value)}
-                placeholder="기능 설명을 마크다운으로 작성하세요..."
-                rows={24}
-                className="font-mono text-sm"
-              />
-            )}
+            {/* ── 마크다운 에디터 (공통 컴포넌트) ──────────── */}
+            <MarkdownEditor
+              value={spec}
+              onChange={setSpec}
+              label="기능 설명 (마크다운) *"
+              rows={24}
+              placeholder="기능 설명을 마크다운으로 작성하세요..."
+            />
 
             {/*
              * ═══════════════════════════════════════════════════
@@ -353,23 +293,13 @@ export function DesignInfoTab({
               </div>
             )}
 
-            {/* ── 첨부파일 ──────────────────────────────── */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label className="text-xs">첨부파일</Label>
-                <span className="text-[10px] text-muted-foreground">(파일은 즉시 서버에 저장됩니다)</span>
-              </div>
-              <FileList
-                files={func.attachments ?? []}
-                onDelete={handleFileDelete}
-                onDescriptionChange={handleFileChange}
-              />
-              <FileUploadZone
-                refTableName="tb_function"
-                refPkId={func.functionId}
-                onUploadComplete={handleFileChange}
-              />
-            </div>
+            {/* ── 첨부파일 (공통 컴포넌트) ────────────────── */}
+            <AttachmentManager
+              refTableName="tb_function"
+              refPkId={func.functionId}
+              attachments={func.attachments ?? []}
+              onChanged={handleFileChange}
+            />
           </div>
         </div>
 

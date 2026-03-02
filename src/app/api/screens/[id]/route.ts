@@ -1,3 +1,11 @@
+/**
+ * /api/screens/[id] — 화면 상세 API
+ *
+ * 📌 역할:
+ *   GET    — 화면 상세 조회 (requirement, functions, attachments 포함)
+ *   PUT    — 화면 정보 수정 (name, displayCode, screenType, requirementId, spec, layoutData)
+ *   DELETE — 화면 삭제 (하위 기능 존재 시 차단)
+ */
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { screenSchema } from "@/lib/validators";
@@ -7,11 +15,15 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
+  const numId = parseInt(id);
+
   const data = await prisma.screen.findUnique({
-    where: { screenId: parseInt(id) },
+    where: { screenId: numId },
     include: {
       requirement: true,
-      functions: true,
+      functions: {
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -19,7 +31,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return apiError("NOT_FOUND", "화면을 찾을 수 없습니다.", 404);
   }
 
-  return apiSuccess(data);
+  /* 📌 polymorphic 첨부파일 조회 (tb_attachment.ref_table_name = 'tb_screen') */
+  const attachments = await prisma.attachment.findMany({
+    where: { refTableName: "tb_screen", refPkId: numId, delYn: "N" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return apiSuccess({ ...data, attachments });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -35,6 +53,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         displayCode: parsed.displayCode ?? null,
         screenType: parsed.screenType ?? null,
         requirementId: parsed.requirementId,
+        spec: parsed.spec ?? null,
+        layoutData: parsed.layoutData ?? null,
       },
     });
 

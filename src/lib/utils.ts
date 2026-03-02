@@ -34,7 +34,20 @@ export function isValidStatus(status: string): boolean {
   return (ALL_STATUSES as readonly string[]).includes(status);
 }
 
+const isDev = process.env.NODE_ENV !== "production";
+
 export function apiSuccess(data: unknown, pagination?: unknown) {
+  if (isDev) {
+    const info = Array.isArray(data)
+      ? `[${data.length}건]`
+      : data && typeof data === "object"
+        ? "object"
+        : String(data);
+    const page = pagination && typeof pagination === "object" && "page" in pagination
+      ? ` page=${(pagination as { page: number }).page}`
+      : "";
+    console.log(`  ✓ 200 ${info}${page}`);
+  }
   if (pagination) {
     return Response.json({ success: true, data, pagination });
   }
@@ -46,6 +59,9 @@ export function apiError(
   message: string,
   status: number = 400
 ) {
+  if (isDev) {
+    console.log(`  ✗ ${status} ${code}: ${message}`);
+  }
   return Response.json(
     { success: false, error: { code, message } },
     { status }

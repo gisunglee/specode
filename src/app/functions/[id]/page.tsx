@@ -446,7 +446,10 @@ export default function FunctionDetailPage({
             </div>
             {/* 기능명 + 소속 화면명 */}
             <p className="text-sm text-muted-foreground mt-0.5">
-              {func.name} — {func.screen?.name}
+              <span className="font-medium text-foreground">{func.name}</span>
+              {func.screen?.name && (
+                <span className="ml-1">— {func.screen.name}</span>
+              )}
             </p>
           </div>
         </div>

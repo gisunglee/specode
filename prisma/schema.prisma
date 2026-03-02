@@ -29,6 +29,8 @@ model Screen {
   name          String   @map("name")
   screenType    String?  @map("screen_type")
   requirementId Int      @map("requirement_id")
+  spec          String?  @map("spec")             // 화면 설명 (마크다운)
+  layoutData    String?  @map("layout_data")      // 레이아웃 JSON 문자열
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 

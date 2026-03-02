@@ -3,13 +3,15 @@
  *
  * 📌 역할:
  *   - 등록된 화면(Screen) 목록을 테이블로 표시
- *   - 행 클릭 → 기능 관리 페이지로 이동 (해당 화면의 기능만 필터링)
+ *   - 행 클릭 → 화면 상세 페이지로 이동
+ *   - 기능 목록(리스트) 버튼 → 기능 관리 페이지로 이동
  *   - 수정(연필) 버튼 → 화면 수정 다이얼로그
  *   - 삭제(휴지통) 버튼 → 삭제 확인 다이얼로그
  *   - 화면 등록 → 등록 다이얼로그
  *
  * 📌 핵심 동작:
- *   행 클릭 → router.push(`/functions?screenId=${screenId}`)
+ *   행 클릭 → router.push(`/screens/${screenId}`)
+ *   리스트 아이콘 클릭 → router.push(`/functions?screenId=${screenId}`)
  *   연필 아이콘 클릭 → openEdit(row) → Dialog 열림 (e.stopPropagation으로 행 클릭 방지)
  */
 "use client";
@@ -17,7 +19,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation"; // 페이지 이동용 라우터
-import { Plus, Search, Trash2, Pencil } from "lucide-react"; // Pencil: 수정 아이콘
+import { Plus, Search, Trash2, Pencil, List } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { DataGrid } from "@/components/common/DataGrid";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -194,7 +196,7 @@ export default function ScreensPage() {
     },
     {
       id: "requirement",
-      header: "상위 요구사항",
+      header: "소속 요구사항",
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.requirement?.name}</span>
       ),
@@ -209,13 +211,14 @@ export default function ScreensPage() {
     },
     {
       /**
-       * 📌 actions 컬럼 — 수정/삭제 버튼
+       * 📌 actions 컬럼 — 기능목록/수정/삭제 버튼
        *
+       * 리스트 아이콘: 기능 관리 페이지로 이동 (해당 화면의 기능만 필터링)
        * 연필 아이콘: openEdit(row) → 화면 수정 다이얼로그 열기
        * 휴지통 아이콘: setDeleteItem(row) → 삭제 확인 다이얼로그 열기
        *
        * e.stopPropagation(): 버튼 클릭이 행(row) 클릭으로 전파되는 것을 방지
-       * → 버튼 없이 행 자체를 클릭하면 기능 목록 페이지로 이동
+       * → 버튼 없이 행 자체를 클릭하면 화면 상세 페이지로 이동
        */
       id: "actions",
       header: "",
@@ -224,6 +227,18 @@ export default function ScreensPage() {
           <Button
             variant="ghost"
             size="icon"
+            title="기능 목록"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/functions?screenId=${row.original.screenId}`);
+            }}
+          >
+            <List className="h-4 w-4 text-muted-foreground" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="수정"
             onClick={(e) => {
               e.stopPropagation();
               openEdit(row.original);
@@ -234,6 +249,7 @@ export default function ScreensPage() {
           <Button
             variant="ghost"
             size="icon"
+            title="삭제"
             onClick={(e) => {
               e.stopPropagation();
               setDeleteItem(row.original);
@@ -243,7 +259,7 @@ export default function ScreensPage() {
           </Button>
         </div>
       ),
-      size: 90,
+      size: 120,
       enableSorting: false,
     },
   ];
@@ -286,17 +302,17 @@ export default function ScreensPage() {
       </div>
 
       {/*
-       * 📌 행 클릭 → 기능 관리 페이지로 이동
-       *    해당 화면의 screenId를 쿼리스트링으로 전달
-       *    → /functions?screenId=7 형태
-       *    → 기능 목록에서 이 화면에 속한 기능만 필터링해서 표시
+       * 📌 행 클릭 → 화면 상세 페이지로 이동
+       *    → /screens/7 형태
+       *    → 화면 설명(spec), 레이아웃, 첨부파일, 하위 기능 목록 표시
        *
-       * 📌 수정은 우측 끝 연필(✏️) 아이콘 버튼으로 진행
+       * 📌 기능 목록은 actions 컬럼의 리스트(📋) 아이콘 버튼으로 이동
+       * 📌 수정은 연필(✏️) 아이콘 버튼으로 진행
        */}
       <DataGrid
         columns={columns}
         data={data?.data ?? []}
-        onRowClick={(row) => router.push(`/functions?screenId=${row.screenId}`)}
+        onRowClick={(row) => router.push(`/screens/${row.screenId}`)}
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 화면이 없습니다."}
@@ -333,7 +349,7 @@ export default function ScreensPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>상위 요구사항 *</Label>
+              <Label>소속 요구사항 *</Label>
               <Select
                 value={watch("requirementId")}
                 onValueChange={(v) => setValue("requirementId", v)}

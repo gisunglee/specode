@@ -19,6 +19,8 @@ export interface Screen {
   name: string;
   screenType: string | null;
   requirementId: number;
+  spec: string | null;
+  layoutData: string | null;
   createdAt: string;
   updatedAt: string;
   requirement?: Requirement;
@@ -26,6 +28,7 @@ export interface Screen {
     functions: number;
   };
   functions?: FunctionItem[];
+  attachments?: Attachment[];
 }
 
 export interface FunctionItem {
