@@ -122,6 +122,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         displayCode: body.displayCode ?? undefined,
         screenId: body.screenId ?? undefined,
         spec: body.spec ?? undefined,
+        aiDesignContent: body.aiDesignContent !== undefined ? body.aiDesignContent : undefined,
         dataFlow: body.dataFlow ?? undefined,
         changeReason: body.changeReason ?? undefined,
         priority: body.priority ?? undefined,
@@ -166,8 +167,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
 
   // Auto-create AI task on certain transitions
-  if (body.status === "REVIEW_REQ" || body.status === "IMPL_REQ") {
-    const taskType = body.status === "IMPL_REQ" ? "IMPLEMENT" : "REVIEW";
+  if (body.status === "REVIEW_REQ" || body.status === "DESIGN_REQ" || body.status === "IMPL_REQ") {
+    const taskType =
+      body.status === "IMPL_REQ" ? "IMPLEMENT" :
+      body.status === "DESIGN_REQ" ? "DESIGN" :
+      "REVIEW";
 
     /*
      * 📌 AI 태스크 생성
@@ -181,7 +185,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         systemId: taskSystemId,
         functionId: numId,
         taskType,
-        taskStatus: "PENDING",
+        taskStatus: "NONE",
         spec: func.spec,
         comment: body.comment?.trim() || null,
       },

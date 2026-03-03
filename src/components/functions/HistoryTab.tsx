@@ -58,6 +58,7 @@ interface HistoryTabProps {
  * API/DB에는 영문 코드로 저장, 화면에는 한글로 표시
  */
 const TASK_TYPE_LABEL: Record<string, string> = {
+  DESIGN: "설계요청",
   REVIEW: "설계검토",
   IMPLEMENT: "코드구현",
   IMPACT: "영향도분석",

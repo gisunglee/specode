@@ -3,7 +3,7 @@
  *
  * 📌 역할:
  *   - 하나의 기능(Function)에 대한 모든 정보를 한 페이지에 표시
- *   - 기본정보, 설계정보, AI피드백, 이력 4개 섹션을 스크롤로 탐색
+ *   - 기본정보, 설계, 상세설계, AI피드백 4개 섹션을 스크롤로 탐색
  *   - 상단 sticky 탭 네비게이션 + 콤팩트 헤더 (스크롤 시 자동 전환)
  *   - 상태(Status) 변경 드롭다운 (AI 요청 시 확인 대화상자 표시)
  *
@@ -55,9 +55,9 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog"; // 확인 대
 
 /* ─── 상수 & 유틸 임포트 ─────────────────────────────────── */
 import {
-  USER_SELECTABLE_STATUSES, // 사용자가 선택 가능한 상태 목록 (AI 전용 상태 제외)
-  AI_REQUEST_STATUSES, // AI 요청이 필요한 상태들 (검토요청, 구현요청, 변경검토요청)
-  FUNC_STATUS_LABEL, // 상태 코드 → 한글 라벨 매핑
+  USER_SELECTABLE_STATUSES,
+  AI_REQUEST_STATUSES,
+  FUNC_STATUS_LABEL,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils"; // Tailwind 클래스 병합 유틸
 
@@ -81,7 +81,7 @@ import { HistoryTab } from "@/components/functions/HistoryTab"; // 이력 탭
  */
 const SECTIONS = [
   { id: "basic", label: "기본정보" },
-  { id: "design", label: "설계정보" },
+  { id: "design", label: "설계" },
   { id: "ai-feedback", label: "AI피드백" },
 ] as const;
 
@@ -454,17 +454,19 @@ export default function FunctionDetailPage({
           </div>
         </div>
 
-        {/* 오른쪽: 상태 선택 드롭다운 + 저장됨 피드백 */}
-        <StatusSelector
-          currentStatus={func.status}
-          availableStatuses={availableStatuses}
-          isAiWorking={isAiWorking}
-          statusOpen={statusOpen}
-          setStatusOpen={setStatusOpen}
-          onStatusChange={handleStatusChange}
-          statusRef={statusRef}
-          statusSaved={statusSaved}
-        />
+        {/* 오른쪽: 상태 선택 드롭다운 */}
+        <div className="flex items-center gap-3">
+          <StatusSelector
+            currentStatus={func.status}
+            availableStatuses={availableStatuses}
+            isAiWorking={isAiWorking}
+            statusOpen={statusOpen}
+            setStatusOpen={setStatusOpen}
+            onStatusChange={handleStatusChange}
+            statusRef={statusRef}
+            statusSaved={statusSaved}
+          />
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════ */}
@@ -583,7 +585,7 @@ export default function FunctionDetailPage({
         ref={(el) => {
           sectionRefs.current["basic"] = el;
         }}
-        className="scroll-mt-32"
+        className="scroll-mt-40"
       >
         <BasicInfoTab key={`basic-${dataUpdatedAt}`} func={func} />
       </section>
@@ -595,7 +597,7 @@ export default function FunctionDetailPage({
         ref={(el) => {
           sectionRefs.current["design"] = el;
         }}
-        className="scroll-mt-32"
+        className="scroll-mt-40"
       >
         <DesignInfoTab
           key={`design-${dataUpdatedAt}`}
@@ -632,7 +634,7 @@ export default function FunctionDetailPage({
         ref={(el) => {
           sectionRefs.current["ai-feedback"] = el;
         }}
-        className="scroll-mt-32"
+        className="scroll-mt-40"
       >
         <h2 className="text-lg font-semibold mb-3">AI 피드백</h2>
         <AiFeedbackTab func={func} />

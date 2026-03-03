@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       data: {
         systemId,
         name: parsed.name,
+        content: parsed.content ?? null,
         description: parsed.description ?? null,
         priority: parsed.priority ?? null,
       },

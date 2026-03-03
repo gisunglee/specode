@@ -1,22 +1,24 @@
 /**
- * DesignInfoTab.tsx — 기능 상세 페이지의 "설계정보" 섹션 컴포넌트
+ * DesignInfoTab.tsx — 기능 상세 페이지의 "설계" 섹션 컴포넌트
  *
  * 📌 역할:
- *   - 기능 설명(마크다운)을 편집/미리보기 할 수 있는 에디터 영역 (왼쪽)
- *   - GS 코멘트 입력 (spec 아래) — AI 요청 시 함께 전달되는 메시지
+ *   - 기능 설명(마크다운)을 편집/미리보기 할 수 있는 에디터 영역 (왼쪽 상단)
+ *   - AI 상세설계(마크다운) — AI 자동 작성 또는 직접 편집 가능 (왼쪽 하단)
  *   - 참조 테이블, 공통 프로그램, 데이터 흐름 등 보조 정보 (오른쪽)
  *   - 선행/후행/화면이동 관계 테이블 표시
  *   - 첨부파일 관리 (AttachmentManager 공통 컴포넌트)
- *   - 저장 버튼은 "설계정보" 타이틀 오른쪽에 위치
+ *   - GS 코멘트 — 첨부파일 아래 (오른쪽 하단)
+ *   - 저장 버튼은 "설계" 타이틀 오른쪽에 위치
  *
  * 📌 레이아웃:
- *   설계정보                                                [저장]
+ *   설계                                                [저장]
  *   ┌─────────────────────────────────┬──────────────────────┐
  *   │  기능 설명 (MarkdownEditor)      │  참조 테이블          │
  *   │                                 │  공통 프로그램         │
- *   │  GS 코멘트 (spec 아래)           │  데이터 흐름          │
- *   │                                 │  관계 테이블          │
+ *   │  AI 상세설계 (MarkdownEditor)    │  데이터 흐름          │
+ *   │  (AI 자동 작성 or 직접 편집)     │  관계 테이블          │
  *   │                                 │  첨부파일             │
+ *   │                                 │  GS 코멘트            │
  *   └─────────────────────────────────┴──────────────────────┘
  *   [변경 사유 (조건부)]
  *
@@ -35,7 +37,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { TagInput } from "@/components/common/TagInput";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
@@ -64,7 +65,7 @@ interface DesignInfoTabProps {
 }
 
 /**
- * DesignInfoTab — 설계정보 탭 메인 컴포넌트
+ * DesignInfoTab — 설계 탭 메인 컴포넌트
  *
  * 📌 이 컴포넌트는 부모(page.tsx)에서 key={`design-${dataUpdatedAt}`} 로
  *    렌더링되므로, 서버 데이터가 변경되면 컴포넌트가 완전히 재생성(re-mount)됩니다.
@@ -80,6 +81,7 @@ export function DesignInfoTab({
 
   /* ─── 폼 상태 관리 ─────────────────────────────────────── */
   const [spec, setSpec] = useState(func.spec || "");
+  const [aiDesignContent, setAiDesignContent] = useState(func.aiDesignContent || "");
   const [dataFlow, setDataFlow] = useState(func.dataFlow || "");
   const [changeReason, setChangeReason] = useState("");
 
@@ -128,6 +130,7 @@ export function DesignInfoTab({
     ];
     updateMutation.mutate({
       spec,
+      aiDesignContent: aiDesignContent || null,
       dataFlow,
       changeReason: changeReason || undefined,
       references,
@@ -139,12 +142,12 @@ export function DesignInfoTab({
     <div className="space-y-5">
       {/*
        * 📌 타이틀 행 구조:
-       *   설계정보              [AI 피드백] [AI 요청 이력] [저장]
+       *   설계              [AI 피드백] [AI 요청 이력] [저장]
        *
        *   headerExtra는 부모(page.tsx)에서 전달하는 추가 버튼 요소
        */}
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">설계정보</h2>
+        <h2 className="text-lg font-semibold">설계</h2>
         <div className="flex items-center gap-2">
           {headerExtra}
           <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
@@ -161,60 +164,48 @@ export function DesignInfoTab({
       <div className="rounded-lg border border-border bg-card p-6 space-y-5">
         {/*
          * 2-column 그리드 레이아웃
-         * 왼쪽 (3/5): 기능 설명 마크다운 에디터 + GS 코멘트
-         * 오른쪽 (2/5): 참조테이블, 공통프로그램, 데이터흐름, 관계, 첨부파일
+         * 왼쪽 (3/5): 기능 설명 + AI 상세설계 에디터
+         * 오른쪽 (2/5): 참조테이블, 공통프로그램, 데이터흐름, 관계, 첨부파일, GS코멘트
          */}
         <div className="grid grid-cols-5 gap-6">
           {/* ═══════════════════════════════════════════════════ */}
-          {/* 왼쪽 영역: 기능 설명 + GS 코멘트                      */}
+          {/* 왼쪽 영역: 기능 설명 + AI 상세설계                   */}
           {/* ═══════════════════════════════════════════════════ */}
           <div className="col-span-3 space-y-4">
-            {/* ── 마크다운 에디터 (공통 컴포넌트) ──────────── */}
+            {/* ── 기능 설명 마크다운 에디터 ──────────────────── */}
             <MarkdownEditor
               value={spec}
               onChange={setSpec}
               label="기능 설명 (마크다운) *"
-              rows={24}
+              rows={18}
               placeholder="기능 설명을 마크다운으로 작성하세요..."
             />
 
             {/*
-             * ═══════════════════════════════════════════════════
-             * GS 코멘트 — AI에게 전달할 추가 메시지
+             * ── AI 상세설계 마크다운 에디터 ────────────────────
              *
-             * 📌 spec textarea 바로 아래에 위치
-             *    사용자가 여기에 코멘트를 적어두면,
-             *    우측 상단 상태 드롭다운에서 AI 요청 상태로 변경할 때
-             *    spec과 함께 이 코멘트가 AI에게 전달됩니다.
-             *
-             * 📌 Controlled Component 패턴:
-             *    부모(page.tsx)가 gsComment 상태를 소유하고
-             *    이 컴포넌트는 입력 UI만 담당합니다.
-             * ═══════════════════════════════════════════════════
+             * 📌 AI가 DESIGN 태스크 완료 후 자동으로 채워주지만,
+             *    사람이 직접 작성/수정도 가능한 필드입니다.
+             *    저장 버튼 클릭 시 aiDesignContent 컬럼에 저장됩니다.
              */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">GS 코멘트</Label>
-              <Textarea
-                value={gsComment}
-                onChange={(e) => onGsCommentChange(e.target.value)}
-                placeholder="AI에게 전달할 추가 요청사항... (예: cascade는 soft delete로 해줘)"
-                rows={2}
-                className="text-sm"
-              />
-              <p className="text-[11px] text-muted-foreground">
-                상태 변경 시 spec과 함께 AI에게 전달됩니다.
-              </p>
-            </div>
+            <MarkdownEditor
+              value={aiDesignContent}
+              onChange={setAiDesignContent}
+              label="AI 상세설계 (마크다운)"
+              rows={15}
+              placeholder="AI가 설계요청 후 자동으로 작성하거나, 직접 작성할 수 있습니다..."
+            />
           </div>
 
           {/* ═══════════════════════════════════════════════════ */}
-          {/* 오른쪽 영역: 보조 정보                                */}
+          {/* 오른쪽 영역: 보조 정보 + GS 코멘트                   */}
           {/*                                                     */}
-          {/* 📌 pt-8: 왼쪽 영역의 라벨+토글 행 높이(≈32px)만큼     */}
-          {/*    상단 여백을 추가하여 참조 테이블 입력이              */}
-          {/*    spec textarea의 상단 라인과 정렬되도록 맞춤         */}
+          {/* 📌 pt-3: 왼쪽 MarkdownEditor 헤더(라벨+토글, ~26px) + */}
+          {/*    space-y-2 gap(8px) = textarea top ≈ 34px          */}
+          {/*    우측 참조테이블 label(16px) + space-y-1.5(6px)=22px */}
+          {/*    → pt = 34 - 22 = 12px ≈ pt-3                      */}
           {/* ═══════════════════════════════════════════════════ */}
-          <div className="col-span-2 space-y-5 pt-8">
+          <div className="col-span-2 space-y-5 pt-3">
             {/* ── 참조 테이블 ──────────────────────────────── */}
             <div className="space-y-1.5">
               <Label className="text-xs">참조 테이블</Label>
@@ -300,6 +291,29 @@ export function DesignInfoTab({
               attachments={func.attachments ?? []}
               onChanged={handleFileChange}
             />
+
+            {/*
+             * ── GS 코멘트 (첨부파일 아래) ─────────────────
+             *
+             * 📌 AI 요청 상태로 변경할 때 spec, aiDesignContent와 함께
+             *    이 코멘트가 AI에게 전달됩니다.
+             *
+             * 📌 Controlled Component 패턴:
+             *    부모(page.tsx)가 gsComment 상태를 소유하고
+             *    이 컴포넌트는 입력 UI만 담당합니다.
+             */}
+            <div className="space-y-1">
+              <MarkdownEditor
+                value={gsComment}
+                onChange={onGsCommentChange}
+                label="GS 코멘트"
+                rows={3}
+                placeholder="AI에게 전달할 추가 요청사항... (예: cascade는 soft delete로 해줘)"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                상태 변경 시 spec과 함께 AI에게 전달됩니다.
+              </p>
+            </div>
           </div>
         </div>
 

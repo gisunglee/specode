@@ -23,7 +23,14 @@ export async function GET() {
   const recentActivity = await prisma.aiTask.findMany({
     take: 10,
     orderBy: { requestedAt: "desc" },
-    include: {
+    select: {
+      aiTaskId: true,
+      functionId: true,
+      taskType: true,
+      taskStatus: true,
+      requestedAt: true,
+      completedAt: true,
+      feedback: true,
       function: {
         select: { systemId: true, name: true },
       },

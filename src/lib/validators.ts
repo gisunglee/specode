@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const requirementSchema = z.object({
   name: z.string().min(1, "요구사항명은 필수입니다."),
-  description: z.string().optional().nullable(),
+  content: z.string().optional().nullable(),     // 요구사항 내용 (원문)
+  description: z.string().optional().nullable(), // 요구사항 분석 내용
   priority: z.string().optional().nullable(),
 });
 

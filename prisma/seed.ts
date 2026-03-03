@@ -459,7 +459,7 @@ async function main() {
       systemId: "ATK-00001",
       functionId: fn1.functionId,
       taskType: "REVIEW",
-      taskStatus: "DONE",
+      taskStatus: "NEEDS_CHECK",
       spec: fn1.spec,
       feedback: "## 검토 결과\n\n### 이슈 1: 검색 조건 기본값\n회계연도 기본값 정의 필요.\n\n### 이슈 2: cascade 삭제\nSoft delete 적용 권장.\n\n### 종합\n이슈 2건 외 설계 양호.",
       requestedAt: new Date("2026-02-27T10:00:00"),
@@ -474,7 +474,7 @@ async function main() {
       systemId: "ATK-00002",
       functionId: fn1.functionId,
       taskType: "REPROCESS",
-      taskStatus: "DONE",
+      taskStatus: "AUTO_FIXED",
       spec: fn1.spec,
       comment: "cascade 삭제는 soft delete로 해줘. 그리고 페이징은 무한스크롤로.",
       feedback: "## 재검토 결과\n\n### 반영 사항\n1. **Soft Delete**: `use_yn = 'N'` 업데이트 방식으로 변경\n2. **무한스크롤**: 커서 기반 페이징 적용 (lastId 방식)\n\n### 수정된 설계 포인트\n- 삭제 API: `DELETE` → `PATCH` (use_yn 변경)\n- 목록 API: `offset` 기반 → `cursor` 기반 페이징",
@@ -490,7 +490,7 @@ async function main() {
       systemId: "ATK-00003",
       functionId: fn3.functionId,
       taskType: "IMPLEMENT",
-      taskStatus: "DONE",
+      taskStatus: "SUCCESS",
       spec: fn3.spec,
       feedback: "## 구현 완료\n\n### 생성 파일\n- `BgtDsctnBizController.java`\n- `BgtDsctnBizService.java`\n- `BgtDsctnBizMapper.xml`\n\n### 주요 구현\n- Soft delete 적용\n- 하위 데이터 존재 시 삭제 차단",
       requestedAt: new Date("2026-02-27T16:00:00"),
@@ -505,7 +505,7 @@ async function main() {
       systemId: "ATK-00004",
       functionId: fn4.functionId,
       taskType: "REVIEW",
-      taskStatus: "DONE",
+      taskStatus: "SUCCESS",
       spec: fn4.spec,
       feedback: "## 검토 결과\n\n설계 내용이 명확하고 충분합니다.\n\n### 참고사항\n- 집행액은 배치 결과 조회\n- 변경이력은 최근 50건 제한",
       requestedAt: new Date("2026-02-28T09:00:00"),
@@ -514,13 +514,13 @@ async function main() {
     },
   });
 
-  // ATK-00005: FID-00005 검토 — 대기중 (PENDING)
+  // ATK-00005: FID-00005 검토 — 대기중 (NONE)
   await prisma.aiTask.create({
     data: {
       systemId: "ATK-00005",
       functionId: fn1.functionId + 4, // FID-00005
       taskType: "REVIEW",
-      taskStatus: "PENDING",
+      taskStatus: "NONE",
       spec: "## 수정 기능\n\n상세 화면에서 세부사업 정보를 수정합니다.",
       requestedAt: new Date("2026-02-28T11:00:00"),
     },

@@ -45,6 +45,7 @@ import {
 /* ─── 상수 & 유틸 임포트 ──────────────────────────────────── */
 import { SCREEN_TYPES } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
+import { DEFAULT_SCREEN_SPEC } from "@/lib/templates/screenSpec";
 import type { ColumnDef } from "@tanstack/react-table";
 
 /* ─── 하위 기능 행 타입 (DataGrid 용) ─────────────────────── */
@@ -114,7 +115,7 @@ export default function ScreenDetailPage({
    */
   useEffect(() => {
     if (screen) {
-      setSpec(screen.spec || "");
+      setSpec(screen.spec || DEFAULT_SCREEN_SPEC);
       setLayoutRows(parseLayoutData(screen.layoutData));
     }
   }, [dataUpdatedAt]);

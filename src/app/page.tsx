@@ -11,11 +11,11 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
-import { StatusBadge } from "@/components/common/StatusBadge";
-import { FUNC_STATUS_LABEL } from "@/lib/constants";
+import { FUNC_STATUS_LABEL, AI_TASK_STATUS_LABEL } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 
 const TASK_TYPE_LABEL: Record<string, string> = {
+  DESIGN: "설계요청",
   REVIEW: "설계검토",
   IMPLEMENT: "코드구현",
   IMPACT: "영향도분석",
@@ -167,31 +167,78 @@ export default function DashboardPage() {
             아직 AI 활동이 없습니다.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {recentActivity.map(
               (activity: {
                 aiTaskId: number;
+                functionId: number;
                 requestedAt: string;
+                completedAt: string | null;
                 taskType: string;
                 taskStatus: string;
+                feedback: string | null;
                 function: { systemId: string; name: string };
-              }) => (
-                <div
-                  key={activity.aiTaskId}
-                  className="flex items-center gap-4 rounded-lg bg-muted/30 px-4 py-3 text-sm"
-                >
-                  <span className="text-muted-foreground whitespace-nowrap">
-                    {formatDateTime(activity.requestedAt)}
-                  </span>
-                  <StatusBadge status={activity.taskStatus} />
-                  <span className="font-medium">
-                    {activity.function.systemId} {activity.function.name}
-                  </span>
-                  <span className="text-muted-foreground truncate">
-                    {TASK_TYPE_LABEL[activity.taskType] ?? activity.taskType}
-                  </span>
-                </div>
-              )
+              }) => {
+                const statusCfg = AI_TASK_STATUS_LABEL[activity.taskStatus];
+                // 마크다운 기호 제거 후 의미있는 첫 줄 추출
+                const feedbackPreview = activity.feedback
+                  ? activity.feedback
+                      .replace(/^#+\s*/gm, "")
+                      .replace(/[*`\[\]]/g, "")
+                      .trim()
+                      .split("\n")
+                      .find((l) => l.trim().length > 5) ?? ""
+                  : "";
+                return (
+                  <div
+                    key={activity.aiTaskId}
+                    onClick={() => router.push(`/functions/${activity.functionId}`)}
+                    className="rounded-lg border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/50 hover:border-border/80 transition-colors group"
+                  >
+                    {/* 상단: 작업유형 뱃지 + 상태 */}
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-muted text-muted-foreground">
+                        {TASK_TYPE_LABEL[activity.taskType] ?? activity.taskType}
+                      </span>
+                      {statusCfg ? (
+                        <span className={`text-xs font-medium ${statusCfg.class}`}>
+                          {statusCfg.label}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">{activity.taskStatus}</span>
+                      )}
+                    </div>
+
+                    {/* 기능명 */}
+                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors mb-1">
+                      {activity.function.systemId} {activity.function.name}
+                    </p>
+
+                    {/* 피드백 미리보기 */}
+                    {feedbackPreview ? (
+                      <p className="text-xs text-muted-foreground truncate mb-2">
+                        {feedbackPreview.length > 80 ? feedbackPreview.slice(0, 80) + "…" : feedbackPreview}
+                      </p>
+                    ) : (
+                      <div className="mb-2" />
+                    )}
+
+                    {/* 하단: 요청/완료 시각 */}
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border pt-2 mt-1">
+                      <span>
+                        <span className="text-muted-foreground/60 mr-1">요청</span>
+                        {formatDateTime(activity.requestedAt)}
+                      </span>
+                      {activity.completedAt && (
+                        <span>
+                          <span className="text-muted-foreground/60 mr-1">완료</span>
+                          {formatDateTime(activity.completedAt)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
             )}
           </div>
         )}

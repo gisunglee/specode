@@ -53,6 +53,7 @@ import {
 import {
   FUNC_STATUS_LABEL,
   PRIORITIES,
+  AI_TASK_STATUS_LABEL,
 } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -73,6 +74,11 @@ interface FunctionRow {
     systemId: string;
     requirement: { name: string };
   };
+  tasks: {
+    taskStatus: string;
+    taskType: string;
+    completedAt: string | null;
+  }[];
 }
 
 /** 화면 목록 API 응답의 행 타입 (화면 선택 콤보박스용) */
@@ -308,6 +314,28 @@ function FunctionsContent() {
           {row.original.screen?.name}
         </span>
       ),
+    },
+    {
+      id: "latestAi",
+      header: "AI 결과",
+      cell: ({ row }) => {
+        const latest = row.original.tasks?.[0];
+        if (!latest) return <span className="text-muted-foreground">-</span>;
+        const cfg = AI_TASK_STATUS_LABEL[latest.taskStatus];
+        return (
+          <div>
+            <span className={`text-xs ${cfg?.class ?? ""}`}>
+              {cfg?.label ?? latest.taskStatus}
+            </span>
+            {latest.completedAt && (
+              <p className="text-[11px] text-muted-foreground">
+                {formatDate(latest.completedAt)}
+              </p>
+            )}
+          </div>
+        );
+      },
+      size: 130,
     },
     {
       accessorKey: "updatedAt",

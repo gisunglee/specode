@@ -2,7 +2,8 @@ export interface Requirement {
   requirementId: number;
   systemId: string;
   name: string;
-  description: string | null;
+  content: string | null;     // 요구사항 내용 (원문 HTML)
+  description: string | null; // 요구사항 분석 내용 (HTML)
   priority: string | null;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +47,7 @@ export interface FunctionItem {
   aiReviewResult: string | null;
   aiConflictFunctions: string | null;
   aiImpactAnalysis: string | null;
+  aiDesignContent: string | null;  // AI가 작성한 상세 설계 내용 (마크다운)
   aiImplFeedback: string | null;
   aiImplIssues: string | null;
   gitlabPrUrl: string | null;
@@ -95,8 +97,8 @@ export interface AiTask {
   aiTaskId: number;
   systemId: string;
   functionId: number;
-  taskType: string;       // REVIEW | IMPLEMENT | IMPACT | REPROCESS
-  taskStatus: string;     // PENDING | RUNNING | DONE | FAILED
+  taskType: string;       // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS
+  taskStatus: string;     // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED
   spec: string | null;    // AI 호출 시점 spec 스냅샷
   comment: string | null; // GS 추가 요청 (재처리용, NULL이면 최초 요청)
   feedback: string | null; // AI 결과 (마크다운 통째로)

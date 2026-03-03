@@ -33,6 +33,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       where: { requirementId: parseInt(id) },
       data: {
         name: parsed.name,
+        content: parsed.content ?? null,
         description: parsed.description ?? null,
         priority: parsed.priority ?? null,
       },

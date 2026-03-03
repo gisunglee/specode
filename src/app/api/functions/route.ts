@@ -36,6 +36,11 @@ export async function GET(request: NextRequest) {
         screen: {
           select: { name: true, systemId: true, requirement: { select: { name: true } } },
         },
+        tasks: {
+          select: { taskStatus: true, taskType: true, completedAt: true },
+          orderBy: { requestedAt: "desc" },
+          take: 1,
+        },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,

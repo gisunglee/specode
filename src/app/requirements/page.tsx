@@ -7,10 +7,10 @@ import { Plus, Search, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { DataGrid } from "@/components/common/DataGrid";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { RichTextEditor } from "@/components/common/RichTextEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -33,6 +33,8 @@ interface RequirementRow {
   requirementId: number;
   systemId: string;
   name: string;
+  content: string | null;      // 요구사항 내용 (원문)
+  description: string | null;  // 요구사항 분석 내용
   priority: string | null;
   screenCount: number;
   functionCount: number;
@@ -48,8 +50,15 @@ export default function RequirementsPage() {
   const [editItem, setEditItem] = useState<RequirementRow | null>(null);
   const [deleteItem, setDeleteItem] = useState<RequirementRow | null>(null);
 
+  /* ── 리치텍스트 에디터 상태 (react-hook-form 외부 관리) ── */
+  const [contentHtml, setContentHtml] = useState("");
+  const [descriptionHtml, setDescriptionHtml] = useState("");
+
+  /* ── 에디터 리마운트용 key: 다이얼로그 열릴 때마다 새 인스턴스 */
+  const [editorKey, setEditorKey] = useState(0);
+
   const { register, handleSubmit, reset, setValue, watch } = useForm({
-    defaultValues: { name: "", description: "", priority: "MEDIUM" },
+    defaultValues: { name: "", priority: "MEDIUM" },
   });
 
   const { data, isLoading } = useQuery({
@@ -60,6 +69,16 @@ export default function RequirementsPage() {
       const res = await fetch(`/api/requirements?${params}`);
       return res.json();
     },
+  });
+
+  /* ── 수정 시: 소속 화면 목록 조회 ────────────────────────── */
+  const { data: reqDetail } = useQuery({
+    queryKey: ["requirement-detail", editItem?.requirementId],
+    queryFn: async () => {
+      const res = await fetch(`/api/requirements/${editItem!.requirementId}`);
+      return res.json();
+    },
+    enabled: !!editItem,
   });
 
   const createMutation = useMutation({
@@ -108,21 +127,33 @@ export default function RequirementsPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    reset({ name: "", description: "", priority: "MEDIUM" });
+    reset({ name: "", priority: "MEDIUM" });
+    setContentHtml("");
+    setDescriptionHtml("");
+    setEditorKey((k) => k + 1); // 에디터 리마운트
     setDialogOpen(true);
   };
 
   const openEdit = (row: RequirementRow) => {
     setEditItem(row);
-    reset({ name: row.name, description: "", priority: row.priority || "MEDIUM" });
+    reset({ name: row.name, priority: row.priority || "MEDIUM" });
+    setContentHtml(row.content || "");
+    setDescriptionHtml(row.description || "");
+    setEditorKey((k) => k + 1); // 에디터 리마운트
     setDialogOpen(true);
   };
 
-  const onSubmit = (formData: { name: string; description: string; priority: string }) => {
+  const onSubmit = (formData: { name: string; priority: string }) => {
+    const body = {
+      name: formData.name,
+      priority: formData.priority,
+      content: contentHtml || null,
+      description: descriptionHtml || null,
+    };
     if (editItem) {
-      updateMutation.mutate({ id: editItem.requirementId, ...formData });
+      updateMutation.mutate({ id: editItem.requirementId, ...body });
     } else {
-      createMutation.mutate(formData);
+      createMutation.mutate(body);
     }
   };
 
@@ -210,68 +241,127 @@ export default function RequirementsPage() {
         emptyMessage={isLoading ? "로딩 중..." : "등록된 요구사항이 없습니다."}
       />
 
-      {/* Create/Edit Dialog */}
+      {/* ═══════════════════════════════════════════════════════ */}
+      {/* 등록/수정 다이얼로그                                     */}
+      {/*                                                       */}
+      {/* 📌 w-[92vw] max-w-6xl: 화면 92% 너비, 최대 6xl       */}
+      {/* 📌 editorKey: 다이얼로그 열릴 때 RichTextEditor 리마운트  */}
+      {/* ═══════════════════════════════════════════════════════ */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        {/*
+          📌 flex flex-col: 헤더(고정) + 스크롤영역(flex-1) 분리
+          📌 overflow-hidden: DialogContent 자체는 스크롤 안 함
+        */}
+        <DialogContent className="w-[98vw] max-w-[100rem] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+
+          {/* ── 고정 헤더: 스크롤해도 항상 보임 ── */}
+          <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-border">
             <DialogTitle>
               {editItem ? "요구사항 수정" : "요구사항 등록"}
             </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label>요구사항 명 *</Label>
-              <Input {...register("name", { required: true })} placeholder="요구사항 명을 입력하세요" />
-            </div>
-            <div className="space-y-2">
-              <Label>설명</Label>
-              <Textarea {...register("description")} placeholder="설명을 입력하세요" rows={3} />
-            </div>
-            <div className="space-y-2">
-              <Label>우선순위</Label>
-              <Select
-                value={watch("priority")}
-                onValueChange={(v) => setValue("priority", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map((p) => (
-                    <SelectItem key={p.value} value={p.value}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
-                취소
-              </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? "처리중..."
-                  : "저장"}
-              </Button>
-            </DialogFooter>
-          </form>
+
+          {/* ── 스크롤 영역 ── */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* ── 1행: 요구사항 명 + 우선순위 (items-start: 라벨 상단 정렬) */}
+              <div className="flex items-start gap-4">
+                <div className="flex-1 space-y-1.5">
+                  <Label className="text-xs">요구사항 명 *</Label>
+                  <Input
+                    {...register("name", { required: true })}
+                    placeholder="요구사항 명을 입력하세요"
+                  />
+                </div>
+                <div className="w-28 space-y-1.5">
+                  <Label className="text-xs">우선순위</Label>
+                  <Select
+                    value={watch("priority")}
+                    onValueChange={(v) => setValue("priority", v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRIORITIES.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* ── 2행: 에디터 2개 — 넓으면 가로, 좁으면 세로 ─────── */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* 왼쪽(위): 요구사항 내용 (원문) */}
+                <RichTextEditor
+                  key={`content-${editorKey}`}
+                  label="요구사항 내용 (원문)"
+                  value={contentHtml}
+                  onChange={setContentHtml}
+                  placeholder="제안요청서 원문을 입력하세요..."
+                  heightClass="min-h-[30rem]"
+                />
+
+                {/* 오른쪽(아래): 요구사항 분석 내용 */}
+                <RichTextEditor
+                  key={`desc-${editorKey}`}
+                  label="요구사항 분석 내용"
+                  value={descriptionHtml}
+                  onChange={setDescriptionHtml}
+                  placeholder="GS가 분석·정리한 내용을 입력하세요..."
+                  heightClass="min-h-[30rem]"
+                />
+              </div>
+
+              {/* ── 소속 화면 목록 (수정 시만 표시) ────────────────── */}
+              {editItem && reqDetail?.data?.screens?.length > 0 && (
+                <div className="flex items-center gap-2 pt-1 border-t border-border">
+                  <span className="text-xs text-muted-foreground shrink-0">소속 화면</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {reqDetail.data.screens.map((s: { screenId: number; systemId: string; name: string }) => (
+                      <button
+                        key={s.screenId}
+                        type="button"
+                        onClick={() => router.push(`/screens/${s.screenId}`)}
+                        className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs text-secondary-foreground hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+                      >
+                        {s.systemId} {s.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDialogOpen(false)}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  {createMutation.isPending || updateMutation.isPending
+                    ? "처리중..."
+                    : "저장"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirm */}
+      {/* 삭제 확인 */}
       <ConfirmDialog
         open={!!deleteItem}
         onOpenChange={() => setDeleteItem(null)}
         title="요구사항 삭제"
-        // DialogDescription은 <p>로 렌더되므로 <div> 대신 Fragment(<>...</>) 사용 (HTML 유효성)
         description={
           <>
             "{deleteItem?.name}"을(를) 삭제하시겠습니까?
