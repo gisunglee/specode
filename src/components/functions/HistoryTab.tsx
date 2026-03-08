@@ -218,25 +218,16 @@ export function HistoryTab({ func }: HistoryTabProps) {
                         </div>
                       )}
 
-                      {/* ── 관련 파일 목록 ──────────────── */}
-                      {task.files && task.files.length > 0 && (
+
+                      {/* ── AI 처리 파일 목록 (조회 전용) ── */}
+                      {task.resultFiles && (
                         <div className="rounded-md bg-muted/20 p-3">
-                          <p className="text-xs font-medium text-muted-foreground mb-2">
-                            관련 파일
-                          </p>
-                          {task.files.map((f) => (
-                            <div
-                              key={f.funcFileId}
-                              className="text-xs font-mono py-0.5"
-                            >
-                              {f.filePath}
-                              {f.description && (
-                                <span className="text-muted-foreground ml-2">
-                                  — {f.description}
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                          <p className="text-xs font-medium text-muted-foreground mb-1.5">처리 파일</p>
+                          <div className="space-y-0.5">
+                            {task.resultFiles.split("\n").filter((f) => f.trim()).map((f, i) => (
+                              <p key={i} className="text-xs font-mono">{f.trim()}</p>
+                            ))}
+                          </div>
                         </div>
                       )}
 

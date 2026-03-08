@@ -15,34 +15,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           requirement: { select: { name: true, systemId: true } },
         },
       },
-      references: { orderBy: { createdAt: "asc" } },
-      relations: {
-        include: {
-          targetFunction: {
-            select: { systemId: true, displayCode: true, name: true },
-          },
-        },
-        orderBy: { createdAt: "asc" },
-      },
-      relatedBy: {
-        include: {
-          sourceFunction: {
-            select: { systemId: true, displayCode: true, name: true },
-          },
-        },
-      },
-      /* 기능 레벨 파일 (aiTaskId가 null인 것만 — AI 태스크 소속이 아닌 파일) */
-      files: {
-        where: { aiTaskId: null },
-        orderBy: { createdAt: "asc" },
-      },
-      /* AI 작업 이력 — 최신순 정렬, 각 태스크의 파일 목록 포함 */
-      tasks: {
-        include: {
-          files: { orderBy: { createdAt: "asc" } },
-        },
-        orderBy: { requestedAt: "desc" },
-      },
     },
   });
 
@@ -50,12 +22,19 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return apiError("NOT_FOUND", "기능을 찾을 수 없습니다.", 404);
   }
 
-  const attachments = await prisma.attachment.findMany({
-    where: { refTableName: "tb_function", refPkId: parseInt(id), delYn: "N" },
-    orderBy: { createdAt: "asc" },
-  });
+  const [attachments, tasks] = await Promise.all([
+    prisma.attachment.findMany({
+      where: { refTableName: "tb_function", refPkId: parseInt(id), delYn: "N" },
+      orderBy: { createdAt: "asc" },
+    }),
+    // AiTask는 polymorphic이라 Prisma relation 없이 직접 조회
+    prisma.aiTask.findMany({
+      where: { refTableName: "tb_function", refPkId: parseInt(id) },
+      orderBy: { requestedAt: "desc" },
+    }),
+  ]);
 
-  return apiSuccess({ ...data, attachments });
+  return apiSuccess({ ...data, attachments, tasks });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -73,48 +52,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiError("NOT_FOUND", "기능을 찾을 수 없습니다.", 404);
     }
 
-    // Update references if provided
-    if (body.references) {
-      await prisma.funcReference.deleteMany({ where: { functionId: numId } });
-      if (body.references.length > 0) {
-        await prisma.funcReference.createMany({
-          data: body.references.map(
-            (r: { refType: string; refValue: string; description?: string }) => ({
-              functionId: numId,
-              refType: r.refType,
-              refValue: r.refValue,
-              description: r.description ?? null,
-            })
-          ),
-        });
-      }
-    }
-
-    // Update relations if provided
-    if (body.relations) {
-      await prisma.funcRelation.deleteMany({
-        where: { sourceFunctionId: numId },
-      });
-      if (body.relations.length > 0) {
-        await prisma.funcRelation.createMany({
-          data: body.relations.map(
-            (r: {
-              targetFunctionId: number;
-              relationType: string;
-              params?: string;
-              description?: string;
-            }) => ({
-              sourceFunctionId: numId,
-              targetFunctionId: r.targetFunctionId,
-              relationType: r.relationType,
-              params: r.params ?? null,
-              description: r.description ?? null,
-            })
-          ),
-        });
-      }
-    }
-
     const data = await prisma.function.update({
       where: { functionId: numId },
       data: {
@@ -123,6 +60,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         screenId: body.screenId ?? undefined,
         spec: body.spec ?? undefined,
         aiDesignContent: body.aiDesignContent !== undefined ? body.aiDesignContent : undefined,
+        relatedFiles: body.relatedFiles !== undefined ? (body.relatedFiles || null) : undefined,
+        refContent: body.refContent !== undefined ? (body.refContent || null) : undefined,
         dataFlow: body.dataFlow ?? undefined,
         changeReason: body.changeReason ?? undefined,
         priority: body.priority ?? undefined,
@@ -183,7 +122,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     await prisma.aiTask.create({
       data: {
         systemId: taskSystemId,
-        functionId: numId,
+        refTableName: "tb_function",
+        refPkId: numId,
         taskType,
         taskStatus: "NONE",
         spec: func.spec,

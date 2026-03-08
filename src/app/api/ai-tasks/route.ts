@@ -13,20 +13,47 @@ export async function GET(request: NextRequest) {
   if (taskStatus) where.taskStatus = taskStatus;
   if (taskType) where.taskType = taskType;
 
-  const [data, total] = await Promise.all([
+  const [tasks, total] = await Promise.all([
     prisma.aiTask.findMany({
       where,
-      include: {
-        function: {
-          select: { systemId: true, name: true, displayCode: true },
-        },
-      },
       orderBy: { requestedAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
     prisma.aiTask.count({ where }),
   ]);
+
+  /* ── 대상 엔티티 정보를 refTableName별로 일괄 조회 ─────────── */
+  const fnIds = tasks.filter(t => t.refTableName === "tb_function").map(t => t.refPkId);
+  const gIds  = tasks.filter(t => t.refTableName === "tb_standard_guide").map(t => t.refPkId);
+
+  const [functions, guides] = await Promise.all([
+    fnIds.length
+      ? prisma.function.findMany({
+          where: { functionId: { in: fnIds } },
+          select: { functionId: true, systemId: true, name: true, displayCode: true },
+        })
+      : Promise.resolve([]),
+    gIds.length
+      ? prisma.standardGuide.findMany({
+          where: { guideId: { in: gIds } },
+          select: { guideId: true, systemId: true, title: true, category: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const fnMap  = new Map(functions.map(f => [f.functionId, f]));
+  const gMap   = new Map(guides.map(g => [g.guideId, g]));
+
+  const data = tasks.map(t => ({
+    ...t,
+    target:
+      t.refTableName === "tb_function"
+        ? (fnMap.get(t.refPkId) ?? null)
+        : t.refTableName === "tb_standard_guide"
+          ? (gMap.get(t.refPkId) ?? null)
+          : null,
+  }));
 
   return apiSuccess(data, {
     page,

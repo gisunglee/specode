@@ -20,22 +20,39 @@ export async function GET() {
 
   const totalFunctions = Object.values(byStatus).reduce((a, b) => a + b, 0);
 
-  const recentActivity = await prisma.aiTask.findMany({
+  const rawActivity = await prisma.aiTask.findMany({
     take: 10,
     orderBy: { requestedAt: "desc" },
     select: {
       aiTaskId: true,
-      functionId: true,
+      refTableName: true,
+      refPkId: true,
       taskType: true,
       taskStatus: true,
       requestedAt: true,
       completedAt: true,
       feedback: true,
-      function: {
-        select: { systemId: true, name: true },
-      },
     },
   });
+
+  // 폴리모픽 관계: tb_function인 경우 함수 정보 조회
+  const funcIds = rawActivity
+    .filter((a) => a.refTableName === "tb_function")
+    .map((a) => a.refPkId);
+
+  const functions = funcIds.length
+    ? await prisma.function.findMany({
+        where: { id: { in: funcIds } },
+        select: { id: true, systemId: true, name: true },
+      })
+    : [];
+
+  const funcMap = new Map(functions.map((f) => [f.id, f]));
+
+  const recentActivity = rawActivity.map((a) => ({
+    ...a,
+    function: a.refTableName === "tb_function" ? (funcMap.get(a.refPkId) ?? null) : null,
+  }));
 
   return apiSuccess({
     summary: {

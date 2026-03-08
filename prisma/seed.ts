@@ -18,7 +18,6 @@ const prisma = new PrismaClient();
 
 async function main() {
   /* ─── 기존 데이터 전부 삭제 (순서 중요: FK 의존성) ────────── */
-  await prisma.funcFile.deleteMany();
   await prisma.aiTask.deleteMany();
   await prisma.funcRelation.deleteMany();
   await prisma.funcReference.deleteMany();
@@ -457,7 +456,8 @@ async function main() {
   await prisma.aiTask.create({
     data: {
       systemId: "ATK-00001",
-      functionId: fn1.functionId,
+      refTableName: "tb_function",
+      refPkId: fn1.functionId,
       taskType: "REVIEW",
       taskStatus: "NEEDS_CHECK",
       spec: fn1.spec,
@@ -472,7 +472,8 @@ async function main() {
   await prisma.aiTask.create({
     data: {
       systemId: "ATK-00002",
-      functionId: fn1.functionId,
+      refTableName: "tb_function",
+      refPkId: fn1.functionId,
       taskType: "REPROCESS",
       taskStatus: "AUTO_FIXED",
       spec: fn1.spec,
@@ -488,7 +489,8 @@ async function main() {
   await prisma.aiTask.create({
     data: {
       systemId: "ATK-00003",
-      functionId: fn3.functionId,
+      refTableName: "tb_function",
+      refPkId: fn3.functionId,
       taskType: "IMPLEMENT",
       taskStatus: "SUCCESS",
       spec: fn3.spec,
@@ -503,7 +505,8 @@ async function main() {
   await prisma.aiTask.create({
     data: {
       systemId: "ATK-00004",
-      functionId: fn4.functionId,
+      refTableName: "tb_function",
+      refPkId: fn4.functionId,
       taskType: "REVIEW",
       taskStatus: "SUCCESS",
       spec: fn4.spec,
@@ -518,7 +521,8 @@ async function main() {
   await prisma.aiTask.create({
     data: {
       systemId: "ATK-00005",
-      functionId: fn1.functionId + 4, // FID-00005
+      refTableName: "tb_function",
+      refPkId: fn1.functionId + 4, // FID-00005
       taskType: "REVIEW",
       taskStatus: "NONE",
       spec: "## 수정 기능\n\n상세 화면에서 세부사업 정보를 수정합니다.",

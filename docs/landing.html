@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPECODE — AI Dev Hub | AI 주도 개발 자동화 플랫폼</title>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1628;
+    --bg3: #141c35;
+    --card: #161e36;
+    --card2: #1c2540;
+    --border: #252f4a;
+    --border2: #2e3a58;
+    --primary: #4f8ef7;
+    --primary2: #6ba3ff;
+    --primary-glow: rgba(79,142,247,0.25);
+    --purple: #8b5cf6;
+    --purple2: #a78bfa;
+    --teal: #14b8a6;
+    --teal2: #2dd4bf;
+    --amber: #f59e0b;
+    --green: #10b981;
+    --red: #ef4444;
+    --text: #e8edf5;
+    --text2: #94a3b8;
+    --text3: #64748b;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 20px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Pretendard', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 48px; height: 64px;
+    background: rgba(10,14,26,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .nav-logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 20px; font-weight: 800;
+    background: linear-gradient(135deg, var(--primary2), var(--purple2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+
+  .nav-logo svg { flex-shrink: 0; }
+
+  .nav-links {
+    display: flex; align-items: center; gap: 32px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--text2); text-decoration: none;
+    font-size: 14px; font-weight: 500;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  .nav-cta {
+    padding: 8px 20px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), #3a6fd8);
+    color: white !important;
+    font-weight: 600 !important;
+    transition: opacity 0.2s, transform 0.2s !important;
+    box-shadow: 0 4px 16px rgba(79,142,247,0.3);
+  }
+  .nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* ── SECTIONS ── */
+  section { position: relative; z-index: 1; }
+
+  .container {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 120px 32px 80px;
+    position: relative; overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,142,247,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 20% 80%, rgba(139,92,246,0.12) 0%, transparent 50%),
+      radial-gradient(ellipse 50% 40% at 80% 80%, rgba(20,184,166,0.10) 0%, transparent 50%);
+  }
+
+  /* Grid lines */
+  .hero-bg::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,142,247,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 80%);
+  }
+
+  .hero-content { position: relative; z-index: 1; max-width: 860px; }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px; border-radius: 99px;
+    background: rgba(79,142,247,0.12);
+    border: 1px solid rgba(79,142,247,0.3);
+    font-size: 13px; font-weight: 600;
+    color: var(--primary2);
+    margin-bottom: 28px;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--primary2);
+    box-shadow: 0 0 8px var(--primary2);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  .hero h1 {
+    font-size: clamp(42px, 6vw, 76px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    margin-bottom: 24px;
+    animation: fadeDown 0.6s 0.1s ease both;
+  }
+
+  .hero h1 .line1 { display: block; color: var(--text); }
+  .hero h1 .line2 {
+    display: block;
+    background: linear-gradient(135deg, var(--primary2) 0%, var(--purple2) 50%, var(--teal2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-size: 200% auto;
+    animation: shimmer 4s linear infinite, fadeDown 0.6s 0.1s ease both;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+
+  .hero-desc {
+    font-size: clamp(16px, 2vw, 20px);
+    color: var(--text2);
+    max-width: 600px; margin: 0 auto 40px;
+    line-height: 1.7;
+    animation: fadeDown 0.6s 0.2s ease both;
+  }
+
+  .hero-actions {
+    display: flex; align-items: center; justify-content: center;
+    gap: 16px; flex-wrap: wrap;
+    animation: fadeDown 0.6s 0.3s ease both;
+  }
+
+  .btn-primary {
+    padding: 14px 32px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), #3a6fd8);
+    color: white; font-size: 15px; font-weight: 700;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 32px rgba(79,142,247,0.35);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(79,142,247,0.45); }
+
+  .btn-secondary {
+    padding: 14px 32px; border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text); font-size: 15px; font-weight: 600;
+    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
+
+  .hero-stats {
+    display: flex; align-items: center; justify-content: center;
+    gap: 48px; margin-top: 64px;
+    padding-top: 48px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    animation: fadeDown 0.6s 0.4s ease both;
+  }
+
+  .stat { text-align: center; }
+  .stat-num {
+    font-size: 32px; font-weight: 900;
+    background: linear-gradient(135deg, var(--primary2), var(--purple2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+  .stat-label { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── APP PREVIEW ── */
+  .preview-section {
+    padding: 0 0 120px;
+    position: relative;
+  }
+
+  .preview-wrapper {
+    max-width: 1100px; margin: 0 auto; padding: 0 32px;
+    position: relative;
+  }
+
+  .preview-glow {
+    position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(ellipse, rgba(79,142,247,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .app-mockup {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
+    position: relative;
+  }
+
+  .mockup-titlebar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 20px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .titlebar-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .dot-red { background: #ff5f57; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #28ca41; }
+
+  .titlebar-url {
+    flex: 1; text-align: center;
+    background: rgba(255,255,255,0.06);
+    border-radius: 6px; padding: 4px 16px;
+    font-size: 12px; color: var(--text3);
+    max-width: 300px; margin: 0 auto;
+  }
+
+  .mockup-body {
+    display: flex; height: 480px;
+  }
+
+  /* Sidebar */
+  .mock-sidebar {
+    width: 180px; flex-shrink: 0;
+    background: #111827;
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+
+  .mock-logo {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .mock-logo-icon {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .mock-logo-text { font-size: 13px; font-weight: 700; color: var(--text); }
+
+  .mock-nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; font-size: 13px; color: #94a3b8;
+    cursor: pointer; border-radius: 6px; margin: 0 8px;
+    transition: all 0.15s;
+  }
+
+  .mock-nav-item.active {
+    background: rgba(79,142,247,0.15);
+    color: var(--primary2);
+  }
+
+  .mock-nav-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor; flex-shrink: 0;
+  }
+
+  /* Main content */
+  .mock-main {
+    flex: 1; overflow: hidden;
+    background: #0f1628;
+    padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .mock-header {
+    font-size: 16px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .mock-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 99px;
+    font-weight: 600;
+  }
+  .tag-blue { background: rgba(79,142,247,0.15); color: var(--primary2); }
+  .tag-purple { background: rgba(139,92,246,0.15); color: var(--purple2); }
+  .tag-green { background: rgba(16,185,129,0.15); color: var(--green); }
+  .tag-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .tag-teal { background: rgba(20,184,166,0.15); color: var(--teal2); }
+
+  .mock-cards {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+  }
+
+  .mock-card {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .mock-card-num { font-size: 22px; font-weight: 800; color: var(--text); }
+  .mock-card-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .mock-table {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .mock-table-head {
+    display: grid; grid-template-columns: 90px 100px 1fr 90px 80px;
+    padding: 8px 14px;
+    background: rgba(0,0,0,0.2);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--text3); font-weight: 600;
+    gap: 8px;
+  }
+
+  .mock-table-row {
+    display: grid; grid-template-columns: 90px 100px 1fr 90px 80px;
+    padding: 8px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 12px; color: var(--text2);
+    align-items: center; gap: 8px;
+    transition: background 0.1s;
+  }
+  .mock-table-row:hover { background: rgba(255,255,255,0.03); }
+
+  .mock-ai-badge {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px;
+  }
+
+  .ai-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    animation: pulse 1.5s infinite;
+  }
+  .ai-dot-purple { background: var(--purple2); box-shadow: 0 0 6px var(--purple2); }
+  .ai-dot-green { background: var(--green); }
+
+  /* ── SECTION HEADERS ── */
+  .section-header { text-align: center; margin-bottom: 64px; }
+
+  .section-badge {
+    display: inline-block;
+    padding: 4px 14px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .badge-blue { background: rgba(79,142,247,0.12); border: 1px solid rgba(79,142,247,0.25); color: var(--primary2); }
+  .badge-purple { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); color: var(--purple2); }
+  .badge-teal { background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25); color: var(--teal2); }
+
+  .section-title {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 900; letter-spacing: -1.5px;
+    line-height: 1.15;
+    color: var(--text);
+  }
+
+  .section-title span {
+    background: linear-gradient(135deg, var(--primary2), var(--purple2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .section-desc {
+    font-size: 17px; color: var(--text2);
+    max-width: 560px; margin: 16px auto 0;
+    line-height: 1.7;
+  }
+
+  /* ── PROBLEM SECTION ── */
+  .problem-section {
+    padding: 120px 0;
+    background: linear-gradient(180deg, transparent, rgba(139,92,246,0.04) 50%, transparent);
+  }
+
+  .pain-points {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    margin-top: 0;
+  }
+
+  .pain-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    position: relative; overflow: hidden;
+  }
+
+  .pain-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(239,68,68,0.5), transparent);
+  }
+
+  .pain-icon {
+    font-size: 32px; margin-bottom: 16px;
+    display: block;
+  }
+
+  .pain-title {
+    font-size: 17px; font-weight: 700; color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .pain-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+  /* ── FEATURES ── */
+  .features-section { padding: 120px 0; }
+
+  .features-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+  }
+
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    position: relative; overflow: hidden;
+  }
+
+  .feature-card:hover {
+    border-color: var(--border2);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  }
+
+  .feature-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at top left, var(--card-glow, transparent), transparent 60%);
+    opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .feature-card:hover::before { opacity: 1; }
+
+  .feat-blue { --card-glow: rgba(79,142,247,0.08); }
+  .feat-purple { --card-glow: rgba(139,92,246,0.08); }
+  .feat-teal { --card-glow: rgba(20,184,166,0.08); }
+  .feat-amber { --card-glow: rgba(245,158,11,0.08); }
+  .feat-green { --card-glow: rgba(16,185,129,0.08); }
+  .feat-red { --card-glow: rgba(239,68,68,0.08); }
+
+  .feature-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin-bottom: 20px;
+  }
+
+  .icon-blue { background: rgba(79,142,247,0.15); }
+  .icon-purple { background: rgba(139,92,246,0.15); }
+  .icon-teal { background: rgba(20,184,166,0.15); }
+  .icon-amber { background: rgba(245,158,11,0.15); }
+  .icon-green { background: rgba(16,185,129,0.15); }
+  .icon-red { background: rgba(239,68,68,0.15); }
+
+  .feature-title {
+    font-size: 17px; font-weight: 700; color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .feature-desc { font-size: 14px; color: var(--text2); line-height: 1.65; }
+
+  /* ── WORKFLOW ── */
+  .workflow-section {
+    padding: 120px 0;
+    background: linear-gradient(180deg, transparent, rgba(79,142,247,0.04) 50%, transparent);
+  }
+
+  .workflow-steps {
+    display: flex; flex-direction: column; gap: 0;
+    max-width: 800px; margin: 0 auto;
+    position: relative;
+  }
+
+  .workflow-steps::before {
+    content: '';
+    position: absolute; left: 27px; top: 28px; bottom: 28px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--primary), var(--purple), var(--teal));
+    opacity: 0.3;
+  }
+
+  .workflow-step {
+    display: flex; gap: 24px; align-items: flex-start;
+    padding: 24px 0;
+  }
+
+  .step-num {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900;
+    flex-shrink: 0; position: relative; z-index: 1;
+    border: 2px solid;
+  }
+
+  .step-1 { background: rgba(79,142,247,0.15); border-color: rgba(79,142,247,0.4); color: var(--primary2); }
+  .step-2 { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: var(--purple2); }
+  .step-3 { background: rgba(20,184,166,0.15); border-color: rgba(20,184,166,0.4); color: var(--teal2); }
+  .step-4 { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); color: var(--amber); }
+  .step-5 { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: var(--green); }
+
+  .step-content { flex: 1; padding-top: 12px; }
+
+  .step-title {
+    font-size: 18px; font-weight: 700; color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .step-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
+
+  .step-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+  .step-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 99px;
+    background: rgba(255,255,255,0.06); color: var(--text3);
+    font-weight: 500;
+  }
+
+  /* ── STATUS FLOW ── */
+  .status-section { padding: 120px 0; }
+
+  .status-flow {
+    display: flex; align-items: center; justify-content: center;
+    flex-wrap: wrap; gap: 0;
+    position: relative;
+  }
+
+  .status-item {
+    display: flex; align-items: center;
+  }
+
+  .status-pill {
+    padding: 8px 18px; border-radius: 99px;
+    font-size: 13px; font-weight: 700;
+    white-space: nowrap; border: 1px solid;
+    position: relative;
+  }
+
+  .s-slate { background: rgba(100,116,139,0.15); border-color: rgba(100,116,139,0.3); color: #94a3b8; }
+  .s-blue  { background: rgba(79,142,247,0.15);  border-color: rgba(79,142,247,0.3);  color: var(--primary2); }
+  .s-purple { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.4); color: var(--purple2); animation: glow-p 2s infinite; }
+  .s-amber { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--amber); }
+  .s-teal  { background: rgba(20,184,166,0.15); border-color: rgba(20,184,166,0.3); color: var(--teal2); }
+  .s-green { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--green); }
+  .s-orange { background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.3); color: #fb923c; }
+  .s-emerald { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
+
+  @keyframes glow-p {
+    0%,100% { box-shadow: 0 0 6px rgba(139,92,246,0.3); }
+    50% { box-shadow: 0 0 18px rgba(139,92,246,0.6); }
+  }
+
+  .status-arrow {
+    padding: 0 6px; color: var(--text3); font-size: 16px;
+  }
+
+  .status-legend {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+    margin-top: 40px;
+  }
+
+  .legend-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px;
+  }
+
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── AI INTEGRATION ── */
+  .ai-section {
+    padding: 120px 0;
+    background: linear-gradient(180deg, transparent, rgba(139,92,246,0.05) 50%, transparent);
+  }
+
+  .ai-diagram {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 40px;
+    align-items: center; max-width: 900px; margin: 0 auto;
+  }
+
+  .ai-box {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  .ai-box-title {
+    font-size: 14px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text3); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .ai-box-title::before {
+    content: '';
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor; flex-shrink: 0;
+  }
+
+  .gs-color { color: var(--primary2); }
+  .ai-color { color: var(--purple2); }
+
+  .ai-flow-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 8px;
+    font-size: 13px; color: var(--text2);
+  }
+
+  .ai-flow-item:last-child { margin-bottom: 0; }
+
+  .flow-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(79,142,247,0.2); color: var(--primary2);
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .ai-arrow-center {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+  }
+
+  .arrow-label {
+    font-size: 11px; color: var(--text3); text-align: center;
+    font-weight: 600;
+  }
+
+  .arrow-icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(139,92,246,0.15);
+    border: 2px solid rgba(139,92,246,0.3);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--purple2); font-size: 18px;
+  }
+
+  .poll-indicator {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+
+  .poll-line {
+    width: 2px; height: 30px;
+    background: linear-gradient(180deg, transparent, rgba(139,92,246,0.5), transparent);
+    animation: flow 1.5s infinite;
+  }
+
+  @keyframes flow {
+    0% { opacity: 0.2; }
+    50% { opacity: 1; }
+    100% { opacity: 0.2; }
+  }
+
+  /* ── TECH STACK ── */
+  .tech-section { padding: 80px 0 120px; }
+
+  .tech-grid {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
+  }
+
+  .tech-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 99px;
+    background: var(--card); border: 1px solid var(--border);
+    font-size: 14px; font-weight: 600; color: var(--text2);
+    transition: border-color 0.2s, color 0.2s, transform 0.2s;
+  }
+  .tech-pill:hover { border-color: var(--border2); color: var(--text); transform: translateY(-2px); }
+
+  .tech-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── CTA ── */
+  .cta-section {
+    padding: 120px 0;
+    position: relative; overflow: hidden;
+  }
+
+  .cta-section::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 80% at 50% 100%, rgba(79,142,247,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 60% at 20% 50%, rgba(139,92,246,0.08) 0%, transparent 50%);
+  }
+
+  .cta-inner {
+    position: relative; z-index: 1;
+    text-align: center; max-width: 700px; margin: 0 auto;
+    padding: 64px;
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 24px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.4);
+  }
+
+  .cta-title {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 900; letter-spacing: -1.5px;
+    line-height: 1.15; margin-bottom: 16px;
+  }
+
+  .cta-desc { font-size: 17px; color: var(--text2); margin-bottom: 40px; line-height: 1.6; }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 40px 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    text-align: center;
+  }
+
+  .footer-inner {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .footer-logo {
+    font-size: 16px; font-weight: 800;
+    background: linear-gradient(135deg, var(--primary2), var(--purple2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .footer-text { font-size: 13px; color: var(--text3); }
+
+  .footer-links {
+    display: flex; gap: 24px;
+    list-style: none;
+  }
+  .footer-links a { font-size: 13px; color: var(--text3); text-decoration: none; }
+  .footer-links a:hover { color: var(--text2); }
+
+  /* ── SCROLL ANIMATIONS ── */
+  .reveal {
+    opacity: 0; transform: translateY(30px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible {
+    opacity: 1; transform: translateY(0);
+  }
+  .reveal-delay-1 { transition-delay: 0.1s; }
+  .reveal-delay-2 { transition-delay: 0.2s; }
+  .reveal-delay-3 { transition-delay: 0.3s; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    .hero { padding: 100px 20px 60px; }
+    .hero-stats { gap: 24px; flex-wrap: wrap; }
+    .mockup-body { flex-direction: column; height: auto; }
+    .mock-sidebar { width: 100%; height: 60px; flex-direction: row; padding: 0 16px; overflow: hidden; }
+    .pain-points, .features-grid { grid-template-columns: 1fr; }
+    .ai-diagram { grid-template-columns: 1fr; }
+    .status-flow { justify-content: flex-start; overflow-x: auto; padding-bottom: 12px; }
+    .status-legend { grid-template-columns: 1fr; }
+    .footer-inner { flex-direction: column; gap: 16px; }
+    .footer-links { display: none; }
+    .cta-inner { padding: 40px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="8" fill="url(#navGrad)"/>
+      <path d="M8 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="14" cy="17" r="3" fill="white"/>
+      <defs>
+        <linearGradient id="navGrad" x1="0" y1="0" x2="28" y2="28">
+          <stop offset="0%" stop-color="#4f8ef7"/>
+          <stop offset="100%" stop-color="#8b5cf6"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    SPECODE
+  </div>
+  <ul class="nav-links">
+    <li><a href="#features">핵심 기능</a></li>
+    <li><a href="#workflow">워크플로우</a></li>
+    <li><a href="#status">상태 관리</a></li>
+    <li><a href="#ai">AI 연동</a></li>
+    <li><a href="#tech">기술 스택</a></li>
+    <li><a href="#cta" class="nav-cta">도입 문의</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      AI-Powered SI Development Platform
+    </div>
+
+    <h1>
+      <span class="line1">SI 개발의 새로운 기준</span>
+      <span class="line2">AI와 함께 설계하고 구현하다</span>
+    </h1>
+
+    <p class="hero-desc">
+      요구사항 분석부터 코드 구현까지, AI가 함께하는 스마트 개발 자동화 플랫폼.
+      반복적인 설계 작업을 AI에게 맡기고, 당신은 더 중요한 것에 집중하세요.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#workflow" class="btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        워크플로우 보기
+      </a>
+      <a href="#features" class="btn-secondary">
+        핵심 기능 살펴보기 →
+      </a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">10</div>
+        <div class="stat-label">단계 기능 상태 관리</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">6</div>
+        <div class="stat-label">AI 작업 유형</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">AI</div>
+        <div class="stat-label">폴링 기반 자동 연동</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">∞</div>
+        <div class="stat-label">계층 구조 관리</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- APP PREVIEW -->
+<section class="preview-section">
+  <div class="preview-wrapper">
+    <div class="preview-glow"></div>
+    <div class="app-mockup reveal">
+      <div class="mockup-titlebar">
+        <div class="titlebar-dot dot-red"></div>
+        <div class="titlebar-dot dot-yellow"></div>
+        <div class="titlebar-dot dot-green"></div>
+        <div class="titlebar-url">localhost:3000 — AI Dev Hub</div>
+      </div>
+      <div class="mockup-body">
+        <!-- Sidebar -->
+        <div class="mock-sidebar">
+          <div class="mock-logo">
+            <div class="mock-logo-icon">🤖</div>
+            <span class="mock-logo-text">AI Dev Hub</span>
+          </div>
+          <div class="mock-nav-item active">
+            <div class="mock-nav-dot"></div>대시보드
+          </div>
+          <div class="mock-nav-item">
+            <div class="mock-nav-dot"></div>요구사항
+          </div>
+          <div class="mock-nav-item">
+            <div class="mock-nav-dot"></div>표준가이드
+          </div>
+          <div class="mock-nav-item">
+            <div class="mock-nav-dot"></div>화면
+          </div>
+          <div class="mock-nav-item">
+            <div class="mock-nav-dot"></div>기능
+          </div>
+          <div class="mock-nav-item">
+            <div class="mock-nav-dot"></div>트리 뷰
+          </div>
+          <div class="mock-nav-item">
+            <div class="mock-nav-dot"></div>AI 현황
+          </div>
+        </div>
+        <!-- Main -->
+        <div class="mock-main">
+          <div class="mock-header">
+            대시보드
+            <span style="font-size:12px;color:var(--text3)">30초마다 자동 갱신</span>
+          </div>
+          <div class="mock-cards">
+            <div class="mock-card">
+              <div class="mock-card-num" style="color:#94a3b8">24</div>
+              <div class="mock-card-label">설계중</div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-num" style="color:var(--primary2)">12</div>
+              <div class="mock-card-label">검토요청</div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-num" style="color:var(--amber)">18</div>
+              <div class="mock-card-label">검토완료</div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-num" style="color:var(--purple2)">3</div>
+              <div class="mock-card-label" style="display:flex;align-items:center;gap:4px">
+                AI구현중
+                <div class="ai-dot ai-dot-purple" style="width:5px;height:5px"></div>
+              </div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-num" style="color:var(--green)">47</div>
+              <div class="mock-card-label">구현완료</div>
+            </div>
+          </div>
+          <div class="mock-table">
+            <div class="mock-table-head">
+              <span>기능 ID</span><span>코드</span><span>기능명</span><span>상태</span><span>AI 결과</span>
+            </div>
+            <div class="mock-table-row">
+              <span style="color:var(--primary2)">FID-00012</span>
+              <span>BGT-001-04</span>
+              <span>사용자 검색</span>
+              <span><div class="mock-tag tag-blue">검토요청</div></span>
+              <span>-</span>
+            </div>
+            <div class="mock-table-row">
+              <span style="color:var(--primary2)">FID-00011</span>
+              <span>BGT-001-03</span>
+              <span>목록 조회</span>
+              <span><div class="mock-tag tag-purple">
+                <span class="mock-ai-badge"><span class="ai-dot ai-dot-purple"></span>AI검토중</span>
+              </div></span>
+              <span>-</span>
+            </div>
+            <div class="mock-table-row">
+              <span style="color:var(--primary2)">FID-00010</span>
+              <span>BGT-001-02</span>
+              <span>데이터 저장</span>
+              <span><div class="mock-tag tag-amber">검토완료</div></span>
+              <span><div class="mock-tag tag-green">✅ 성공</div></span>
+            </div>
+            <div class="mock-table-row">
+              <span style="color:var(--primary2)">FID-00009</span>
+              <span>BGT-001-01</span>
+              <span>엑셀 다운로드</span>
+              <span><div class="mock-tag tag-green">컨펌</div></span>
+              <span><div class="mock-tag tag-teal">🔧 자동수정</div></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem-section" id="problem">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-badge badge-purple">Problem</div>
+      <h2 class="section-title">SI 개발, 왜 이렇게 <span>비효율적</span>일까요?</h2>
+      <p class="section-desc">전통적인 SI 개발 방식이 가진 고질적인 문제들</p>
+    </div>
+    <div class="pain-points">
+      <div class="pain-card reveal reveal-delay-1">
+        <span class="pain-icon">📄</span>
+        <div class="pain-title">반복되는 문서 작업</div>
+        <div class="pain-desc">요구사항 분석, 화면 설계, 기능 명세서 작성... 비슷한 작업을 수백 번 반복하며 시간을 낭비합니다.</div>
+      </div>
+      <div class="pain-card reveal reveal-delay-2">
+        <span class="pain-icon">🔍</span>
+        <div class="pain-title">설계 검토의 한계</div>
+        <div class="pain-desc">사람이 직접 검토하면 누락되는 충돌 기능, 영향도 분석 오류, 일관성 문제가 발생합니다.</div>
+      </div>
+      <div class="pain-card reveal reveal-delay-3">
+        <span class="pain-icon">📊</span>
+        <div class="pain-title">진행 현황 파악 어려움</div>
+        <div class="pain-desc">수백 개 기능의 개발 진행 상태를 한눈에 파악하기 어렵고, 병목 구간을 찾는 것도 어렵습니다.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features-section" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-badge badge-blue">Core Features</div>
+      <h2 class="section-title">개발 사이클 전체를 <span>하나로</span></h2>
+      <p class="section-desc">요구사항부터 구현까지, 모든 것을 하나의 플랫폼에서 관리하세요</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card feat-blue reveal reveal-delay-1">
+        <div class="feature-icon icon-blue">📋</div>
+        <div class="feature-title">계층 구조 관리</div>
+        <div class="feature-desc">요구사항 → 화면 → 기능의 명확한 계층 구조로 프로젝트 전체를 체계적으로 관리합니다. 트리 뷰로 전체 구조를 한눈에 파악할 수 있습니다.</div>
+      </div>
+      <div class="feature-card feat-purple reveal reveal-delay-2">
+        <div class="feature-icon icon-purple">🤖</div>
+        <div class="feature-title">AI 설계 자동화</div>
+        <div class="feature-desc">기능 명세 작성 후 AI에게 검토 요청 한 번으로 설계 오류 탐지, 충돌 기능 분석, 영향도 평가, 상세설계 생성까지 자동으로 처리됩니다.</div>
+      </div>
+      <div class="feature-card feat-teal reveal reveal-delay-3">
+        <div class="feature-icon icon-teal">🔄</div>
+        <div class="feature-title">10단계 상태 관리</div>
+        <div class="feature-desc">설계중부터 구현완료까지 10단계 상태 워크플로우로 모든 기능의 진행 현황을 정밀하게 추적합니다. AI 처리 중에는 자동 상태 전이가 이루어집니다.</div>
+      </div>
+      <div class="feature-card feat-amber reveal reveal-delay-1">
+        <div class="feature-icon icon-amber">📡</div>
+        <div class="feature-title">폴링 기반 AI 연동</div>
+        <div class="feature-desc">AI 서비스가 30초마다 폴링하여 대기 중인 작업을 가져가는 방식으로 방화벽 환경에서도 안정적으로 동작합니다. 완료 시 자동으로 결과가 반영됩니다.</div>
+      </div>
+      <div class="feature-card feat-green reveal reveal-delay-2">
+        <div class="feature-icon icon-green">📖</div>
+        <div class="feature-title">표준가이드 AI 검토</div>
+        <div class="feature-desc">코딩 표준, 설계 패턴, 보안 가이드를 등록하고 AI가 준수 여부를 자동으로 검토합니다. 일관된 코드 품질을 유지하는 가장 스마트한 방법입니다.</div>
+      </div>
+      <div class="feature-card feat-red reveal reveal-delay-3">
+        <div class="feature-icon icon-red">⚡</div>
+        <div class="feature-title">실시간 현황 대시보드</div>
+        <div class="feature-desc">전체 기능의 상태 분포, AI 작업 진행 현황, 최근 AI 활동 피드를 실시간으로 모니터링합니다. 30초마다 자동 갱신으로 항상 최신 상태를 유지합니다.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WORKFLOW -->
+<section class="workflow-section" id="workflow">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-badge badge-teal">Workflow</div>
+      <h2 class="section-title">AI와 함께하는 <span>5단계 개발 사이클</span></h2>
+      <p class="section-desc">처음 한 번만 설정하면, AI가 알아서 이어받아 진행합니다</p>
+    </div>
+    <div class="workflow-steps reveal">
+      <div class="workflow-step">
+        <div class="step-num step-1">1</div>
+        <div class="step-content">
+          <div class="step-title">요구사항 & 화면 등록</div>
+          <div class="step-desc">고객의 RFQ(입찰요청서)를 시스템에 등록하고 GS가 분석 내용을 작성합니다. 화면 유형(목록/상세/팝업/탭)과 레이아웃을 시각적으로 설계합니다.</div>
+          <div class="step-tags">
+            <span class="step-tag">요구사항 등록</span>
+            <span class="step-tag">화면 설계</span>
+            <span class="step-tag">레이아웃 에디터</span>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num step-2">2</div>
+        <div class="step-content">
+          <div class="step-title">기능 명세 작성</div>
+          <div class="step-desc">각 화면별 기능을 등록하고 마크다운으로 상세 명세를 작성합니다. 데이터 흐름(READ/WRITE 대상 테이블), 관련 파일, 참조 프로그램도 함께 기록합니다.</div>
+          <div class="step-tags">
+            <span class="step-tag">기능 명세 (Markdown)</span>
+            <span class="step-tag">데이터 흐름</span>
+            <span class="step-tag">참조 프로그램</span>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num step-3">3</div>
+        <div class="step-content">
+          <div class="step-title">AI 검토 요청 → 자동 처리</div>
+          <div class="step-desc">상태를 <strong style="color:var(--primary2)">검토요청</strong>으로 변경하면 AI 작업이 자동 생성됩니다. AI가 설계 오류, 충돌 기능, 영향도를 분석하여 마크다운 형태의 검토 결과를 반환합니다.</div>
+          <div class="step-tags">
+            <span class="step-tag">AI 설계 검토 (REVIEW)</span>
+            <span class="step-tag">충돌 기능 탐지</span>
+            <span class="step-tag">영향도 분석</span>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num step-4">4</div>
+        <div class="step-content">
+          <div class="step-title">AI 상세설계 생성 → GS 컨펌</div>
+          <div class="step-desc">검토 결과를 확인 후 <strong style="color:var(--teal2)">설계요청</strong>으로 변경합니다. AI가 상세 설계 문서를 자동 생성하면, GS가 내용을 검토하고 수정한 뒤 컨펌합니다.</div>
+          <div class="step-tags">
+            <span class="step-tag">AI 상세설계 (DESIGN)</span>
+            <span class="step-tag">GS 수정/보완</span>
+            <span class="step-tag">컨펌 승인</span>
+          </div>
+        </div>
+      </div>
+      <div class="workflow-step">
+        <div class="step-num step-5">5</div>
+        <div class="step-content">
+          <div class="step-title">AI 코드 구현 → 완료</div>
+          <div class="step-desc"><strong style="color:var(--green)">구현요청</strong>으로 변경하면 AI가 실제 코드를 생성합니다. GitLab MR URL이 연동되고 구현 피드백, 이슈 파일 목록이 자동으로 기능에 캐싱됩니다.</div>
+          <div class="step-tags">
+            <span class="step-tag">AI 코드 구현 (IMPLEMENT)</span>
+            <span class="step-tag">GitLab MR 연동</span>
+            <span class="step-tag">구현 완료</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATUS FLOW -->
+<section class="status-section" id="status">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-badge badge-blue">Status Machine</div>
+      <h2 class="section-title">정밀한 <span>10단계 상태 관리</span></h2>
+      <p class="section-desc">기능 하나하나의 개발 진행 상태를 놓치지 않습니다</p>
+    </div>
+
+    <div class="reveal">
+      <div class="status-flow">
+        <div class="status-item">
+          <div class="status-pill s-slate">설계중</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-blue">검토요청</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-purple">AI검토중 ✦</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-amber">검토완료</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-teal">설계요청</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-teal">설계완료</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-green">컨펌 ✓</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-orange">구현요청</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-purple">AI구현중 ✦</div>
+          <span class="status-arrow">→</span>
+        </div>
+        <div class="status-item">
+          <div class="status-pill s-emerald">구현완료 🎉</div>
+        </div>
+      </div>
+
+      <div class="status-legend" style="max-width:700px;margin:40px auto 0;">
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--purple2)"></div>
+          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">✦ AI 자동 처리</strong> — 상태 변경 시 AI 작업 자동 생성 및 완료 후 상태 자동 전이</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--green)"></div>
+          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">일괄 작업 지원</strong> — 여러 기능을 선택해 검토요청/컨펌을 한 번에 처리</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--primary2)"></div>
+          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">GS 코멘트</strong> — AI 요청 시 추가 지시사항을 함께 전달 가능</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background:var(--amber)"></div>
+          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">결과 캐싱</strong> — AI 피드백이 기능에 자동 저장되어 언제든 조회 가능</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI INTEGRATION -->
+<section class="ai-section" id="ai">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-badge badge-purple">AI Integration</div>
+      <h2 class="section-title">방화벽도 문제없는 <span>폴링 기반 AI 연동</span></h2>
+      <p class="section-desc">AI 서비스가 능동적으로 작업을 가져가는 안전하고 안정적인 구조</p>
+    </div>
+
+    <div class="ai-diagram reveal">
+      <!-- GS / System -->
+      <div class="ai-box">
+        <div class="ai-box-title gs-color">SPECODE 시스템</div>
+        <div class="ai-flow-item">
+          <div class="flow-num">1</div>
+          GS가 기능 상태 → 검토요청 변경
+        </div>
+        <div class="ai-flow-item">
+          <div class="flow-num">2</div>
+          AI 작업(AiTask) 자동 생성 (NONE 상태)
+        </div>
+        <div class="ai-flow-item">
+          <div class="flow-num">5</div>
+          AI 결과를 기능 피드백 필드에 저장
+        </div>
+        <div class="ai-flow-item">
+          <div class="flow-num">6</div>
+          기능 상태 자동 전이 (검토완료/구현완료 등)
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="ai-arrow-center">
+        <div class="arrow-label">30초<br>폴링</div>
+        <div class="poll-indicator">
+          <div class="poll-line"></div>
+        </div>
+        <div class="arrow-icon">⇄</div>
+        <div class="poll-indicator">
+          <div class="poll-line"></div>
+        </div>
+        <div class="arrow-label">완료<br>콜백</div>
+      </div>
+
+      <!-- AI Service -->
+      <div class="ai-box">
+        <div class="ai-box-title ai-color">AI 서비스 (OpenClaw)</div>
+        <div class="ai-flow-item">
+          <div class="flow-num" style="background:rgba(139,92,246,0.2);color:var(--purple2)">3</div>
+          GET /api/ai/tasks 로 대기 작업 조회
+        </div>
+        <div class="ai-flow-item">
+          <div class="flow-num" style="background:rgba(139,92,246,0.2);color:var(--purple2)">4</div>
+          spec + comment 기반으로 AI 처리 수행
+        </div>
+        <div class="ai-flow-item">
+          <div class="flow-num" style="background:rgba(139,92,246,0.2);color:var(--purple2)">→</div>
+          POST /api/ai/tasks/{id}/complete 호출
+        </div>
+        <div style="margin-top:16px;padding:10px 12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">지원 작업 유형</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <span class="mock-tag tag-purple" style="font-size:11px">REVIEW</span>
+            <span class="mock-tag tag-blue" style="font-size:11px">DESIGN</span>
+            <span class="mock-tag tag-teal" style="font-size:11px">IMPLEMENT</span>
+            <span class="mock-tag tag-amber" style="font-size:11px">IMPACT</span>
+            <span class="mock-tag tag-green" style="font-size:11px">INSPECT</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section class="tech-section" id="tech">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-badge badge-teal">Tech Stack</div>
+      <h2 class="section-title">검증된 <span>최신 기술 스택</span></h2>
+      <p class="section-desc">안정성과 개발 생산성을 동시에 갖춘 현대적인 기술 조합</p>
+    </div>
+
+    <div class="tech-grid reveal">
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#000;border:2px solid #fff"></div>
+        Next.js 16
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#61dafb"></div>
+        React 19
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#3178c6"></div>
+        TypeScript 5
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#06b6d4"></div>
+        Tailwind CSS v4
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#5a67d8"></div>
+        Prisma 6
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#336791"></div>
+        PostgreSQL
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#ff4154"></div>
+        TanStack Query
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#ff4154"></div>
+        TanStack Table
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#8b5cf6"></div>
+        Radix UI
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#0a2540"></div>
+        Supabase
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#1a1a1a"></div>
+        Tiptap
+      </div>
+      <div class="tech-pill">
+        <div class="tech-dot" style="background:#e535ab"></div>
+        Framer Motion
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="cta">
+  <div class="container">
+    <div class="cta-inner reveal">
+      <div class="section-badge badge-blue" style="margin-bottom:24px">Get Started</div>
+      <h2 class="cta-title">
+        지금 바로 <span style="background:linear-gradient(135deg,var(--primary2),var(--purple2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">AI 개발 자동화</span>를<br>경험해보세요
+      </h2>
+      <p class="cta-desc">
+        반복적인 설계 작업은 AI에게 맡기고, 당신은 더 창의적인 업무에 집중하세요.
+        SPECODE가 SI 개발의 패러다임을 바꿉니다.
+      </p>
+      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+        <a href="#" class="btn-primary" style="font-size:16px;padding:16px 36px">
+          🚀 지금 시작하기
+        </a>
+        <a href="#workflow" class="btn-secondary" style="font-size:16px;padding:16px 36px">
+          워크플로우 다시 보기
+        </a>
+      </div>
+      <div style="margin-top:40px;padding-top:32px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:center;gap:48px;flex-wrap:wrap;">
+        <div style="text-align:center">
+          <div style="font-size:13px;color:var(--text3);margin-bottom:4px">기반 프레임워크</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text2)">Next.js 16 App Router</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:13px;color:var(--text3);margin-bottom:4px">AI 연동 방식</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text2)">폴링 기반 (방화벽 친화)</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:13px;color:var(--text3);margin-bottom:4px">데이터베이스</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text2)">PostgreSQL / Supabase</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-logo">SPECODE</div>
+      <div class="footer-text">© 2026 SPECODE — AI Dev Hub. Built with Next.js & Prisma.</div>
+      <ul class="footer-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#workflow">Workflow</a></li>
+        <li><a href="#ai">AI Integration</a></li>
+        <li><a href="#tech">Tech Stack</a></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  reveals.forEach(el => observer.observe(el));
+
+  // Counter animation
+  function animateCounter(el, target) {
+    let current = 0;
+    const duration = 1500;
+    const step = target / (duration / 16);
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= target) {
+        current = target;
+        clearInterval(timer);
+      }
+      el.textContent = Math.floor(current).toLocaleString();
+    }, 16);
+  }
+
+  // Nav smooth active
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.style.color = a.getAttribute('href') === '#' + current
+        ? 'var(--text)' : '';
+    });
+  });
+</script>
+</body>
+</html>

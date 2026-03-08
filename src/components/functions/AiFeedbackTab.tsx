@@ -51,7 +51,7 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
   /* ─── 렌더링 ───────────────────────────────────────────── */
   return (
     <div className="space-y-6">
-      {!hasFeedback && !func.files?.length && !func.gitlabPrUrl ? (
+      {!hasFeedback && !func.gitlabPrUrl ? (
         /* 피드백이 아무것도 없을 때 — 빈 상태 안내 */
         <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground">
           <MessageSquare className="h-10 w-10 mx-auto mb-3 opacity-40" />
@@ -129,43 +129,6 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
             </Section>
           )}
 
-          {/* ── 관련 파일 목록 ────────────────────────────── */}
-          {func.files && func.files.length > 0 && (
-            <Section
-              icon={<FileText className="h-4 w-4" />}
-              title="관련 파일 목록"
-            >
-              <div className="rounded-md border border-border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        파일 경로
-                      </th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">
-                        설명
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {func.files.map((file) => (
-                      <tr
-                        key={file.funcFileId}
-                        className="border-b border-border/50"
-                      >
-                        <td className="px-3 py-2 font-mono text-xs">
-                          {file.filePath}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {file.description || "-"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
-          )}
 
           {/* ── GitLab PR 링크 ────────────────────────────── */}
           {func.gitlabPrUrl && (

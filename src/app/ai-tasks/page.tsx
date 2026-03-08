@@ -9,32 +9,44 @@ import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 
+/* ─── 로컬 타입 (AI현황 페이지 전용) ──────────────────────── */
+
 interface AiTaskRow {
   aiTaskId: number;
   systemId: string;
-  functionId: number;
+  refTableName: string;
+  refPkId: number;
   taskType: string;
   taskStatus: string;
   requestedAt: string;
   startedAt: string | null;
   completedAt: string | null;
-  function: {
+  target: {
     systemId: string;
-    name: string;
-    displayCode: string | null;
-  };
+    name?: string;   // tb_function
+    title?: string;  // tb_standard_guide
+    displayCode?: string | null;
+    category?: string;
+  } | null;
 }
 
+/* ─── 상수 ─────────────────────────────────────────────────── */
+
 const TASK_TYPE_LABEL: Record<string, string> = {
-  DESIGN: "설계요청",
-  REVIEW: "설계검토",
+  DESIGN:    "설계요청",
+  REVIEW:    "설계검토",
   IMPLEMENT: "코드구현",
-  IMPACT: "영향도분석",
+  IMPACT:    "영향도분석",
   REPROCESS: "재처리",
+  INSPECT:   "가이드점검",
+};
+
+const REF_TABLE_LABEL: Record<string, string> = {
+  tb_function:       "기능",
+  tb_standard_guide: "가이드",
 };
 
 const TASK_STATUS_LABEL: Record<string, { label: string; class: string }> = {
-  /* ── 현재 값 ───────────────────────────────── */
   NONE:        { label: "⏳ 처리 대기",     class: "text-muted-foreground" },
   RUNNING:     { label: "🔄 진행중",        class: "text-blue-600 animate-pulse-glow" },
   SUCCESS:     { label: "✅ 완료! 문제없음", class: "text-emerald-600 font-medium" },
@@ -43,7 +55,6 @@ const TASK_STATUS_LABEL: Record<string, { label: string; class: string }> = {
   WARNING:     { label: "⚠️ 주의사항 있음", class: "text-orange-500" },
   FAILED:      { label: "❌ 실패",           class: "text-red-500 font-medium" },
   CANCELLED:   { label: "🚫 취소됨",         class: "text-muted-foreground line-through" },
-  /* ── 구형 DB 값 fallback ───────────────────── */
   PENDING:     { label: "⏳ 처리 대기",     class: "text-muted-foreground" },
   DONE:        { label: "✅ 완료",           class: "text-emerald-600" },
 };
@@ -60,6 +71,8 @@ const STATUS_TABS = [
   { value: "CANCELLED",   label: "취소됨" },
 ];
 
+/* ─── 메인 컴포넌트 ─────────────────────────────────────────── */
+
 export default function AiTasksPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -69,10 +82,7 @@ export default function AiTasksPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["ai-tasks", page, statusFilter],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: "20",
-      });
+      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (statusFilter) params.set("taskStatus", statusFilter);
       const res = await fetch(`/api/ai-tasks?${params}`);
       return res.json();
@@ -101,22 +111,52 @@ export default function AiTasksPage() {
     return `${diff}분`;
   };
 
+  /* 대상 엔티티 표시 라벨 */
+  const getTargetLabel = (row: AiTaskRow) => {
+    const tableLabel = REF_TABLE_LABEL[row.refTableName] ?? row.refTableName;
+    if (!row.target) return `[${tableLabel}] #${row.refPkId}`;
+    if (row.refTableName === "tb_function") {
+      return `${row.target.systemId} ${row.target.name ?? ""}`;
+    }
+    if (row.refTableName === "tb_standard_guide") {
+      return `${row.target.systemId} ${row.target.title ?? ""}`;
+    }
+    return `${row.target.systemId}`;
+  };
+
+  /* 대상 엔티티 링크 경로 */
+  const getTargetHref = (row: AiTaskRow) => {
+    if (row.refTableName === "tb_function") return `/functions/${row.refPkId}`;
+    if (row.refTableName === "tb_standard_guide") return `/standard-guides`;
+    return null;
+  };
+
   const columns: ColumnDef<AiTaskRow, unknown>[] = [
     { accessorKey: "systemId", header: "작업 ID", size: 100 },
     {
-      id: "function",
-      header: "대상 기능",
+      id: "refType",
+      header: "유형",
+      size: 70,
       cell: ({ row }) => (
-        <span
-          className="text-primary hover:underline cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            router.push(`/functions/${row.original.functionId}`);
-          }}
-        >
-          {row.original.function.systemId} {row.original.function.name}
+        <span className="text-xs text-muted-foreground">
+          {REF_TABLE_LABEL[row.original.refTableName] ?? row.original.refTableName}
         </span>
       ),
+    },
+    {
+      id: "target",
+      header: "대상",
+      cell: ({ row }) => {
+        const href = getTargetHref(row.original);
+        return (
+          <span
+            className={href ? "text-primary hover:underline cursor-pointer" : ""}
+            onClick={href ? (e) => { e.stopPropagation(); router.push(href); } : undefined}
+          >
+            {getTargetLabel(row.original)}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "taskType",
@@ -136,7 +176,7 @@ export default function AiTasksPage() {
           </span>
         );
       },
-      size: 80,
+      size: 130,
     },
     {
       accessorKey: "requestedAt",
@@ -201,10 +241,7 @@ export default function AiTasksPage() {
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => {
-              setStatusFilter(tab.value);
-              setPage(1);
-            }}
+            onClick={() => { setStatusFilter(tab.value); setPage(1); }}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors cursor-pointer ${
               statusFilter === tab.value
                 ? "bg-card text-foreground shadow-sm"

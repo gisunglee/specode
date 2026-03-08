@@ -63,91 +63,38 @@ model Function {
   aiImplFeedback      String? @map("ai_impl_feedback")
   aiImplIssues        String? @map("ai_impl_issues")
   gitlabPrUrl         String? @map("gitlab_pr_url")
+  relatedFiles        String? @map("related_files")
+  refContent          String? @map("ref_content")   // 참고 프로그램 내용 (마크다운)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  screen     Screen         @relation(fields: [screenId], references: [screenId])
-  references FuncReference[]
-  relations  FuncRelation[] @relation("SourceFunction")
-  relatedBy  FuncRelation[] @relation("TargetFunction")
-  files      FuncFile[]
-  tasks      AiTask[]
+  screen Screen @relation(fields: [screenId], references: [screenId])
 
   @@index([status])
   @@index([screenId])
   @@map("tb_function")
 }
 
-model FuncReference {
-  funcReferenceId Int      @id @default(autoincrement()) @map("func_reference_id")
-  functionId      Int      @map("function_id")
-  refType         String   @map("ref_type")
-  refValue        String   @map("ref_value")
-  description     String?  @map("description")
-  createdAt       DateTime @default(now()) @map("created_at")
-
-  function Function @relation(fields: [functionId], references: [functionId], onDelete: Cascade)
-
-  @@index([functionId])
-  @@index([refType, refValue])
-  @@map("tb_func_reference")
-}
-
-model FuncRelation {
-  funcRelationId   Int      @id @default(autoincrement()) @map("func_relation_id")
-  sourceFunctionId Int      @map("source_function_id")
-  targetFunctionId Int      @map("target_function_id")
-  relationType     String   @map("relation_type")
-  params           String?  @map("params")
-  description      String?  @map("description")
-  createdAt        DateTime @default(now()) @map("created_at")
-
-  sourceFunction Function @relation("SourceFunction", fields: [sourceFunctionId], references: [functionId], onDelete: Cascade)
-  targetFunction Function @relation("TargetFunction", fields: [targetFunctionId], references: [functionId], onDelete: Cascade)
-
-  @@index([sourceFunctionId])
-  @@index([targetFunctionId])
-  @@map("tb_func_relation")
-}
-
-model FuncFile {
-  funcFileId  Int      @id @default(autoincrement()) @map("func_file_id")
-  functionId  Int      @map("function_id")
-  aiTaskId    Int?     @map("ai_task_id")
-  filePath    String   @map("file_path")
-  description String?  @map("description")
-  createdBy   String   @default("AI") @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  function Function @relation(fields: [functionId], references: [functionId], onDelete: Cascade)
-  aiTask   AiTask?  @relation(fields: [aiTaskId], references: [aiTaskId], onDelete: SetNull)
-
-  @@index([functionId])
-  @@index([aiTaskId])
-  @@map("tb_func_file")
-}
-
 model AiTask {
-  aiTaskId    Int       @id @default(autoincrement()) @map("ai_task_id")
-  systemId    String    @unique @map("system_id")
-  functionId  Int       @map("function_id")
-  taskType    String    @map("task_type")       // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS
-  taskStatus  String    @default("NONE") @map("task_status") // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED
+  aiTaskId     Int       @id @default(autoincrement()) @map("ai_task_id")
+  systemId     String    @unique @map("system_id")
+  refTableName String    @map("ref_table_name")  // "tb_function" | "tb_standard_guide" | ...
+  refPkId      Int       @map("ref_pk_id")        // 대상 테이블의 PK
+  taskType     String    @map("task_type")        // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS | INSPECT
+  taskStatus   String    @default("NONE") @map("task_status") // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED
 
-  spec        String?   @map("spec")            // AI 호출 시점 spec 스냅샷
-  comment     String?   @map("comment")         // GS 추가 요청 (재처리용, NULL이면 최초 요청)
-  feedback    String?   @map("feedback")        // AI 결과 (마크다운 통째로)
+  spec        String?   @map("spec")             // AI 호출 시점 내용 스냅샷
+  comment     String?   @map("comment")          // GS 추가 요청 (재처리용, NULL이면 최초 요청)
+  feedback    String?   @map("feedback")         // AI 결과 (마크다운 통째로)
+  resultFiles String?   @map("result_files")     // AI가 수정한 파일 목록 (줄바꿈 구분)
 
   requestedAt DateTime  @default(now()) @map("requested_at")
   startedAt   DateTime? @map("started_at")
   completedAt DateTime? @map("completed_at")
 
-  function Function  @relation(fields: [functionId], references: [functionId], onDelete: Cascade)
-  files    FuncFile[]
-
   @@index([taskStatus])
-  @@index([functionId])
+  @@index([refTableName, refPkId])
   @@map("tb_ai_task")
 }
 
@@ -175,4 +122,22 @@ model Attachment {
 
   @@index([refTableName, refPkId])
   @@map("tb_attachment")
+}
+
+model StandardGuide {
+  guideId   Int      @id @default(autoincrement()) @map("guide_id")
+  systemId  String   @unique @db.VarChar(10) @map("system_id")
+  category  String   @map("category")  // UI | DATA | AUTH | API | COMMON | SECURITY | FILE | ERROR | BATCH | REPORT
+  title     String   @map("title")
+  content              String?   @map("content")                // 마크다운 가이드 내용
+  relatedFiles         String?   @map("related_files")           // 관련 파일 목록 (줄바꿈 구분)
+  isActive             String    @default("Y") @map("is_active") // Y | N
+  status               String    @default("") @map("status")     // REVIEW_REQ | REVIEW_DONE
+  aiFeedbackContent    String?   @map("ai_feedback_content")     // AI 피드백 내용 (마크다운)
+  aiFeedbackAt         DateTime? @map("ai_feedback_at")          // AI 피드백 수정 시각
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("tb_standard_guide")
 }

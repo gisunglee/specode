@@ -37,7 +37,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TagInput } from "@/components/common/TagInput";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import type { FunctionItem } from "@/types";
@@ -83,19 +82,9 @@ export function DesignInfoTab({
   const [spec, setSpec] = useState(func.spec || "");
   const [aiDesignContent, setAiDesignContent] = useState(func.aiDesignContent || "");
   const [dataFlow, setDataFlow] = useState(func.dataFlow || "");
+  const [relatedFiles, setRelatedFiles] = useState(func.relatedFiles || "");
+  const [refContent, setRefContent] = useState(func.refContent || "");
   const [changeReason, setChangeReason] = useState("");
-
-  const [refTables, setRefTables] = useState<string[]>(
-    func.references
-      ?.filter((r) => r.refType === "TABLE")
-      .map((r) => r.refValue) ?? []
-  );
-
-  const [refCommons, setRefCommons] = useState<string[]>(
-    func.references
-      ?.filter((r) => r.refType === "COMMON")
-      .map((r) => r.refValue) ?? []
-  );
 
   /* ─── API 저장 뮤테이션 ────────────────────────────────── */
   const updateMutation = useMutation({
@@ -124,16 +113,13 @@ export function DesignInfoTab({
 
   /** handleSave — 저장 버튼 클릭 핸들러 */
   const handleSave = () => {
-    const references = [
-      ...refTables.map((v) => ({ refType: "TABLE", refValue: v })),
-      ...refCommons.map((v) => ({ refType: "COMMON", refValue: v })),
-    ];
     updateMutation.mutate({
       spec,
       aiDesignContent: aiDesignContent || null,
       dataFlow,
+      relatedFiles: relatedFiles || null,
+      refContent: refContent || null,
       changeReason: changeReason || undefined,
-      references,
     });
   };
 
@@ -206,25 +192,14 @@ export function DesignInfoTab({
           {/*    → pt = 34 - 22 = 12px ≈ pt-3                      */}
           {/* ═══════════════════════════════════════════════════ */}
           <div className="col-span-2 space-y-5 pt-3">
-            {/* ── 참조 테이블 ──────────────────────────────── */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">참조 테이블</Label>
-              <TagInput
-                value={refTables}
-                onChange={setRefTables}
-                placeholder="테이블명 입력 후 Enter"
-              />
-            </div>
-
-            {/* ── 참조 공통 프로그램 ──────────────────────── */}
-            <div className="space-y-1.5">
-              <Label className="text-xs">참조 공통 프로그램</Label>
-              <TagInput
-                value={refCommons}
-                onChange={setRefCommons}
-                placeholder="공통코드 입력 후 Enter"
-              />
-            </div>
+            {/* ── 참고 프로그램 내용 ────────────────────────── */}
+            <MarkdownEditor
+              value={refContent}
+              onChange={setRefContent}
+              label="참고 프로그램 내용 (마크다운)"
+              rows={12}
+              placeholder="참고할 프로그램, 공통 모듈, 관련 코드 등을 작성하세요..."
+            />
 
             {/* ── 데이터 흐름 ──────────────────────────────── */}
             <div className="space-y-1.5">
@@ -236,53 +211,20 @@ export function DesignInfoTab({
               />
             </div>
 
-            {/* ── 선행/후행/화면이동 관계 테이블 ──────────── */}
-            {func.relations && func.relations.length > 0 && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">선행/후행/화면이동</Label>
-                <div className="rounded-md border border-border overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50">
-                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
-                          유형
-                        </th>
-                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
-                          대상
-                        </th>
-                        <th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
-                          설명
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {func.relations.map((rel) => (
-                        <tr
-                          key={rel.funcRelationId}
-                          className="border-b border-border/50"
-                        >
-                          <td className="px-2 py-1.5">
-                            <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-                              {rel.relationType === "PRECEDE"
-                                ? "선행"
-                                : rel.relationType === "FOLLOW"
-                                  ? "후행"
-                                  : "이동"}
-                            </span>
-                          </td>
-                          <td className="px-2 py-1.5">
-                            {rel.targetFunction?.systemId}
-                          </td>
-                          <td className="px-2 py-1.5 text-muted-foreground">
-                            {rel.description || rel.params || "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            {/* ── 관련 파일 ─────────────────────────────────
+             * 📌 줄바꿈 구분 파일 경로 목록. 저장 시 related_files 컬럼에 저장
+             */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">관련 파일</Label>
+              <textarea
+                value={relatedFiles}
+                onChange={(e) => setRelatedFiles(e.target.value)}
+                rows={4}
+                placeholder={"src/main/java/com/example/SomeService.java\nsrc/main/java/com/example/SomeMapper.java"}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs resize-y font-mono placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <p className="text-[11px] text-muted-foreground">한 줄에 파일 경로 하나씩</p>
+            </div>
 
             {/* ── 첨부파일 (공통 컴포넌트) ────────────────── */}
             <AttachmentManager

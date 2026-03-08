@@ -211,7 +211,9 @@ export default function DashboardPage() {
 
                     {/* 기능명 */}
                     <p className="text-sm font-medium truncate group-hover:text-primary transition-colors mb-1">
-                      {activity.function.systemId} {activity.function.name}
+                      {activity.function
+                        ? `${activity.function.systemId} ${activity.function.name}`
+                        : activity.refTableName}
                     </p>
 
                     {/* 피드백 미리보기 */}

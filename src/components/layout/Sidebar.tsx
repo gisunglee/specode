@@ -10,6 +10,8 @@ import {
   GitBranch,
   FileSpreadsheet,
   Bot,
+  BookOpen,
+  FileCode2,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
@@ -23,11 +25,14 @@ const icons = {
   GitBranch,
   FileSpreadsheet,
   Bot,
+  BookOpen,
+  FileCode2,
 } as const;
 
 const NAV_ITEMS = [
   { href: "/", label: "대시보드", icon: "LayoutDashboard" as const },
   { href: "/requirements", label: "요구사항", icon: "ClipboardList" as const },
+  { href: "/standard-guides", label: "표준가이드", icon: "BookOpen" as const },
   { href: "/screens", label: "화면", icon: "Monitor" as const },
   { href: "/functions", label: "기능", icon: "Cog" as const },
   { href: "/tree", label: "트리 뷰", icon: "GitBranch" as const },
@@ -89,6 +94,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* 구분선 */}
+        <div className="my-1 border-t border-sidebar-border" />
+
+        {/* API Docs — 새 탭으로 열림 */}
+        <a
+          href="/api-docs"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-foreground"
+        >
+          <FileCode2 className="h-4.5 w-4.5 flex-shrink-0" />
+          {!collapsed && <span className="truncate">API Docs</span>}
+        </a>
       </nav>
 
       {/* Toggle */}

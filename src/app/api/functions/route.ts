@@ -29,17 +29,12 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  const [data, total] = await Promise.all([
+  const [functions, total] = await Promise.all([
     prisma.function.findMany({
       where,
       include: {
         screen: {
           select: { name: true, systemId: true, requirement: { select: { name: true } } },
-        },
-        tasks: {
-          select: { taskStatus: true, taskType: true, completedAt: true },
-          orderBy: { requestedAt: "desc" },
-          take: 1,
         },
       },
       orderBy: { createdAt: "desc" },
@@ -48,6 +43,22 @@ export async function GET(request: NextRequest) {
     }),
     prisma.function.count({ where }),
   ]);
+
+  /* 최근 AiTask 1건씩 매핑 */
+  const funcIds = functions.map((f) => f.functionId);
+  const latestTasks = funcIds.length
+    ? await prisma.aiTask.findMany({
+        where: { refTableName: "tb_function", refPkId: { in: funcIds } },
+        orderBy: { requestedAt: "desc" },
+      })
+    : [];
+
+  const taskByFuncId = new Map<number, (typeof latestTasks)[0]>();
+  for (const t of latestTasks) {
+    if (!taskByFuncId.has(t.refPkId)) taskByFuncId.set(t.refPkId, t);
+  }
+
+  const data = functions.map((f) => ({ ...f, latestTask: taskByFuncId.get(f.functionId) ?? null }));
 
   return apiSuccess(data, {
     page,

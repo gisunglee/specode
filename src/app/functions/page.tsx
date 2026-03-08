@@ -74,11 +74,11 @@ interface FunctionRow {
     systemId: string;
     requirement: { name: string };
   };
-  tasks: {
+  latestTask: {
     taskStatus: string;
     taskType: string;
     completedAt: string | null;
-  }[];
+  } | null;
 }
 
 /** 화면 목록 API 응답의 행 타입 (화면 선택 콤보박스용) */
@@ -319,7 +319,7 @@ function FunctionsContent() {
       id: "latestAi",
       header: "AI 결과",
       cell: ({ row }) => {
-        const latest = row.original.tasks?.[0];
+        const latest = row.original.latestTask;
         if (!latest) return <span className="text-muted-foreground">-</span>;
         const cfg = AI_TASK_STATUS_LABEL[latest.taskStatus];
         return (

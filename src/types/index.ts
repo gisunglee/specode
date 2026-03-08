@@ -51,62 +51,38 @@ export interface FunctionItem {
   aiImplFeedback: string | null;
   aiImplIssues: string | null;
   gitlabPrUrl: string | null;
+  relatedFiles: string | null;
+  refContent: string | null;
   createdAt: string;
   updatedAt: string;
   screen?: Screen;
-  references?: FuncReference[];
-  relations?: FuncRelation[];
-  relatedBy?: FuncRelation[];
-  files?: FuncFile[];
+  latestTask?: AiTask | null;
   tasks?: AiTask[];
   attachments?: Attachment[];
-}
-
-export interface FuncReference {
-  funcReferenceId: number;
-  functionId: number;
-  refType: string;
-  refValue: string;
-  description: string | null;
-  createdAt: string;
-}
-
-export interface FuncRelation {
-  funcRelationId: number;
-  sourceFunctionId: number;
-  targetFunctionId: number;
-  relationType: string;
-  params: string | null;
-  description: string | null;
-  createdAt: string;
-  sourceFunction?: FunctionItem;
-  targetFunction?: FunctionItem;
-}
-
-export interface FuncFile {
-  funcFileId: number;
-  functionId: number;
-  aiTaskId: number | null;
-  filePath: string;
-  description: string | null;
-  createdBy: string;
-  createdAt: string;
 }
 
 export interface AiTask {
   aiTaskId: number;
   systemId: string;
-  functionId: number;
-  taskType: string;       // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS
+  refTableName: string;   // "tb_function" | "tb_standard_guide" | ...
+  refPkId: number;        // 대상 테이블 PK
+  taskType: string;       // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS | INSPECT
   taskStatus: string;     // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED
-  spec: string | null;    // AI 호출 시점 spec 스냅샷
-  comment: string | null; // GS 추가 요청 (재처리용, NULL이면 최초 요청)
-  feedback: string | null; // AI 결과 (마크다운 통째로)
+  spec: string | null;
+  comment: string | null;
+  feedback: string | null;
+  resultFiles: string | null;
   requestedAt: string;
   startedAt: string | null;
   completedAt: string | null;
-  function?: FunctionItem;
-  files?: FuncFile[];
+  // AI현황 페이지 전용: API에서 refTableName에 맞는 대상 정보를 담아 반환
+  target?: {
+    systemId: string;
+    name?: string;   // tb_function
+    title?: string;  // tb_standard_guide
+    displayCode?: string | null;
+    category?: string;
+  } | null;
 }
 
 export interface Attachment {
@@ -122,6 +98,23 @@ export interface Attachment {
   delYn: string;
   createdBy: string;
   createdAt: string;
+}
+
+export interface StandardGuide {
+  guideId: number;
+  systemId: string;
+  category: string;
+  title: string;
+  content: string | null;
+  relatedFiles: string | null;
+  isActive: string; // "Y" | "N"
+  status: string; // REVIEW_REQ | REVIEW_DONE
+  aiFeedbackContent: string | null;
+  aiFeedbackAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  latestTask?: AiTask | null;
+  tasks?: AiTask[];
 }
 
 export interface TreeNode {
