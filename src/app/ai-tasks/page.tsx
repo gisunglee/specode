@@ -4,9 +4,19 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { DataGrid } from "@/components/common/DataGrid";
 import { Button } from "@/components/ui/button";
-import { formatDateTime } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { apiFetch, formatDateTime } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
 /* ─── 로컬 타입 (AI현황 페이지 전용) ──────────────────────── */
@@ -78,6 +88,7 @@ export default function AiTasksPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["ai-tasks", page, statusFilter],
@@ -91,15 +102,25 @@ export default function AiTasksPage() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: async (aiTaskId: number) => {
-      const res = await fetch(`/api/ai-tasks/${aiTaskId}`, {
+    mutationFn: (aiTaskId: number) =>
+      apiFetch(`/api/ai-tasks/${aiTaskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taskStatus: "CANCELLED" }),
-      });
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-tasks"] });
+      toast.success("작업이 취소되었습니다.");
+    },
+  });
+
+  const { data: taskDetail, isLoading: taskDetailLoading } = useQuery({
+    queryKey: ["ai-task-detail", selectedTaskId],
+    queryFn: async () => {
+      const res = await fetch(`/api/ai-tasks/${selectedTaskId}`);
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ai-tasks"] }),
+    enabled: !!selectedTaskId,
   });
 
   const calcDuration = (start: string | null, end: string | null) => {
@@ -127,12 +148,24 @@ export default function AiTasksPage() {
   /* 대상 엔티티 링크 경로 */
   const getTargetHref = (row: AiTaskRow) => {
     if (row.refTableName === "tb_function") return `/functions/${row.refPkId}`;
-    if (row.refTableName === "tb_standard_guide") return `/standard-guides`;
+    if (row.refTableName === "tb_standard_guide") return `/standard-guides?openGuide=${row.refPkId}`;
     return null;
   };
 
   const columns: ColumnDef<AiTaskRow, unknown>[] = [
-    { accessorKey: "systemId", header: "작업 ID", size: 100 },
+    {
+      accessorKey: "systemId",
+      header: "작업 ID",
+      size: 100,
+      cell: ({ row }) => (
+        <span
+          className="text-primary hover:underline cursor-pointer font-mono text-xs"
+          onClick={(e) => { e.stopPropagation(); setSelectedTaskId(row.original.aiTaskId); }}
+        >
+          {row.original.systemId}
+        </span>
+      ),
+    },
     {
       id: "refType",
       header: "유형",

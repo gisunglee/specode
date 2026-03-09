@@ -44,7 +44,8 @@ import {
 
 /* ─── 상수 & 유틸 임포트 ──────────────────────────────────── */
 import { SCREEN_TYPES } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
+import { apiFetch, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 import { DEFAULT_SCREEN_SPEC } from "@/lib/templates/screenSpec";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -122,18 +123,16 @@ export default function ScreenDetailPage({
 
   /* ─── 저장 뮤테이션 ──────────────────────────────────── */
   const updateMutation = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch(`/api/screens/${id}`, {
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch(`/api/screens/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["screen", id] });
       queryClient.invalidateQueries({ queryKey: ["screens"] });
-      /* 저장 완료 피드백 — 2초 후 자동 사라짐 */
+      toast.success("저장되었습니다.");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     },

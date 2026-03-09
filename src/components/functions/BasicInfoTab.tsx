@@ -43,6 +43,8 @@ import {
 
 /* ─── 상수 & 타입 임포트 ─────────────────────────────────── */
 import { PRIORITIES } from "@/lib/constants"; // 우선순위 옵션 목록
+import { apiFetch } from "@/lib/utils";
+import { toast } from "sonner";
 import type { FunctionItem } from "@/types"; // 기능 데이터 타입 정의
 
 /**
@@ -88,20 +90,17 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
    * - mutate(body): API 호출 실행 함수
    */
   const updateMutation = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      // PUT /api/functions/[id] — 기능 데이터 수정 API
-      const res = await fetch(`/api/functions/${func.functionId}`, {
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch(`/api/functions/${func.functionId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
-      // 📌 저장 성공 → 캐시 무효화 → 자동 refetch → UI 갱신
       queryClient.invalidateQueries({
         queryKey: ["function", String(func.functionId)],
       });
+      toast.success("저장되었습니다.");
     },
   });
 

@@ -42,12 +42,12 @@ export async function GET() {
 
   const functions = funcIds.length
     ? await prisma.function.findMany({
-        where: { id: { in: funcIds } },
-        select: { id: true, systemId: true, name: true },
+        where: { functionId: { in: funcIds } },
+        select: { functionId: true, systemId: true, name: true },
       })
     : [];
 
-  const funcMap = new Map(functions.map((f) => [f.id, f]));
+  const funcMap = new Map(functions.map((f) => [f.functionId, f]));
 
   const recentActivity = rawActivity.map((a) => ({
     ...a,

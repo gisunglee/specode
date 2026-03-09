@@ -38,7 +38,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import { apiFetch, cn, formatDate, formatDateTime } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { StandardGuide, AiTask } from "@/types";
 
@@ -158,61 +159,51 @@ export default function StandardGuidesPage() {
     queryClient.invalidateQueries({ queryKey: ["standard-guides"] });
 
   const createMutation = useMutation({
-    mutationFn: async (body: typeof EMPTY_FORM) => {
-      const res = await fetch("/api/standard-guides", {
+    mutationFn: (body: typeof EMPTY_FORM) =>
+      apiFetch("/api/standard-guides", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
-    onSuccess: () => { invalidate(); closeDialog(); },
+      }),
+    onSuccess: () => { invalidate(); toast.success("가이드가 등록되었습니다."); closeDialog(); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...body }: { id: number } & typeof EMPTY_FORM) => {
-      const res = await fetch(`/api/standard-guides/${id}`, {
+    mutationFn: ({ id, ...body }: { id: number } & typeof EMPTY_FORM) =>
+      apiFetch(`/api/standard-guides/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
-    onSuccess: () => { invalidate(); closeDialog(); },
+      }),
+    onSuccess: () => { invalidate(); toast.success("가이드가 수정되었습니다."); closeDialog(); },
   });
 
   /* is_active 즉시 토글 */
   const toggleMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: string }) => {
-      const res = await fetch(`/api/standard-guides/${id}`, {
+    mutationFn: ({ id, isActive }: { id: number; isActive: string }) =>
+      apiFetch(`/api/standard-guides/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: invalidate,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/standard-guides/${id}`, { method: "DELETE" });
-      return res.json();
-    },
-    onSuccess: () => { invalidate(); setDeleteItem(null); },
+    mutationFn: (id: number) =>
+      apiFetch(`/api/standard-guides/${id}`, { method: "DELETE" }),
+    onSuccess: () => { invalidate(); toast.success("삭제되었습니다."); setDeleteItem(null); },
   });
 
   /* AI 점검 요청 (ScanSearch 버튼) */
   const inspectMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/standard-guides/${id}/inspect`, {
+    mutationFn: (id: number) =>
+      apiFetch(`/api/standard-guides/${id}/inspect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
-      });
-      return res.json();
-    },
-    onSuccess: invalidate,
+      }),
+    onSuccess: () => { invalidate(); toast.success("AI 점검 요청이 등록되었습니다."); },
   });
 
   /* ─── 다이얼로그 헬퍼 ──────────────────────────────────────── */

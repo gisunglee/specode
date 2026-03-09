@@ -2,6 +2,33 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { ALL_STATUSES } from "./constants";
 
+/**
+ * apiFetch — fetch 래퍼
+ * HTTP 오류(4xx/5xx)와 API success:false 응답을 모두 Error로 throw합니다.
+ * TanStack Query의 onError가 이를 잡아 toast로 표시합니다.
+ */
+export async function apiFetch<T = unknown>(
+  url: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(url, options);
+  const json = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const message =
+      json?.error?.message ??
+      json?.message ??
+      `서버 오류 (${res.status})`;
+    throw new Error(message);
+  }
+
+  if (json && json.success === false) {
+    throw new Error(json.error?.message ?? "요청이 실패했습니다.");
+  }
+
+  return json;
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

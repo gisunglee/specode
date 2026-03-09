@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { apiFetch } from "@/lib/utils";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { DataGrid } from "@/components/common/DataGrid";
@@ -82,32 +84,30 @@ export default function RequirementsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch("/api/requirements", {
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch("/api/requirements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requirements"] });
+      toast.success("요구사항이 등록되었습니다.");
       setDialogOpen(false);
       reset();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...body }: { id: number } & Record<string, unknown>) => {
-      const res = await fetch(`/api/requirements/${id}`, {
+    mutationFn: ({ id, ...body }: { id: number } & Record<string, unknown>) =>
+      apiFetch(`/api/requirements/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requirements"] });
+      toast.success("요구사항이 수정되었습니다.");
       setDialogOpen(false);
       setEditItem(null);
       reset();
@@ -115,12 +115,11 @@ export default function RequirementsPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/requirements/${id}`, { method: "DELETE" });
-      return res.json();
-    },
+    mutationFn: (id: number) =>
+      apiFetch(`/api/requirements/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requirements"] });
+      toast.success("삭제되었습니다.");
       setDeleteItem(null);
     },
   });

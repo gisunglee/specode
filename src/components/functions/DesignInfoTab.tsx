@@ -39,6 +39,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
+import { apiFetch } from "@/lib/utils";
+import { toast } from "sonner";
 import type { FunctionItem } from "@/types";
 
 /**
@@ -88,18 +90,17 @@ export function DesignInfoTab({
 
   /* ─── API 저장 뮤테이션 ────────────────────────────────── */
   const updateMutation = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch(`/api/functions/${func.functionId}`, {
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch(`/api/functions/${func.functionId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["function", String(func.functionId)],
       });
+      toast.success("저장되었습니다.");
       setChangeReason("");
     },
   });

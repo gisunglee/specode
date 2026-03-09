@@ -41,7 +41,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { SCREEN_TYPES } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
+import { apiFetch, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
 interface ScreenRow {
@@ -95,32 +96,30 @@ export default function ScreensPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch("/api/screens", {
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch("/api/screens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["screens"] });
+      toast.success("화면이 등록되었습니다.");
       setDialogOpen(false);
       reset();
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...body }: { id: number } & Record<string, unknown>) => {
-      const res = await fetch(`/api/screens/${id}`, {
+    mutationFn: ({ id, ...body }: { id: number } & Record<string, unknown>) =>
+      apiFetch(`/api/screens/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["screens"] });
+      toast.success("화면이 수정되었습니다.");
       setDialogOpen(false);
       setEditItem(null);
       reset();
@@ -128,12 +127,11 @@ export default function ScreensPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await fetch(`/api/screens/${id}`, { method: "DELETE" });
-      return res.json();
-    },
+    mutationFn: (id: number) =>
+      apiFetch(`/api/screens/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["screens"] });
+      toast.success("삭제되었습니다.");
       setDeleteItem(null);
     },
   });

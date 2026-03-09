@@ -59,7 +59,8 @@ import {
   AI_REQUEST_STATUSES,
   FUNC_STATUS_LABEL,
 } from "@/lib/constants";
-import { cn } from "@/lib/utils"; // Tailwind 클래스 병합 유틸
+import { apiFetch, cn } from "@/lib/utils"; // Tailwind 클래스 병합 유틸
+import { toast } from "sonner";
 
 /* ─── 탭 컴포넌트 임포트 ─────────────────────────────────── */
 import { BasicInfoTab } from "@/components/functions/BasicInfoTab"; // 기본정보 탭
@@ -215,38 +216,21 @@ export default function FunctionDetailPage({
    *     자동으로 tb_ai_task 레코드 생성 → AI가 폴링으로 가져감
    */
   const statusMutation = useMutation({
-    mutationFn: async (status: string) => {
-      /**
-       * 📌 PATCH /api/functions/[id] — 상태 변경 요청
-       *    comment: GS 코멘트가 있으면 함께 전달
-       *    → AI 요청 상태일 때 AiTask.comment에 저장되어 AI에게 전달됨
-       */
-      const res = await fetch(`/api/functions/${id}`, {
+    mutationFn: (status: string) =>
+      apiFetch(`/api/functions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status,
           comment: gsComment.trim() || undefined,
         }),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: () => {
-      // 📌 상태 변경 성공 → 캐시 무효화 → 자동 refetch → UI 갱신
       queryClient.invalidateQueries({ queryKey: ["function", id] });
-      /**
-       * 📌 목록 페이지 캐시도 무효화
-       *    → 목록으로 돌아갔을 때 변경된 상태가 바로 반영됨
-       */
       queryClient.invalidateQueries({ queryKey: ["functions"] });
-      setStatusDialog(null); // AI 요청 확인 대화상자 닫기
-      setGsComment(""); // GS 코멘트 초기화 (전달 완료)
-
-      /**
-       * 📌 "저장됨 ✓" 피드백 표시
-       *    → 2초 후 자동으로 사라짐
-       *    → 사용자에게 상태가 즉시 DB에 저장되었음을 시각적으로 알림
-       */
+      toast.success("상태가 변경되었습니다.");
+      setStatusDialog(null);
+      setGsComment("");
       setStatusSaved(true);
       setTimeout(() => setStatusSaved(false), 2000);
     },

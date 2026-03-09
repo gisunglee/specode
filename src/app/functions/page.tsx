@@ -55,7 +55,8 @@ import {
   PRIORITIES,
   AI_TASK_STATUS_LABEL,
 } from "@/lib/constants";
-import { formatDate } from "@/lib/utils";
+import { apiFetch, formatDate } from "@/lib/utils";
+import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
 /* ─── 타입 정의 ───────────────────────────────────────────── */
@@ -200,25 +201,19 @@ function FunctionsContent() {
 
   /* ─── API: 일괄 상태 변경 ────────────────────────────────── */
   const batchStatusMutation = useMutation({
-    mutationFn: async ({
-      ids,
-      status,
-    }: {
-      ids: number[];
-      status: string;
-    }) => {
-      await Promise.all(
+    mutationFn: ({ ids, status }: { ids: number[]; status: string }) =>
+      Promise.all(
         ids.map((id) =>
-          fetch(`/api/functions/${id}`, {
+          apiFetch(`/api/functions/${id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status }),
           })
         )
-      );
-    },
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["functions"] });
+      toast.success("상태가 변경되었습니다.");
       setSelected([]);
     },
   });
@@ -230,23 +225,15 @@ function FunctionsContent() {
    *    성공 시 → 생성된 기능의 상세 페이지로 이동
    */
   const createMutation = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
-      const res = await fetch("/api/functions", {
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch<{ data: { functionId: number } }>("/api/functions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
-      return res.json();
-    },
+      }),
     onSuccess: (result) => {
-      if (result.success) {
-        setCreateOpen(false);
-        /**
-         * 📌 등록 성공 → 기능 상세 페이지로 즉시 이동
-         *    상세 페이지에서 spec, 참조 테이블 등 나머지 정보를 편집
-         */
-        router.push(`/functions/${result.data.functionId}`);
-      }
+      setCreateOpen(false);
+      router.push(`/functions/${result.data.functionId}`);
     },
   });
 
