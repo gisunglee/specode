@@ -46,11 +46,13 @@ import {
 
 /* ─── 유틸 & 타입 임포트 ─────────────────────────────────── */
 import { formatDateTime } from "@/lib/utils";
-import type { FunctionItem } from "@/types";
+import type { AiTask, FunctionItem } from "@/types";
 
 /** HistoryTab props 타입 */
 interface HistoryTabProps {
-  func: FunctionItem;
+  /** func를 전달하거나, tasks를 직접 전달 (area 등 다른 엔티티에서 사용 시) */
+  func?: FunctionItem;
+  tasks?: AiTask[];
 }
 
 /**
@@ -81,7 +83,8 @@ const TASK_STATUS_LABEL: Record<string, string> = {
  * 📌 func.tasks: API에서 requestedAt DESC로 정렬되어 옴
  *    → 최신 태스크가 맨 위에 표시됨
  */
-export function HistoryTab({ func }: HistoryTabProps) {
+export function HistoryTab({ func, tasks: tasksProp }: HistoryTabProps) {
+  const tasks = tasksProp ?? func?.tasks;
   /**
    * expandedTasks: 현재 펼쳐진 태스크들의 aiTaskId 집합 (Set)
    *
@@ -118,13 +121,13 @@ export function HistoryTab({ func }: HistoryTabProps) {
         </div>
 
         {/* 태스크 목록 (없으면 빈 상태 안내) */}
-        {!func.tasks || func.tasks.length === 0 ? (
+        {!tasks || tasks.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
             AI 요청 이력이 없습니다.
           </p>
         ) : (
           <div className="space-y-1">
-            {func.tasks.map((task) => {
+            {tasks.map((task) => {
               /** 📌 이 태스크가 현재 펼쳐져 있는지 여부 */
               const isExpanded = expandedTasks.has(task.aiTaskId);
 

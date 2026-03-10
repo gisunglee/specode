@@ -37,11 +37,28 @@ export async function GET(request: NextRequest) {
           select: {
             name: true,
             areaCode: true,
-            screen: { select: { name: true, systemId: true, requirement: { select: { name: true } } } },
+            sortOrder: true,
+            screen: {
+              select: {
+                name: true,
+                systemId: true,
+                categoryL: true,
+                categoryM: true,
+                categoryS: true,
+                requirement: { select: { name: true } },
+              },
+            },
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { area: { screen: { categoryL: "asc" } } },
+        { area: { screen: { categoryM: "asc" } } },
+        { area: { screen: { categoryS: "asc" } } },
+        { area: { sortOrder: "asc" } },
+        { sortOrder: "asc" },
+        { createdAt: "asc" },
+      ],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -85,12 +102,15 @@ export async function POST(request: NextRequest) {
     const data = await prisma.function.create({
       data: {
         systemId,
-        name: body.name,
-        displayCode: body.displayCode ?? null,
-        areaId: body.areaId ? parseInt(String(body.areaId)) : null,
-        spec: body.spec ?? null,
-        dataFlow: body.dataFlow ?? null,
-        priority: body.priority ?? "MEDIUM",
+        name: String(body.name),
+        displayCode: body.displayCode ? String(body.displayCode) : undefined,
+        sortOrder: body.sortOrder ? Number(body.sortOrder) : undefined,
+        spec: body.spec ? String(body.spec) : undefined,
+        dataFlow: body.dataFlow ? String(body.dataFlow) : undefined,
+        priority: body.priority ? String(body.priority) : "MEDIUM",
+        ...(body.areaId && !isNaN(Number(body.areaId)) && {
+          area: { connect: { areaId: Number(body.areaId) } },
+        }),
       },
       include: {
         area: { select: { name: true, areaCode: true } },

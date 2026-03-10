@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
         sortOrder: body.sortOrder ?? 1,
         areaType: body.areaType,
         spec: body.spec ?? null,
-        displayFields: body.displayFields ?? null,
         reqComment: body.reqComment ?? null,
       },
       include: {

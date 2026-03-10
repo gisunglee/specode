@@ -32,6 +32,7 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
     priority: func.priority,
     changeReason: func.changeReason || "",
     areaId: func.areaId ? String(func.areaId) : "",
+    sortOrder: func.sortOrder !== null && func.sortOrder !== undefined ? String(func.sortOrder) : "",
   });
 
   /* ─── 영역 목록 조회 (소속 영역 Select용) ──────────────── */
@@ -64,6 +65,7 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
     updateMutation.mutate({
       ...form,
       areaId: form.areaId ? parseInt(form.areaId) : null,
+      sortOrder: form.sortOrder !== "" ? parseInt(form.sortOrder) : null,
     });
   };
 
@@ -99,7 +101,7 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
           </div>
         </div>
 
-        {/* Row 2: 소속 영역, 우선순위 */}
+        {/* Row 2: 소속 영역, 우선순위, 정렬순서 */}
         <div className="grid grid-cols-4 gap-4">
           <div className="col-span-2 space-y-1.5">
             <Label className="text-xs">소속 영역</Label>
@@ -141,6 +143,15 @@ export function BasicInfoTab({ func }: BasicInfoTabProps) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">정렬순서</Label>
+            <Input
+              type="number"
+              value={form.sortOrder}
+              onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))}
+              placeholder="0"
+            />
           </div>
         </div>
 

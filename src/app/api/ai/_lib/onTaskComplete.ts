@@ -87,11 +87,11 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
   /* ─── tb_area 대상 ─────────────────────────────────────────── */
   if (refTableName === "tb_area") {
     if (taskType === "DESIGN") {
-      // AI 상세설계 결과 → aiDetailDesign, 상태 DESIGN_DONE
+      // AI 설계 결과 → aiFeedback, 상태 DESIGN_DONE
       await prisma.area.update({
         where: { areaId: refPkId },
         data: {
-          aiDetailDesign: feedback,
+          aiFeedback: feedback,
           status: "DESIGN_DONE",
         },
       });

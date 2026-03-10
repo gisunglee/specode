@@ -31,9 +31,10 @@ interface AiTaskRow {
   startedAt: string | null;
   completedAt: string | null;
   target: {
-    systemId: string;
-    name?: string;   // tb_function
-    title?: string;  // tb_standard_guide
+    systemId?: string;
+    name?: string;       // tb_function, tb_area
+    title?: string;      // tb_standard_guide
+    areaCode?: string;   // tb_area
     displayCode?: string | null;
     category?: string;
   } | null;
@@ -53,6 +54,7 @@ const TASK_TYPE_LABEL: Record<string, string> = {
 const REF_TABLE_LABEL: Record<string, string> = {
   tb_function:       "기능",
   tb_standard_guide: "가이드",
+  tb_area:           "영역화면설계",
 };
 
 const TASK_STATUS_LABEL: Record<string, { label: string; class: string }> = {
@@ -139,7 +141,7 @@ export default function AiTasksPage() {
     const s = new Date(start).getTime();
     const e = end ? new Date(end).getTime() : Date.now();
     const diff = Math.round((e - s) / 1000 / 60);
-    if (diff < 1) return "<1분";
+    if (diff < 1) return "1분 미만";
     return `${diff}분`;
   };
 
@@ -153,13 +155,17 @@ export default function AiTasksPage() {
     if (row.refTableName === "tb_standard_guide") {
       return `${row.target.systemId} ${row.target.title ?? ""}`;
     }
-    return `${row.target.systemId}`;
+    if (row.refTableName === "tb_area") {
+      return `${row.target.areaCode ?? ""} ${row.target.name ?? ""}`.trim();
+    }
+    return `${row.target.systemId ?? `#${row.refPkId}`}`;
   };
 
   /* 대상 엔티티 링크 경로 */
   const getTargetHref = (row: AiTaskRow) => {
     if (row.refTableName === "tb_function") return `/functions/${row.refPkId}`;
     if (row.refTableName === "tb_standard_guide") return `/standard-guides?openGuide=${row.refPkId}`;
+    if (row.refTableName === "tb_area") return `/areas/${row.refPkId}`;
     return null;
   };
 

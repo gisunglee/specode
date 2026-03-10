@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DataGrid } from "@/components/common/DataGrid";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
@@ -23,6 +24,7 @@ import {
   LayoutEditor,
   type LayoutRow,
 } from "@/components/screens/LayoutEditor";
+import { AutocompleteInput } from "@/components/common/AutocompleteInput";
 
 import { SCREEN_TYPES, AREA_TYPES } from "@/lib/constants";
 import { apiFetch, formatDate } from "@/lib/utils";
@@ -57,10 +59,14 @@ export default function ScreenDetailPage({
   const queryClient = useQueryClient();
 
   const [spec, setSpec] = useState("");
+  const [name, setName] = useState("");
   const [layoutRows, setLayoutRows] = useState<LayoutRow[]>([]);
+  const [categoryL, setCategoryL] = useState("");
+  const [categoryM, setCategoryM] = useState("");
+  const [categoryS, setCategoryS] = useState("");
+  const [menuOrder, setMenuOrder] = useState<number | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteMode, setDeleteMode] = useState<"cascade" | "detach">("cascade");
   const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
 
   const headerRef = useRef<HTMLDivElement>(null);
@@ -74,6 +80,14 @@ export default function ScreenDetailPage({
     },
     gcTime: 0,
   });
+
+  const { data: catData } = useQuery({
+    queryKey: ["screen-categories"],
+    queryFn: () => fetch("/api/screens/categories").then((r) => r.json()),
+    staleTime: 5 * 60 * 1000,
+  });
+  const catL: string[] = catData?.data?.categoryL ?? [];
+  const catM: string[] = catData?.data?.categoryM ?? [];
 
   const screen = data?.data;
 
@@ -92,6 +106,11 @@ export default function ScreenDetailPage({
     if (screen) {
       setSpec(screen.spec || DEFAULT_SCREEN_SPEC);
       setLayoutRows(parseLayoutData(screen.layoutData));
+      setCategoryL(screen.categoryL ?? "");
+      setCategoryM(screen.categoryM ?? "");
+      setCategoryS(screen.categoryS ?? "");
+      setMenuOrder(screen.menuOrder ?? null);
+      if (!name) setName(screen.name); // 초기 로드 시 한 번만 세팅
       // 초기 로드 시 모든 영역 펼침
       if (screen.areas?.length) {
         setExpandedAreas(new Set(screen.areas.map((a: AreaRow) => a.areaId)));
@@ -100,10 +119,7 @@ export default function ScreenDetailPage({
   }, [dataUpdatedAt]);
 
   const deleteMutation = useMutation({
-    mutationFn: (mode?: "cascade" | "detach") => {
-      const url = mode ? `/api/screens/${id}?mode=${mode}` : `/api/screens/${id}`;
-      return apiFetch(url, { method: "DELETE" });
-    },
+    mutationFn: () => apiFetch(`/api/screens/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("화면이 삭제되었습니다.");
       router.push("/screens");
@@ -133,12 +149,16 @@ export default function ScreenDetailPage({
   const handleSave = () => {
     if (!screen) return;
     updateMutation.mutate({
-      name: screen.name,
+      name: name,
       displayCode: screen.displayCode,
       screenType: screen.screenType,
       requirementId: screen.requirementId,
       spec,
       layoutData: JSON.stringify(layoutRows),
+      categoryL: categoryL || null,
+      categoryM: categoryM || null,
+      categoryS: categoryS || null,
+      menuOrder: menuOrder,
     });
   };
 
@@ -220,7 +240,7 @@ export default function ScreenDetailPage({
               )}
             </div>
             <p className="text-sm text-muted-foreground mt-0.5">
-              <span className="font-medium text-foreground">{screen.name}</span>
+              <span className="font-medium text-foreground">{name}</span>
               {screen.requirement?.name && (
                 <span className="ml-1">— {screen.requirement.name}</span>
               )}
@@ -282,6 +302,63 @@ export default function ScreenDetailPage({
             />
           </div>
           <div className="col-span-4 space-y-5 pt-8">
+            {/* ── 기본 정보 ─────────────────────────────── */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">기본 정보</p>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">화면명 *</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={handleSave}
+                  placeholder="화면명 입력"
+                />
+              </div>
+            </div>
+
+            {/* ── 메뉴 분류 ─────────────────────────────── */}
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">메뉴 분류</p>
+              <div className="grid grid-cols-2 gap-2">
+                <AutocompleteInput
+                  id="categoryL"
+                  label="대분류"
+                  value={categoryL}
+                  onChange={setCategoryL}
+                  suggestions={catL}
+                  placeholder="예: 예산관리"
+                />
+                <AutocompleteInput
+                  id="categoryM"
+                  label="중분류"
+                  value={categoryM}
+                  onChange={setCategoryM}
+                  suggestions={catM}
+                  placeholder="예: 감축량관리"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label htmlFor="categoryS" className="text-xs text-muted-foreground">소분류</label>
+                  <Input
+                    id="categoryS"
+                    value={categoryS}
+                    onChange={(e) => setCategoryS(e.target.value)}
+                    placeholder="3depth 메뉴"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="menuOrder" className="text-xs text-muted-foreground">메뉴순서</label>
+                  <Input
+                    id="menuOrder"
+                    type="number"
+                    value={menuOrder ?? ""}
+                    onChange={(e) => setMenuOrder(e.target.value ? parseInt(e.target.value) : null)}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
             <LayoutEditor
               key={`layout-${dataUpdatedAt}`}
               value={layoutRows}
@@ -370,7 +447,23 @@ export default function ScreenDetailPage({
       </div>
 
       {/* ── 화면 삭제 다이얼로그 ────────────────────────── */}
-      {areaCount === 0 ? (
+      {areaCount > 0 ? (
+        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>화면 삭제 불가</DialogTitle>
+              <DialogDescription>
+                <span className="font-medium text-foreground">&quot;{screen.name}&quot;</span>에 연결된{" "}
+                <span className="font-semibold text-destructive">{areaCount}개</span>의 영역이 있습니다.
+                <br />영역에서 화면 연결을 해제한 후 삭제할 수 있습니다.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setDeleteOpen(false)}>확인</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : (
         <ConfirmDialog
           open={deleteOpen}
           onOpenChange={setDeleteOpen}
@@ -378,62 +471,9 @@ export default function ScreenDetailPage({
           description={`"${screen.name}"을(를) 삭제하시겠습니까?`}
           variant="destructive"
           confirmLabel="삭제"
-          onConfirm={() => deleteMutation.mutate(undefined)}
+          onConfirm={() => deleteMutation.mutate()}
           loading={deleteMutation.isPending}
         />
-      ) : (
-        <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>화면 삭제</DialogTitle>
-              <DialogDescription>
-                <span className="font-medium text-foreground">&quot;{screen.name}&quot;</span>에 연결된{" "}
-                <span className="font-semibold text-destructive">{areaCount}개</span>의 영역이 있습니다.
-                <br />어떻게 처리하시겠습니까?
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2 py-2">
-              <button
-                onClick={() => setDeleteMode("cascade")}
-                className={`w-full text-left rounded-lg border px-4 py-3 text-sm transition-colors cursor-pointer ${
-                  deleteMode === "cascade"
-                    ? "border-destructive bg-destructive/5 text-destructive"
-                    : "border-border hover:border-destructive/50"
-                }`}
-              >
-                <p className="font-medium">전체 삭제 (영역·기능 모두 삭제)</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  화면과 연결된 영역 {areaCount}개 및 소속 기능 {totalFuncCount}건이 모두 삭제됩니다.
-                </p>
-              </button>
-              <button
-                onClick={() => setDeleteMode("detach")}
-                className={`w-full text-left rounded-lg border px-4 py-3 text-sm transition-colors cursor-pointer ${
-                  deleteMode === "detach"
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-              >
-                <p className="font-medium">화면만 삭제 (영역·기능 유지)</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  화면이 삭제되고 기능 {totalFuncCount}건은 영역에서 분리되어 유지됩니다.
-                </p>
-              </button>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
-                취소
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => deleteMutation.mutate(deleteMode)}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? "처리중..." : "삭제"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );

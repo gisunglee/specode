@@ -60,7 +60,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: {
         name: body.name,
         displayCode: body.displayCode ?? undefined,
-        areaId: body.areaId !== undefined ? (body.areaId || null) : undefined,
+        areaId: body.areaId !== undefined 
+          ? (body.areaId ? (isNaN(Number(body.areaId)) ? null : Number(body.areaId)) : null) 
+          : undefined,
+        sortOrder: body.sortOrder !== undefined 
+          ? (body.sortOrder !== "" && body.sortOrder !== null && !isNaN(Number(body.sortOrder)) ? Number(body.sortOrder) : null) 
+          : undefined,
         spec: body.spec ?? undefined,
         aiDesignContent: body.aiDesignContent !== undefined ? body.aiDesignContent : undefined,
         relatedFiles: body.relatedFiles !== undefined ? (body.relatedFiles || null) : undefined,

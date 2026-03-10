@@ -14,6 +14,10 @@ export const screenSchema = z.object({
   requirementId: z.number({ error: "소속 요구사항은 필수입니다." }),
   spec: z.string().optional().nullable(),
   layoutData: z.string().optional().nullable(),
+  categoryL: z.string().optional().nullable(),
+  categoryM: z.string().optional().nullable(),
+  categoryS: z.string().optional().nullable(),
+  menuOrder: z.number().optional().nullable(),
 });
 
 export const functionSchema = z.object({

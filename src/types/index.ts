@@ -40,12 +40,9 @@ export interface Area {
   sortOrder: number;
   areaType: string;
   spec: string | null;
-  imageUrl: string | null;
-  displayFields: string | null;
   status: string;
   reqComment: string | null;
   aiFeedback: string | null;
-  aiDetailDesign: string | null;
   useYn: string;
   createdBy: string | null;
   createdAt: string;
@@ -65,6 +62,7 @@ export interface FunctionItem {
   displayCode: string | null;
   name: string;
   areaId: number | null;
+  sortOrder: number | null;
   spec: string | null;
   dataFlow: string | null;
   changeReason: string | null;

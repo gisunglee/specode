@@ -142,6 +142,7 @@ export default function FunctionDetailPage({
    */
   const [historyOpen, setHistoryOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackViewMode, setFeedbackViewMode] = useState<"preview" | "code">("preview");
 
   /**
    * statusSaved: 상태 변경 후 "저장됨" 피드백 표시 여부
@@ -436,11 +437,30 @@ export default function FunctionDetailPage({
                 )}
               </h1>
             </div>
-            {/* 기능명 + 소속 화면명 */}
-            <p className="text-sm text-muted-foreground mt-0.5">
-              <span className="font-medium text-foreground">{func.name}</span>
+            {/* 기능명 + 소속 화면명/영역명 */}
+            <p className="text-sm text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5 min-w-0">
+              <span className="font-medium text-foreground truncate">{func.name}</span>
               {func.screen?.name && (
-                <span className="ml-1">— {func.screen.name}</span>
+                <>
+                  <span className="text-muted-foreground/60 shrink-0">—</span>
+                  <button 
+                    onClick={() => router.push(`/screens/${func.screen.screenId}`)}
+                    className="hover:text-primary hover:underline transition-colors truncate"
+                  >
+                    {func.screen.name}
+                  </button>
+                </>
+              )}
+               {func.area?.name && (
+                <>
+                  <span className="text-muted-foreground/60 shrink-0">{'>'}</span>
+                  <button 
+                    onClick={() => router.push(`/areas/${func.area.areaId}`)}
+                    className="hover:text-primary hover:underline transition-colors truncate"
+                  >
+                    {func.area.name}
+                  </button>
+                </>
               )}
             </p>
           </div>
@@ -639,13 +659,53 @@ export default function FunctionDetailPage({
       </Dialog>
 
       {/* AI 피드백 팝업 다이얼로그 */}
-      <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+      <Dialog open={feedbackOpen} onOpenChange={(v) => { setFeedbackOpen(v); if (!v) setFeedbackViewMode("preview"); }}>
         <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
-            <DialogTitle>AI 피드백</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>AI 피드백</DialogTitle>
+              <div className="flex gap-1 text-xs">
+                <button
+                  onClick={() => setFeedbackViewMode("preview")}
+                  className={`px-3 py-1 rounded-md transition-colors ${feedbackViewMode === "preview" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                >
+                  미리보기
+                </button>
+                <button
+                  onClick={() => setFeedbackViewMode("code")}
+                  className={`px-3 py-1 rounded-md transition-colors ${feedbackViewMode === "code" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                >
+                  마크다운
+                </button>
+              </div>
+            </div>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 px-6 py-4">
-            <AiFeedbackTab func={func} />
+            {feedbackViewMode === "preview" ? (
+              <AiFeedbackTab func={func} />
+            ) : (
+              <div className="space-y-4">
+                {func.aiInspFeedback && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">AI 피드백</p>
+                    <pre className="text-sm font-mono whitespace-pre-wrap bg-muted/30 rounded-md p-4 border border-border leading-relaxed">
+                      {func.aiInspFeedback}
+                    </pre>
+                  </div>
+                )}
+                {func.aiImplFeedback && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1.5">구현 피드백</p>
+                    <pre className="text-sm font-mono whitespace-pre-wrap bg-muted/30 rounded-md p-4 border border-border leading-relaxed">
+                      {func.aiImplFeedback}
+                    </pre>
+                  </div>
+                )}
+                {!func.aiInspFeedback && !func.aiImplFeedback && (
+                  <p className="text-muted-foreground text-sm text-center py-10">아직 AI 피드백이 없습니다.</p>
+                )}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

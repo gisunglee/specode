@@ -74,7 +74,7 @@ interface FunctionRow {
   area: {
     name: string;
     areaCode: string;
-    screen?: { name: string; systemId: string };
+    screen?: { name: string; systemId: string; categoryL?: string | null };
   } | null;
   latestTask: {
     taskStatus: string;
@@ -291,6 +291,25 @@ function FunctionsContent() {
       size: 100,
       cell: ({ getValue }) => getValue() || "-",
     },
+    {
+      id: "screenName",
+      header: "화면명",
+      size: 130,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground text-xs">
+          {row.original.area?.screen?.name ?? "-"}
+        </span>
+      ),
+    },
+    {
+      id: "area",
+      header: "영역명",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.area?.name ?? "-"}
+        </span>
+      ),
+    },
     { accessorKey: "name", header: "기능명" },
     {
       accessorKey: "status",
@@ -310,15 +329,6 @@ function FunctionsContent() {
         );
       },
       size: 60,
-    },
-    {
-      id: "area",
-      header: "영역명",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.area?.name ?? "-"}
-        </span>
-      ),
     },
     {
       id: "latestAi",

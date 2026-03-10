@@ -10,7 +10,6 @@ const ROUTE_LABELS: Record<string, string> = {
   "/screens": "화면 관리",
   "/functions": "기능 관리",
   "/tree": "트리 뷰",
-  "/import-export": "엑셀 임포트/익스포트",
   "/ai-tasks": "AI 작업 현황",
 };
 

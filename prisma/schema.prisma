@@ -32,6 +32,10 @@ model Screen {
   requirementId Int      @map("requirement_id")
   spec          String?  @map("spec")             // 화면 설명 (마크다운)
   layoutData    String?  @map("layout_data")      // 레이아웃 JSON 문자열
+  categoryL     String?  @map("category_l")       // 대분류 (대메뉴)
+  categoryM     String?  @map("category_m")       // 중분류 (중메뉴)
+  categoryS     String?  @map("category_s")       // 소분류 (3depth 메뉴)
+  menuOrder     Int?     @map("menu_order")        // 메뉴 정렬 순서
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -44,24 +48,21 @@ model Screen {
 model Area {
   areaId         Int      @id @default(autoincrement()) @map("area_id")
   areaCode       String   @unique @map("area_code")       // AR-00001
-  screenId       Int      @map("screen_id")
+  screenId       Int?     @map("screen_id")
   name           String   @map("name")
   sortOrder      Int      @default(1) @map("sort_order")
   areaType       String   @map("area_type")               // GRID|FORM|INFO_CARD|TAB|FULL_SCREEN
   spec           String?  @map("spec")
-  imageUrl       String?  @map("image_url")
-  displayFields  String?  @map("display_fields")
-  status         String   @default("NONE") @map("status") // NONE|DESIGN_REQ|DESIGN_DONE
+  status         String   @default("NONE") @map("status") // NONE|DESIGN_REQ|DESIGN_DONE|CONFIRM_Y
   reqComment     String?  @map("req_comment")
   aiFeedback     String?  @map("ai_feedback")
-  aiDetailDesign String?  @map("ai_detail_design")
   useYn          String   @default("Y") @map("use_yn")
   createdBy      String?  @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedBy      String?  @map("updated_by")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  screen    Screen     @relation(fields: [screenId], references: [screenId])
+  screen    Screen?    @relation(fields: [screenId], references: [screenId])
   functions Function[]
 
   @@index([screenId])
@@ -75,6 +76,7 @@ model Function {
   displayCode String?  @map("display_code")
   name        String   @map("name")
   areaId      Int?     @map("area_id")
+  sortOrder   Int?     @default(0) @map("sort_order")  // 기능 정렬 순서
 
   spec         String?  @map("spec")
   dataFlow     String?  @map("data_flow")

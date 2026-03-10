@@ -21,13 +21,19 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return apiError("NOT_FOUND", "영역을 찾을 수 없습니다.", 404);
   }
 
-  // polymorphic AiTask 조회
-  const tasks = await prisma.aiTask.findMany({
-    where: { refTableName: "tb_area", refPkId: numId },
-    orderBy: { requestedAt: "desc" },
-  });
+  // polymorphic AiTask + Attachment 조회
+  const [tasks, attachments] = await Promise.all([
+    prisma.aiTask.findMany({
+      where: { refTableName: "tb_area", refPkId: numId },
+      orderBy: { requestedAt: "desc" },
+    }),
+    prisma.attachment.findMany({
+      where: { refTableName: "tb_area", refPkId: numId, delYn: "N" },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
-  return apiSuccess({ ...data, tasks });
+  return apiSuccess({ ...data, tasks, attachments });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -47,9 +53,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         areaType: body.areaType ?? undefined,
         sortOrder: body.sortOrder ?? undefined,
         spec: body.spec !== undefined ? (body.spec || null) : undefined,
-        displayFields: body.displayFields !== undefined ? (body.displayFields || null) : undefined,
         reqComment: body.reqComment !== undefined ? (body.reqComment || null) : undefined,
-        aiDetailDesign: body.aiDetailDesign !== undefined ? (body.aiDetailDesign || null) : undefined,
       },
     });
 

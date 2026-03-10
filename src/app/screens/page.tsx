@@ -57,6 +57,8 @@ interface ScreenRow {
   requirementId: number;
   requirement: { name: string; systemId: string };
   _count: { areas: number };
+  categoryL: string | null;
+  categoryM: string | null;
   updatedAt: string;
 }
 
@@ -69,7 +71,6 @@ export default function ScreensPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<ScreenRow | null>(null);
   const [deleteItem, setDeleteItem] = useState<ScreenRow | null>(null);
-  const [deleteMode, setDeleteMode] = useState<"cascade" | "detach">("cascade");
 
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
@@ -131,13 +132,9 @@ export default function ScreensPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: ({ id, mode }: { id: number; mode?: "cascade" | "detach" }) => {
-      const url = mode ? `/api/screens/${id}?mode=${mode}` : `/api/screens/${id}`;
-      return apiFetch(url, { method: "DELETE" });
-    },
+    mutationFn: (id: number) => apiFetch(`/api/screens/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["screens"] });
-      queryClient.invalidateQueries({ queryKey: ["functions"] });
       toast.success("삭제되었습니다.");
       setDeleteItem(null);
     },
@@ -182,6 +179,22 @@ export default function ScreensPage() {
   const columns: ColumnDef<ScreenRow, unknown>[] = [
     { accessorKey: "systemId", header: "ID", size: 100 },
     { accessorKey: "displayCode", header: "표시코드", size: 100 },
+    {
+      accessorKey: "categoryL",
+      header: "대분류",
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground text-xs">{getValue() as string ?? "-"}</span>
+      ),
+      size: 100,
+    },
+    {
+      accessorKey: "categoryM",
+      header: "중분류",
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground text-xs">{getValue() as string ?? "-"}</span>
+      ),
+      size: 100,
+    },
     { accessorKey: "name", header: "화면명" },
     {
       accessorKey: "screenType",
@@ -386,73 +399,36 @@ export default function ScreensPage() {
       {/* ── 화면 삭제 다이얼로그 ──────────────────────────────── */}
       {deleteItem && (() => {
         const areaCount = deleteItem._count?.areas ?? 0;
-        if (areaCount === 0) {
+        if (areaCount > 0) {
           return (
-            <ConfirmDialog
-              open={!!deleteItem}
-              onOpenChange={() => setDeleteItem(null)}
-              title="화면 삭제"
-              description={`"${deleteItem.name}"을(를) 삭제하시겠습니까?`}
-              variant="destructive"
-              confirmLabel="삭제"
-              onConfirm={() => deleteMutation.mutate({ id: deleteItem.screenId })}
-              loading={deleteMutation.isPending}
-            />
+            <Dialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>화면 삭제 불가</DialogTitle>
+                  <DialogDescription>
+                    <span className="font-medium text-foreground">&quot;{deleteItem.name}&quot;</span>에 연결된{" "}
+                    <span className="font-semibold text-destructive">{areaCount}개</span>의 영역이 있습니다.
+                    <br />영역에서 화면 연결을 해제한 후 삭제할 수 있습니다.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button onClick={() => setDeleteItem(null)}>확인</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           );
         }
         return (
-          <Dialog open={!!deleteItem} onOpenChange={() => setDeleteItem(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>화면 삭제</DialogTitle>
-                <DialogDescription>
-                  <span className="font-medium text-foreground">&quot;{deleteItem.name}&quot;</span>에 연결된{" "}
-                  <span className="font-semibold text-destructive">{areaCount}개</span>의 영역이 있습니다.
-                  <br />어떻게 처리하시겠습니까?
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2 py-2">
-                <button
-                  onClick={() => setDeleteMode("cascade")}
-                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm transition-colors cursor-pointer ${
-                    deleteMode === "cascade"
-                      ? "border-destructive bg-destructive/5 text-destructive"
-                      : "border-border hover:border-destructive/50"
-                  }`}
-                >
-                  <p className="font-medium">전체 삭제 (영역·기능 모두 삭제)</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    화면과 연결된 영역 {areaCount}개 및 소속 기능이 모두 삭제됩니다.
-                  </p>
-                </button>
-                <button
-                  onClick={() => setDeleteMode("detach")}
-                  className={`w-full text-left rounded-lg border px-4 py-3 text-sm transition-colors cursor-pointer ${
-                    deleteMode === "detach"
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                >
-                  <p className="font-medium">화면만 삭제 (영역·기능 유지)</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    영역 {areaCount}개의 화면 연결이 해제되고 영역과 기능은 유지됩니다.
-                  </p>
-                </button>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDeleteItem(null)} disabled={deleteMutation.isPending}>
-                  취소
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => deleteMutation.mutate({ id: deleteItem.screenId, mode: deleteMode })}
-                  disabled={deleteMutation.isPending}
-                >
-                  {deleteMutation.isPending ? "처리중..." : "삭제"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ConfirmDialog
+            open={!!deleteItem}
+            onOpenChange={() => setDeleteItem(null)}
+            title="화면 삭제"
+            description={`"${deleteItem.name}"을(를) 삭제하시겠습니까?`}
+            variant="destructive"
+            confirmLabel="삭제"
+            onConfirm={() => deleteMutation.mutate(deleteItem.screenId)}
+            loading={deleteMutation.isPending}
+          />
         );
       })()}
     </div>

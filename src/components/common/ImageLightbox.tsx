@@ -3,7 +3,9 @@
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface ImageLightboxProps {
   src: string;
@@ -21,6 +23,9 @@ export function ImageLightbox({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[90vw] max-h-[90vh] p-2 bg-black/90 border-none">
+        <VisuallyHidden>
+          <DialogTitle>{alt}</DialogTitle>
+        </VisuallyHidden>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}

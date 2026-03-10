@@ -39,7 +39,6 @@ const NAV_ITEMS = [
   { href: "/areas", label: "영역", icon: "LayoutGrid" as const },
   { href: "/functions", label: "기능", icon: "Cog" as const },
   { href: "/tree", label: "트리 뷰", icon: "GitBranch" as const },
-  { href: "/import-export", label: "엑셀", icon: "FileSpreadsheet" as const },
   { href: "/ai-tasks", label: "AI 현황", icon: "Bot" as const },
 ];
 
