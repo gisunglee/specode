@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         requirement: { select: { name: true, systemId: true } },
-        _count: { select: { functions: true } },
+        _count: { select: { areas: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,

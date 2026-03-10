@@ -19,9 +19,8 @@ const prisma = new PrismaClient();
 async function main() {
   /* ─── 기존 데이터 전부 삭제 (순서 중요: FK 의존성) ────────── */
   await prisma.aiTask.deleteMany();
-  await prisma.funcRelation.deleteMany();
-  await prisma.funcReference.deleteMany();
   await prisma.function.deleteMany();
+  await prisma.area.deleteMany();
   await prisma.screen.deleteMany();
   await prisma.requirement.deleteMany();
 
@@ -29,6 +28,7 @@ async function main() {
   const sequences = [
     { prefix: "RQ", lastValue: 0 },
     { prefix: "PID", lastValue: 0 },
+    { prefix: "AR", lastValue: 0 },
     { prefix: "FID", lastValue: 0 },
     { prefix: "ATK", lastValue: 0 },
   ];
@@ -154,6 +154,32 @@ async function main() {
   });
 
   /* ═══════════════════════════════════════════════════════════ */
+  /* 영역 데이터 — 화면별 기본 영역 (AR-00001 ~ 00007)            */
+  /* ═══════════════════════════════════════════════════════════ */
+
+  const area1 = await prisma.area.create({
+    data: { areaCode: "AR-00001", screenId: scr1.screenId, name: "세부사업 그리드", areaType: "GRID", sortOrder: 1 },
+  });
+  const area2 = await prisma.area.create({
+    data: { areaCode: "AR-00002", screenId: scr2.screenId, name: "세부사업 상세 폼", areaType: "FORM", sortOrder: 1 },
+  });
+  const area3 = await prisma.area.create({
+    data: { areaCode: "AR-00003", screenId: scr3.screenId, name: "예산 배정 폼", areaType: "FORM", sortOrder: 1 },
+  });
+  const area4 = await prisma.area.create({
+    data: { areaCode: "AR-00004", screenId: scr4.screenId, name: "직원 목록 그리드", areaType: "GRID", sortOrder: 1 },
+  });
+  const area5 = await prisma.area.create({
+    data: { areaCode: "AR-00005", screenId: scr5.screenId, name: "직원 상세 폼", areaType: "FORM", sortOrder: 1 },
+  });
+  const area6 = await prisma.area.create({
+    data: { areaCode: "AR-00006", screenId: scr6.screenId, name: "공통코드 그리드", areaType: "GRID", sortOrder: 1 },
+  });
+  const area7 = await prisma.area.create({
+    data: { areaCode: "AR-00007", screenId: scr7.screenId, name: "공통코드 탭", areaType: "TAB", sortOrder: 1 },
+  });
+
+  /* ═══════════════════════════════════════════════════════════ */
   /* 기능 데이터 — 예산서 (FID-00001 ~ 00006)                    */
   /* ═══════════════════════════════════════════════════════════ */
 
@@ -163,13 +189,11 @@ async function main() {
       systemId: "FID-00001",
       displayCode: "BGT-001-01",
       name: "세부사업 조회",
-      screenId: scr1.screenId,
+      areaId: area1.areaId,
       spec: "## 목록 조회\n\n**화면유형**: 그리드\n\n### 검색 조건\n| 항목 | 타입 | 비고 |\n|------|------|------|\n| 회계연도 | SELECT | 기본값: 당해연도 |\n| 회계상세구분 | SELECT | 코드: ACC_DTL |\n| 예산구분 | SELECT | 코드: BGT_TYPE |\n| 차수 | INPUT | 숫자만 |\n\n### 그리드 항목\n출처구분, 회계연도, 예산구분, 차수, 예산부처명, 소관부처명, 세부사업명, 예산액\n\n### 정렬\n회계연도 DESC, 차수 DESC",
       dataFlow: "READ: TB_BG_BGT_DSCTN_BIZ, TB_BG_BGTS_CYCL",
       status: "REVIEW_DONE",
       priority: "HIGH",
-      aiSummary: "1차 검토 완료. 이슈 2건 발견 (검색 기본값 미정, cascade 삭제 미정의). 컨펌 대기 중.",
-      aiReviewResult: "## 검토 결과\n\n### 이슈 1: 검색 조건 기본값 미정\n회계연도 검색 조건의 기본값이 \"당해연도\"로 명시되어 있으나,\n시스템 날짜 기준인지 회계연도 기준인지 불명확합니다.\n\n**권장**: `CURRENT_YEAR` 시스템 변수 사용\n\n### 이슈 2: 삭제 시 cascade 여부 미정의\n세부사업 삭제 시 하위 예산 배정 데이터의 처리 방식이 정의되지 않았습니다.\n\n**권장**: Soft delete 적용 (use_yn 컬럼)\n\n### 개선 제안\n- 페이징 처리 방식 명시 필요 (무한스크롤 vs 페이지네이션)\n- 엑셀 다운로드 기능 여부 확인 필요",
     },
   });
 
@@ -179,7 +203,7 @@ async function main() {
       systemId: "FID-00002",
       displayCode: "BGT-001-02",
       name: "세부사업 저장",
-      screenId: scr1.screenId,
+      areaId: area1.areaId,
       spec: "## 저장 기능\n\n그리드에서 수정된 데이터를 일괄 저장합니다.\n\n### 처리 로직\n1. 변경된 행만 추출 (INSERT/UPDATE/DELETE 구분)\n2. 유효성 검증\n3. 트랜잭션 처리\n4. 결과 메시지 표시\n\n### 유효성 검증\n- 예산부처명: 필수\n- 예산액: 0 이상 숫자\n- 회계연도 + 차수: 중복 불가",
       dataFlow: "WRITE: TB_BG_BGT_DSCTN_BIZ",
       status: "DRAFT",
@@ -193,7 +217,7 @@ async function main() {
       systemId: "FID-00003",
       displayCode: "BGT-001-03",
       name: "세부사업 삭제",
-      screenId: scr1.screenId,
+      areaId: area1.areaId,
       spec: "## 삭제 기능\n\n선택된 세부사업을 삭제합니다.\n\n### 삭제 조건\n- 예산 배정 데이터가 있는 경우 삭제 불가\n- 확인 메시지 표시 후 처리\n\n### Soft Delete\n`use_yn = 'N'` 으로 업데이트 (물리 삭제 아님)",
       dataFlow: "WRITE: TB_BG_BGT_DSCTN_BIZ",
       status: "IMPL_DONE",
@@ -208,13 +232,11 @@ async function main() {
       systemId: "FID-00004",
       displayCode: "BGT-002-01",
       name: "세부사업 상세 조회",
-      screenId: scr2.screenId,
+      areaId: area2.areaId,
       spec: "## 상세 조회\n\n세부사업의 상세 정보를 조회합니다.\n\n### 표시 항목\n- 기본정보: 사업명, 부처, 소관, 회계연도\n- 예산정보: 예산액, 집행액, 잔액\n- 이력정보: 변경 이력 목록\n\n### 탭 구성\n1. 기본정보 탭\n2. 예산내역 탭\n3. 변경이력 탭",
       dataFlow: "READ: TB_BG_BGT_DSCTN_BIZ, TB_BG_BGT_EXEC, TB_BG_BGT_HIST",
       status: "CONFIRM_Y",
       priority: "HIGH",
-      aiSummary: "검토 완료, 컨펌됨. 구현 요청 가능.",
-      aiReviewResult: "## 검토 결과\n\n설계 내용이 명확하고 충분합니다. 특이사항 없음.\n\n### 참고사항\n- 예산내역 탭의 집행액은 실시간 집계가 아닌 배치 결과 조회\n- 변경이력은 최근 50건까지만 표시",
     },
   });
 
@@ -224,7 +246,7 @@ async function main() {
       systemId: "FID-00005",
       displayCode: "BGT-002-02",
       name: "세부사업 수정",
-      screenId: scr2.screenId,
+      areaId: area2.areaId,
       spec: "## 수정 기능\n\n상세 화면에서 세부사업 정보를 수정합니다.\n\n### 수정 가능 항목\n- 사업명, 예산액, 비고\n- 부처/소관 변경 불가 (읽기전용)\n\n### 변경이력\n수정 시 자동으로 TB_BG_BGT_HIST에 이력 INSERT",
       dataFlow: "WRITE: TB_BG_BGT_DSCTN_BIZ, TB_BG_BGT_HIST",
       status: "REVIEW_REQ",
@@ -238,12 +260,11 @@ async function main() {
       systemId: "FID-00006",
       displayCode: "BGT-003-01",
       name: "예산 배정 처리",
-      screenId: scr3.screenId,
+      areaId: area3.areaId,
       spec: "## 예산 배정\n\n팝업에서 예산 배정을 처리합니다.\n\n### 입력 항목\n- 배정 대상: 세부사업 선택\n- 배정액: 숫자 입력\n- 배정일자: 날짜 선택\n\n### 검증\n- 배정액 <= 잔여예산액\n- 동일 일자 중복 배정 불가",
       dataFlow: "WRITE: TB_BG_BGT_ALLOC",
       status: "IMPL_REQ",
       priority: "HIGH",
-      aiSummary: "구현 요청됨. AI가 코드를 생성 중.",
     },
   });
 
@@ -257,13 +278,11 @@ async function main() {
       systemId: "FID-00007",
       displayCode: "HR-001-01",
       name: "직원 목록 조회",
-      screenId: scr4.screenId,
+      areaId: area4.areaId,
       spec: "## 직원 목록 조회\n\n### 검색 조건\n- 부서: 트리 선택\n- 직급: 다중 선택\n- 재직상태: 재직/퇴직/휴직\n- 사번/이름: 텍스트 검색\n\n### 그리드\n사번, 이름, 부서, 직급, 입사일, 재직상태",
       dataFlow: "READ: TB_HR_EMP, TB_HR_DEPT",
       status: "REVIEW_DONE",
       priority: "HIGH",
-      aiSummary: "검토 완료. 성능 관련 권고사항 1건.",
-      aiReviewResult: "## 검토 결과\n\n### 권고사항: 부서 트리 성능\n부서 트리가 깊을 경우 (5레벨 이상) 재귀 쿼리 성능 이슈 가능.\nMaterialized Path 또는 Closure Table 패턴 권장.",
     },
   });
 
@@ -273,7 +292,7 @@ async function main() {
       systemId: "FID-00008",
       displayCode: "HR-001-02",
       name: "직원 등록",
-      screenId: scr4.screenId,
+      areaId: area4.areaId,
       spec: "## 직원 등록\n\n신규 직원 정보를 등록합니다.\n\n### 필수 입력\n- 이름, 부서, 직급, 입사일\n\n### 선택 입력\n- 연락처, 이메일, 주소\n\n### 사번 규칙\n`EMP-{입사연도}-{순번4자리}` 자동 생성",
       status: "DRAFT",
       priority: "MEDIUM",
@@ -286,7 +305,7 @@ async function main() {
       systemId: "FID-00009",
       displayCode: "HR-002-01",
       name: "직원 상세 조회",
-      screenId: scr5.screenId,
+      areaId: area5.areaId,
       spec: "## 직원 상세\n\n### 탭 구성\n1. 인적사항\n2. 발령이력\n3. 급여정보\n4. 교육이력",
       dataFlow: "READ: TB_HR_EMP, TB_HR_APPOINT, TB_HR_SALARY, TB_HR_EDU",
       status: "IMPL_DONE",
@@ -301,13 +320,12 @@ async function main() {
       systemId: "FID-00010",
       displayCode: "HR-002-02",
       name: "발령 처리",
-      screenId: scr5.screenId,
+      areaId: area5.areaId,
       spec: "## 발령 처리\n\n### 발령 유형\n- 승진, 전보, 파견, 복직, 퇴직\n\n### 처리 로직\n1. 발령 정보 입력\n2. 결재 요청 (워크플로우)\n3. 승인 후 자동 반영\n\n### 변경사항 (v2)\n- 겸직 발령 추가\n- 발령일 소급 적용 허용 (최대 30일)",
       dataFlow: "WRITE: TB_HR_APPOINT, TB_HR_EMP",
       status: "CHANGE_REQ",
       priority: "HIGH",
       changeReason: "겸직 발령 및 소급 적용 요건 추가",
-      aiSummary: "변경 검토 요청됨. 겸직 발령 로직 영향도 분석 필요.",
     },
   });
 
@@ -317,7 +335,7 @@ async function main() {
       systemId: "FID-00011",
       displayCode: "HR-001-03",
       name: "직원 검색 팝업",
-      screenId: scr4.screenId,
+      areaId: area4.areaId,
       spec: "## 직원 검색 팝업\n\n다른 화면에서 직원을 선택할 때 사용하는 공통 팝업.\n\n### 검색\n사번 또는 이름으로 검색\n\n### 반환값\n선택한 직원의 사번, 이름, 부서명",
       status: "DRAFT",
       priority: "LOW",
@@ -334,7 +352,7 @@ async function main() {
       systemId: "FID-00012",
       displayCode: "CMN-001-01",
       name: "공통코드 조회",
-      screenId: scr6.screenId,
+      areaId: area6.areaId,
       spec: "## 공통코드 조회\n\n### 좌측 트리\n그룹코드 트리 (2레벨)\n\n### 우측 그리드\n선택된 그룹의 상세 코드 목록\n\n### 검색\n코드명, 코드값으로 검색",
       dataFlow: "READ: TB_CM_CODE_GRP, TB_CM_CODE_DTL",
       status: "IMPL_DONE",
@@ -349,7 +367,7 @@ async function main() {
       systemId: "FID-00013",
       displayCode: "CMN-001-02",
       name: "공통코드 저장",
-      screenId: scr6.screenId,
+      areaId: area6.areaId,
       spec: "## 공통코드 저장\n\n그리드에서 수정/추가된 코드를 일괄 저장.\n\n### 검증\n- 코드값 중복 불가 (그룹 내)\n- 코드명 필수\n- 정렬순서 숫자만\n\n### 캐시 갱신\n저장 후 Redis 캐시 자동 갱신",
       dataFlow: "WRITE: TB_CM_CODE_DTL",
       status: "CONFIRM_Y",
@@ -363,7 +381,7 @@ async function main() {
       systemId: "FID-00014",
       displayCode: "CMN-002-01",
       name: "공통코드 상세 조회",
-      screenId: scr7.screenId,
+      areaId: area7.areaId,
       spec: "## 공통코드 상세\n\n코드 그룹의 상세 정보와 사용처 조회.\n\n### 탭 구성\n1. 코드 정보\n2. 사용처 조회 (어떤 화면/기능에서 사용하는지)",
       status: "DRAFT",
       priority: "LOW",
@@ -376,77 +394,14 @@ async function main() {
       systemId: "FID-00015",
       displayCode: "CMN-002-02",
       name: "코드 캐시 갱신",
-      screenId: scr7.screenId,
+      areaId: area7.areaId,
       spec: "## 캐시 갱신\n\n### 현상\n코드 수정 후 캐시가 즉시 갱신되지 않는 버그.\n\n### 원인 분석\nRedis pub/sub 구독 누락으로 다른 서버 인스턴스에 전파 안 됨.\n\n### 수정 방안\n1. Redis pub/sub 채널 구독 추가\n2. 캐시 TTL 단축 (24h → 1h)\n3. 수동 캐시 초기화 버튼 추가",
       status: "REVIEW_REQ",
       priority: "HIGH",
     },
   });
 
-  /* ═══════════════════════════════════════════════════════════ */
-  /* 참조 데이터 (FuncReference)                                  */
-  /* ═══════════════════════════════════════════════════════════ */
 
-  // FID-00001 참조 테이블
-  await prisma.funcReference.createMany({
-    data: [
-      { functionId: fn1.functionId, refType: "TABLE", refValue: "TB_BG_BGT_DSCTN_BIZ" },
-      { functionId: fn1.functionId, refType: "TABLE", refValue: "TB_BG_BGTS_CYCL" },
-      { functionId: fn1.functionId, refType: "COMMON", refValue: "ACC_DTL" },
-      { functionId: fn1.functionId, refType: "COMMON", refValue: "BGT_TYPE" },
-    ],
-  });
-
-  // FID-00007 참조 테이블
-  await prisma.funcReference.createMany({
-    data: [
-      { functionId: fn7.functionId, refType: "TABLE", refValue: "TB_HR_EMP" },
-      { functionId: fn7.functionId, refType: "TABLE", refValue: "TB_HR_DEPT" },
-    ],
-  });
-
-  // FID-00012 참조 테이블
-  await prisma.funcReference.createMany({
-    data: [
-      { functionId: fn12.functionId, refType: "TABLE", refValue: "TB_CM_CODE_GRP" },
-      { functionId: fn12.functionId, refType: "TABLE", refValue: "TB_CM_CODE_DTL" },
-    ],
-  });
-
-  /* ═══════════════════════════════════════════════════════════ */
-  /* 기능 간 관계 (FuncRelation)                                  */
-  /* ═══════════════════════════════════════════════════════════ */
-
-  // FID-00001(조회) → FID-00004(상세) 화면이동
-  await prisma.funcRelation.create({
-    data: {
-      sourceFunctionId: fn1.functionId,
-      targetFunctionId: fn4.functionId,
-      relationType: "NAVIGATE",
-      params: "bgtDsctnBizId",
-      description: "목록에서 행 클릭 시 상세 화면으로 이동",
-    },
-  });
-
-  // FID-00002(저장) 선행: FID-00001(조회)
-  await prisma.funcRelation.create({
-    data: {
-      sourceFunctionId: fn2.functionId,
-      targetFunctionId: fn1.functionId,
-      relationType: "PRECEDE",
-      description: "저장 후 목록 재조회",
-    },
-  });
-
-  // FID-00003(삭제) 선행: FID-00001(조회)
-  await prisma.funcRelation.create({
-    data: {
-      sourceFunctionId: fn3.functionId,
-      targetFunctionId: fn1.functionId,
-      relationType: "PRECEDE",
-      description: "삭제 후 목록 재조회",
-    },
-  });
 
   /* ═══════════════════════════════════════════════════════════ */
   /* AI 태스크 이력 (AiTask)                                      */
@@ -533,10 +488,11 @@ async function main() {
   /* ─── 시퀀스 카운터 최종 업데이트 ───────────────────────── */
   await prisma.sequence.update({ where: { prefix: "RQ" }, data: { lastValue: 3 } });
   await prisma.sequence.update({ where: { prefix: "PID" }, data: { lastValue: 7 } });
+  await prisma.sequence.update({ where: { prefix: "AR" }, data: { lastValue: 7 } });
   await prisma.sequence.update({ where: { prefix: "FID" }, data: { lastValue: 15 } });
   await prisma.sequence.update({ where: { prefix: "ATK" }, data: { lastValue: 5 } });
 
-  console.log("Seed completed — 요구사항 3건, 화면 7건, 기능 15건, AI태스크 5건");
+  console.log("Seed completed — 요구사항 3건, 화면 7건, 영역 7건, 기능 15건, AI태스크 5건");
 }
 
 main()

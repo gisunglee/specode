@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       include: {
         _count: { select: { screens: true } },
         screens: {
-          include: { _count: { select: { functions: true } } },
+          include: { _count: { select: { areas: true } } },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   const enriched = data.map((r) => ({
     ...r,
     screenCount: r._count.screens,
-    functionCount: r.screens.reduce((sum, s) => sum + s._count.functions, 0),
+    functionCount: r.screens.reduce((sum, s) => sum + s._count.areas, 0),
     screens: undefined,
     _count: undefined,
   }));

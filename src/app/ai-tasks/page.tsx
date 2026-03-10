@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { DataGrid } from "@/components/common/DataGrid";
+import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -93,7 +92,7 @@ export default function AiTasksPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["ai-tasks", page, statusFilter],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "10" });
       if (statusFilter) params.set("taskStatus", statusFilter);
       const res = await fetch(`/api/ai-tasks?${params}`);
       return res.json();
@@ -111,6 +110,18 @@ export default function AiTasksPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai-tasks"] });
       toast.success("작업이 취소되었습니다.");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (aiTaskId: number) =>
+      apiFetch(`/api/ai-tasks/${aiTaskId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-tasks"] });
+      toast.success("작업이 삭제되었습니다.");
+      setSelectedTaskId(null);
     },
   });
 
@@ -158,10 +169,7 @@ export default function AiTasksPage() {
       header: "작업 ID",
       size: 100,
       cell: ({ row }) => (
-        <span
-          className="text-primary hover:underline cursor-pointer font-mono text-xs"
-          onClick={(e) => { e.stopPropagation(); setSelectedTaskId(row.original.aiTaskId); }}
-        >
+        <span className="text-primary font-mono text-xs">
           {row.original.systemId}
         </span>
       ),
@@ -291,8 +299,100 @@ export default function AiTasksPage() {
         data={data?.data ?? []}
         pagination={data?.pagination}
         onPageChange={setPage}
+        onRowClick={(row) => setSelectedTaskId(row.aiTaskId)}
         emptyMessage={isLoading ? "로딩 중..." : "AI 작업이 없습니다."}
       />
+
+      {/* ── 상세 팝업 다이얼로그 ─────────────────────────────── */}
+      <Dialog open={!!selectedTaskId} onOpenChange={() => setSelectedTaskId(null)}>
+        <DialogContent className="max-w-[96vw] max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
+            <DialogTitle>
+              AI 작업 현황 상세 - {taskDetail?.data?.systemId || "로딩 중..."}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="overflow-y-auto flex-1 px-6 py-5">
+            {!taskDetailLoading && taskDetail?.data ? (
+              <div className="space-y-6">
+                {/* 메타 정보 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-muted/30 p-4 rounded-lg border border-border/50">
+                  <div>
+                    <span className="text-muted-foreground mr-2 font-medium">상태:</span>
+                    <span className={TASK_STATUS_LABEL[taskDetail.data.taskStatus]?.class || ""}>
+                      {TASK_STATUS_LABEL[taskDetail.data.taskStatus]?.label || taskDetail.data.taskStatus}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground mr-2 font-medium">요청시각:</span>
+                    <span>{formatDateTime(taskDetail.data.requestedAt)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground mr-2 font-medium">완료시각:</span>
+                    <span>{taskDetail.data.completedAt ? formatDateTime(taskDetail.data.completedAt) : "-"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground mr-2 font-medium">작업유형:</span>
+                    <span>{TASK_TYPE_LABEL[taskDetail.data.taskType] || taskDetail.data.taskType}</span>
+                  </div>
+                </div>
+
+                {/* 요청 코멘트 (전체 너비, 상단 배치) */}
+                {taskDetail.data.comment && (
+                  <div className="space-y-1.5">
+                    <span className="text-sm font-semibold text-amber-600">요청 코멘트</span>
+                    <div className="rounded-md bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm text-foreground">
+                      {taskDetail.data.comment}
+                    </div>
+                  </div>
+                )}
+
+                {/* 명세 및 피드백 (2-컬럼 레이아웃) */}
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* 왼쪽: 명세서 */}
+                  <div className="min-w-0">
+                    <MarkdownEditor
+                      value={taskDetail.data.spec || ""}
+                      label="작업 명세서 (Spec)"
+                      readOnly
+                      rows={20}
+                    />
+                  </div>
+
+                  {/* 오른쪽: AI 피드백 */}
+                  <div className="min-w-0">
+                    <MarkdownEditor
+                      value={taskDetail.data.feedback || ""}
+                      label="AI 피드백 (Feedback 결과)"
+                      readOnly
+                      rows={20}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 flex items-center justify-center text-muted-foreground text-sm">
+                상세 정보를 불러오는 중입니다...
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-3 border-t border-border shrink-0 bg-muted/30 flex justify-between sm:justify-between w-full">
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (window.confirm("삭제 하시겠습니까?")) {
+                  if (selectedTaskId) deleteMutation.mutate(selectedTaskId);
+                }
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              삭제
+            </Button>
+            <Button variant="outline" onClick={() => setSelectedTaskId(null)}>닫기</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

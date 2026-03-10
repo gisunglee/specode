@@ -23,13 +23,15 @@ interface MarkdownEditorProps {
   /** 마크다운 내용 */
   value: string;
   /** 내용 변경 콜백 */
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   /** 라벨 텍스트 (기본: "설명 (마크다운)") */
   label?: string;
   /** textarea 행 수 (기본: 24) */
   rows?: number;
   /** placeholder 텍스트 */
   placeholder?: string;
+  /** 읽기 전용 모드 (기본: false) */
+  readOnly?: boolean;
 }
 
 export function MarkdownEditor({
@@ -38,8 +40,9 @@ export function MarkdownEditor({
   label = "설명 (마크다운)",
   rows = 24,
   placeholder = "마크다운으로 작성하세요...",
+  readOnly = false,
 }: MarkdownEditorProps) {
-  const [previewMode, setPreviewMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(readOnly);
 
   /* ─── 미리보기 영역의 최소 높이 계산 ─────────────────────── */
   // textarea rows 기준으로 미리보기 min-height를 맞춤
@@ -50,32 +53,34 @@ export function MarkdownEditor({
       {/* ── 라벨 + 편집/미리보기 토글 ──────────────────────── */}
       <div className="flex items-center gap-3">
         <Label>{label}</Label>
-        <div className="flex rounded-md border border-border overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setPreviewMode(false)}
-            className={cn(
-              "px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-              !previewMode
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:bg-muted/50"
-            )}
-          >
-            편집
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreviewMode(true)}
-            className={cn(
-              "px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
-              previewMode
-                ? "bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:bg-muted/50"
-            )}
-          >
-            미리보기
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex rounded-md border border-border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setPreviewMode(false)}
+              className={cn(
+                "px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
+                !previewMode
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:bg-muted/50"
+              )}
+            >
+              편집
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewMode(true)}
+              className={cn(
+                "px-3 py-1 text-xs font-medium transition-colors cursor-pointer",
+                previewMode
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-card text-muted-foreground hover:bg-muted/50"
+              )}
+            >
+              미리보기
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── 편집기 / 미리보기 ──────────────────────────────── */}
@@ -95,7 +100,7 @@ export function MarkdownEditor({
       ) : (
         <Textarea
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange && onChange(e.target.value)}
           placeholder={placeholder}
           rows={rows}
           className="font-mono text-sm"

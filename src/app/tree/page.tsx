@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ClipboardList,
   Monitor,
+  LayoutGrid,
   Cog,
   Search,
   ChevronsDownUp,
@@ -77,7 +78,9 @@ export default function TreePage() {
     if (node.type === "requirement") {
       router.push(`/requirements`);
     } else if (node.type === "screen") {
-      router.push(`/screens`);
+      router.push(`/screens/${node.id}`);
+    } else if (node.type === "area") {
+      router.push(`/areas/${node.id}`);
     } else {
       router.push(`/functions/${node.id}`);
     }
@@ -93,6 +96,7 @@ export default function TreePage() {
     const icons = {
       requirement: ClipboardList,
       screen: Monitor,
+      area: LayoutGrid,
       function: Cog,
     };
     const Icon = icons[node.type];

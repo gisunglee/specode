@@ -6,15 +6,20 @@ export async function GET() {
     include: {
       screens: {
         include: {
-          functions: {
-            select: {
-              functionId: true,
-              systemId: true,
-              displayCode: true,
-              name: true,
-              status: true,
+          areas: {
+            include: {
+              functions: {
+                select: {
+                  functionId: true,
+                  systemId: true,
+                  displayCode: true,
+                  name: true,
+                  status: true,
+                },
+                orderBy: { systemId: "asc" },
+              },
             },
-            orderBy: { systemId: "asc" },
+            orderBy: { sortOrder: "asc" },
           },
         },
         orderBy: { systemId: "asc" },
@@ -35,13 +40,21 @@ export async function GET() {
       name: scr.name,
       type: "screen" as const,
       screenType: scr.screenType,
-      children: scr.functions.map((fn) => ({
-        id: fn.functionId,
-        systemId: fn.systemId,
-        displayCode: fn.displayCode,
-        name: fn.name,
-        type: "function" as const,
-        status: fn.status,
+      children: scr.areas.map((area) => ({
+        id: area.areaId,
+        systemId: area.areaCode,
+        displayCode: null,
+        name: area.name,
+        type: "area" as const,
+        areaType: area.areaType,
+        children: area.functions.map((fn) => ({
+          id: fn.functionId,
+          systemId: fn.systemId,
+          displayCode: fn.displayCode,
+          name: fn.name,
+          type: "function" as const,
+          status: fn.status,
+        })),
       })),
     })),
   }));

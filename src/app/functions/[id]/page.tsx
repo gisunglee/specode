@@ -39,8 +39,7 @@
 import { use, useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation"; // Next.js 클라이언트 라우터 (페이지 이동용)
-import { ArrowLeft, Info, ChevronDown, History, Bot } from "lucide-react"; // 아이콘 라이브러리
-import { motion } from "framer-motion"; // 애니메이션 라이브러리 (AI 요약 등장 효과)
+import { ArrowLeft, ChevronDown, History, Bot, Trash2 } from "lucide-react";
 
 /* ─── UI 컴포넌트 임포트 ─────────────────────────────────── */
 import { Button } from "@/components/ui/button";
@@ -120,6 +119,7 @@ export default function FunctionDetailPage({
    *   - "REVIEW_REQ" 등이면 대화상자 열림 + 해당 상태로 변경 확인
    */
   const [statusDialog, setStatusDialog] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   /** activeSection: 현재 스크롤 위치에 해당하는 활성 섹션 ID */
   const [activeSection, setActiveSection] = useState("basic");
@@ -215,6 +215,14 @@ export default function FunctionDetailPage({
    *   - AI 요청 상태(REVIEW_REQ, IMPL_REQ, CHANGE_REQ)인 경우
    *     자동으로 tb_ai_task 레코드 생성 → AI가 폴링으로 가져감
    */
+  const deleteMutation = useMutation({
+    mutationFn: () => apiFetch(`/api/functions/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      toast.success("기능이 삭제되었습니다.");
+      router.push("/functions");
+    },
+  });
+
   const statusMutation = useMutation({
     mutationFn: (status: string) =>
       apiFetch(`/api/functions/${id}`, {
@@ -438,8 +446,16 @@ export default function FunctionDetailPage({
           </div>
         </div>
 
-        {/* 오른쪽: 상태 선택 드롭다운 */}
+        {/* 오른쪽: 삭제 버튼 + 상태 선택 드롭다운 */}
         <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            title="기능 삭제"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+          </Button>
           <StatusSelector
             currentStatus={func.status}
             availableStatuses={availableStatuses}
@@ -452,25 +468,6 @@ export default function FunctionDetailPage({
           />
         </div>
       </div>
-
-      {/* ═══════════════════════════════════════════════════════ */}
-      {/* AI 요약 메시지 — aiSummary가 있을 때만 표시              */}
-      {/*                                                        */}
-      {/* 📌 motion.div: framer-motion 라이브러리의 애니메이션 div  */}
-      {/*    initial → animate 로 등장 애니메이션 (위에서 아래로)    */}
-      {/* ═══════════════════════════════════════════════════════ */}
-      {func.aiSummary && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border border-primary/30 bg-primary/5 p-4"
-        >
-          <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-            <p className="text-sm">{func.aiSummary}</p>
-          </div>
-        </motion.div>
-      )}
 
       {/* ═══════════════════════════════════════════════════════ */}
       {/* Sticky Navigation Bar — 화면 상단에 고정되는 탭 네비게이션 */}
@@ -644,7 +641,7 @@ export default function FunctionDetailPage({
       {/* AI 피드백 팝업 다이얼로그 */}
       <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
         <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
-          <DialogHeader className="sticky top-0 z-10 bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
+          <DialogHeader className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
             <DialogTitle>AI 피드백</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 px-6 py-4">
@@ -668,6 +665,17 @@ export default function FunctionDetailPage({
         confirmLabel="요청"
         onConfirm={() => statusDialog && statusMutation.mutate(statusDialog)}
         loading={statusMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="기능 삭제"
+        description={`"${func.name}"을(를) 삭제하시겠습니까?`}
+        variant="destructive"
+        confirmLabel="삭제"
+        onConfirm={() => deleteMutation.mutate()}
+        loading={deleteMutation.isPending}
       />
     </div>
   );

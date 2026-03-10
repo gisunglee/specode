@@ -13,8 +13,9 @@
  */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, Trash2, Pencil, ScanSearch, ChevronDown, ChevronRight } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -95,6 +96,8 @@ const EMPTY_FORM = {
 
 export default function StandardGuidesPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   /* 필터 상태 */
   const [filterCategory, setFilterCategory] = useState("ALL");
@@ -118,7 +121,7 @@ export default function StandardGuidesPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["standard-guides", filterCategory, search, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "50" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "10" });
       if (filterCategory !== "ALL") params.set("category", filterCategory);
       if (search) params.set("search", search);
       const res = await fetch(`/api/standard-guides?${params}`);
@@ -138,6 +141,18 @@ export default function StandardGuidesPage() {
     refetchInterval: feedbackGuide ? 5000 : false,
   });
   const guideTasks: AiTask[] = feedbackData?.data?.tasks ?? [];
+
+  /* URL query "openGuide" 처리 */
+  useEffect(() => {
+    const openGuideId = searchParams?.get("openGuide");
+    if (openGuideId && data?.data) {
+      const guideToOpen = data.data.find((g: StandardGuide) => String(g.guideId) === openGuideId);
+      if (guideToOpen) {
+        openEdit(guideToOpen);
+        router.replace("/standard-guides"); // URL 파라미터 정리
+      }
+    }
+  }, [searchParams, data?.data, router]);
 
   /*
    * 수정 다이얼로그용: editItem의 가장 최근 AiTask 조회
@@ -548,12 +563,12 @@ export default function StandardGuidesPage() {
 
             {/*
              * ── 2-컬럼 본문 ────────────────────────────────────
-             * 왼쪽 (6/10): 가이드 내용 + 관련 파일
-             * 오른쪽 (4/10): AI 피드백 내용 + 피드백 수정 일시
+             * 왼쪽 (1/2): 가이드 내용 + 관련 파일
+             * 오른쪽 (1/2): AI 피드백 내용 + 피드백 수정 일시
              */}
-            <div className="grid grid-cols-10 gap-5">
+            <div className="grid grid-cols-2 gap-6">
               {/* 왼쪽: 가이드 내용 + 관련 파일 */}
-              <div className="col-span-6 space-y-4">
+              <div className="space-y-4 flex flex-col min-w-0">
                 <MarkdownEditor
                   value={form.content}
                   onChange={(v) => setForm((f) => ({ ...f, content: v }))}
@@ -584,7 +599,7 @@ export default function StandardGuidesPage() {
               </div>
 
               {/* 오른쪽: AI 피드백 내용 + 수정 일시 */}
-              <div className="col-span-4 space-y-4">
+              <div className="space-y-4 flex flex-col min-w-0">
                 <MarkdownEditor
                   value={form.aiFeedbackContent}
                   onChange={(v) => setForm((f) => ({ ...f, aiFeedbackContent: v }))}

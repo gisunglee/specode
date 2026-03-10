@@ -38,3 +38,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   return apiSuccess(updated);
 }
+
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const numId = parseInt(id);
+
+  const task = await prisma.aiTask.findUnique({ where: { aiTaskId: numId } });
+  if (!task) return apiError("NOT_FOUND", "작업을 찾을 수 없습니다.", 404);
+
+  await prisma.aiTask.delete({
+    where: { aiTaskId: numId },
+  });
+
+  return apiSuccess({ deleted: true });
+}

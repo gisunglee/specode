@@ -46,15 +46,15 @@ describe("onTaskComplete", () => {
       });
     });
 
-    it("REVIEW 태스크 성공 시 aiReviewResult + status=REVIEW_DONE 업데이트", async () => {
-      await onTaskComplete({ ...base, refTableName: "tb_function", taskType: "REVIEW", taskStatus: "SUCCESS" });
+    it("INSPECT 태스크 성공 시 aiInspFeedback + status=REVIEW_DONE 업데이트", async () => {
+      await onTaskComplete({ ...base, refTableName: "tb_function", taskType: "INSPECT", taskStatus: "SUCCESS" });
       expect(prisma.function.update).toHaveBeenCalledWith({
         where: { functionId: 10 },
-        data: { aiReviewResult: "AI 결과", status: "REVIEW_DONE" },
+        data: { aiInspFeedback: "AI 결과", status: "REVIEW_DONE" },
       });
     });
 
-    it("IMPLEMENT 태스크 AUTO_FIXED 시 aiImplFeedback + resultFiles + status=IMPL_DONE 업데이트", async () => {
+    it("IMPLEMENT 태스크 AUTO_FIXED 시 aiImplFeedback + status=IMPL_DONE 업데이트", async () => {
       await onTaskComplete({
         ...base,
         refTableName: "tb_function",
@@ -64,15 +64,7 @@ describe("onTaskComplete", () => {
       });
       expect(prisma.function.update).toHaveBeenCalledWith({
         where: { functionId: 10 },
-        data: { aiImplFeedback: "AI 결과", aiImplIssues: "src/foo.ts\nsrc/bar.ts", status: "IMPL_DONE" },
-      });
-    });
-
-    it("IMPACT 태스크 성공 시 aiImpactAnalysis만 업데이트 (상태 변경 없음)", async () => {
-      await onTaskComplete({ ...base, refTableName: "tb_function", taskType: "IMPACT", taskStatus: "SUCCESS" });
-      expect(prisma.function.update).toHaveBeenCalledWith({
-        where: { functionId: 10 },
-        data: { aiImpactAnalysis: "AI 결과" },
+        data: { aiImplFeedback: "AI 결과", status: "IMPL_DONE" },
       });
     });
 

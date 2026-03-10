@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateSystemId } from "@/lib/sequence";
-import { functionSchema } from "@/lib/validators";
 import { apiSuccess, apiError } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
@@ -9,17 +8,18 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
   const status = searchParams.get("status");
-  const screenId = searchParams.get("screenId");
-  const requirementId = searchParams.get("requirementId");
+  const areaId = searchParams.get("areaId");
+  const screenId = searchParams.get("screenId"); // 화면 ID로 필터 (area 경유)
   const priority = searchParams.get("priority");
   const search = searchParams.get("search") || "";
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
-  if (screenId) where.screenId = parseInt(screenId);
+  if (areaId) where.areaId = parseInt(areaId);
   if (priority) where.priority = priority;
-  if (requirementId) {
-    where.screen = { requirementId: parseInt(requirementId) };
+  if (screenId) {
+    // 화면 ID로 필터 시 해당 화면의 영역들을 경유
+    where.area = { screenId: parseInt(screenId) };
   }
   if (search) {
     where.OR = [
@@ -33,8 +33,12 @@ export async function GET(request: NextRequest) {
     prisma.function.findMany({
       where,
       include: {
-        screen: {
-          select: { name: true, systemId: true, requirement: { select: { name: true } } },
+        area: {
+          select: {
+            name: true,
+            areaCode: true,
+            screen: { select: { name: true, systemId: true, requirement: { select: { name: true } } } },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -71,51 +75,30 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const parsed = functionSchema.parse(body);
+
+    if (!body.name) {
+      return apiError("VALIDATION_ERROR", "기능명은 필수입니다.");
+    }
 
     const systemId = await generateSystemId("FID");
 
     const data = await prisma.function.create({
       data: {
         systemId,
-        name: parsed.name,
-        displayCode: parsed.displayCode ?? null,
-        screenId: parsed.screenId,
-        spec: parsed.spec ?? null,
-        dataFlow: parsed.dataFlow ?? null,
-        priority: parsed.priority,
-        references: parsed.references
-          ? {
-              create: parsed.references.map((r) => ({
-                refType: r.refType,
-                refValue: r.refValue,
-                description: r.description ?? null,
-              })),
-            }
-          : undefined,
-        relations: parsed.relations
-          ? {
-              create: parsed.relations.map((r) => ({
-                targetFunctionId: r.targetFunctionId,
-                relationType: r.relationType,
-                params: r.params ?? null,
-                description: r.description ?? null,
-              })),
-            }
-          : undefined,
+        name: body.name,
+        displayCode: body.displayCode ?? null,
+        areaId: body.areaId ? parseInt(String(body.areaId)) : null,
+        spec: body.spec ?? null,
+        dataFlow: body.dataFlow ?? null,
+        priority: body.priority ?? "MEDIUM",
       },
       include: {
-        screen: { select: { name: true, systemId: true } },
-        references: true,
-        relations: true,
+        area: { select: { name: true, areaCode: true } },
       },
     });
 
     return apiSuccess(data);
   } catch (error) {
-    if (error instanceof Error && error.name === "ZodError") {
-      return apiError("VALIDATION_ERROR", "입력값이 올바르지 않습니다.");
-    }
     console.error(error);
     return apiError("SERVER_ERROR", "서버 오류가 발생했습니다.", 500);
   }

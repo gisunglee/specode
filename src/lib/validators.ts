@@ -19,30 +19,11 @@ export const screenSchema = z.object({
 export const functionSchema = z.object({
   name: z.string().min(1, "기능명은 필수입니다."),
   displayCode: z.string().optional().nullable(),
-  screenId: z.number({ error: "소속 화면은 필수입니다." }),
+  areaId: z.number().optional().nullable(),
   spec: z.string().optional().nullable(),
   dataFlow: z.string().optional().nullable(),
   changeReason: z.string().optional().nullable(),
   priority: z.string().default("MEDIUM"),
-  references: z
-    .array(
-      z.object({
-        refType: z.string(),
-        refValue: z.string(),
-        description: z.string().optional().nullable(),
-      })
-    )
-    .optional(),
-  relations: z
-    .array(
-      z.object({
-        targetFunctionId: z.number(),
-        relationType: z.string(),
-        params: z.string().optional().nullable(),
-        description: z.string().optional().nullable(),
-      })
-    )
-    .optional(),
 });
 
 export const statusChangeSchema = z.object({

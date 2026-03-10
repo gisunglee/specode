@@ -64,9 +64,7 @@ export const openApiSpec = {
           screenId:          { type: "integer" },
           spec:              { type: "string",  nullable: true, description: "기능 설명 (마크다운)" },
           aiDesignContent:   { type: "string",  nullable: true },
-          aiReviewResult:    { type: "string",  nullable: true },
-          aiImplFeedback:    { type: "string",  nullable: true },
-          aiImpactAnalysis:  { type: "string",  nullable: true },
+          aiInspFeedback:    { type: "string",  nullable: true },
           dataFlow:          { type: "string",  nullable: true },
           relatedFiles:      { type: "string",  nullable: true },
           refContent:        { type: "string",  nullable: true },
@@ -204,11 +202,10 @@ export const openApiSpec = {
           "`SUCCESS | AUTO_FIXED` 시 대상 엔티티(tb_function 등)를 자동으로 업데이트합니다.\n\n" +
           "| taskType | 반영 필드 | 상태 변경 |\n" +
           "|----------|-----------|----------|\n" +
+          "| INSPECT | ai_insp_feedback (function) | REVIEW_DONE |\n" +
+          "| INSPECT | ai_feedback_content (guide) | REVIEW_DONE |\n" +
           "| DESIGN | ai_design_content | DESIGN_DONE |\n" +
-          "| REVIEW | ai_review_result | REVIEW_DONE |\n" +
-          "| IMPLEMENT | ai_impl_feedback, ai_impl_issues | IMPL_DONE |\n" +
-          "| IMPACT | ai_impact_analysis | - |\n" +
-          "| INSPECT | ai_feedback_content (guide) | REVIEW_DONE |",
+          "| IMPLEMENT | ai_impl_feedback | IMPL_DONE |",
         security: [{ ApiKeyAuth: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "integer" }, description: "aiTaskId" },

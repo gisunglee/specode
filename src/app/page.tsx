@@ -171,13 +171,14 @@ export default function DashboardPage() {
             {recentActivity.map(
               (activity: {
                 aiTaskId: number;
-                functionId: number;
+                refTableName: string;
+                refPkId: number;
                 requestedAt: string;
                 completedAt: string | null;
                 taskType: string;
                 taskStatus: string;
                 feedback: string | null;
-                function: { systemId: string; name: string };
+                function: { functionId: number; systemId: string; name: string } | null;
               }) => {
                 const statusCfg = AI_TASK_STATUS_LABEL[activity.taskStatus];
                 // 마크다운 기호 제거 후 의미있는 첫 줄 추출
@@ -192,7 +193,7 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={activity.aiTaskId}
-                    onClick={() => router.push(`/functions/${activity.functionId}`)}
+                    onClick={() => activity.function && router.push(`/functions/${activity.function.functionId}`)}
                     className="rounded-lg border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/50 hover:border-border/80 transition-colors group"
                   >
                     {/* 상단: 작업유형 뱃지 + 상태 */}

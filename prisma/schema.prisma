@@ -36,9 +36,37 @@ model Screen {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   requirement Requirement @relation(fields: [requirementId], references: [requirementId])
-  functions   Function[]
+  areas       Area[]
 
   @@map("tb_screen")
+}
+
+model Area {
+  areaId         Int      @id @default(autoincrement()) @map("area_id")
+  areaCode       String   @unique @map("area_code")       // AR-00001
+  screenId       Int      @map("screen_id")
+  name           String   @map("name")
+  sortOrder      Int      @default(1) @map("sort_order")
+  areaType       String   @map("area_type")               // GRID|FORM|INFO_CARD|TAB|FULL_SCREEN
+  spec           String?  @map("spec")
+  imageUrl       String?  @map("image_url")
+  displayFields  String?  @map("display_fields")
+  status         String   @default("NONE") @map("status") // NONE|DESIGN_REQ|DESIGN_DONE
+  reqComment     String?  @map("req_comment")
+  aiFeedback     String?  @map("ai_feedback")
+  aiDetailDesign String?  @map("ai_detail_design")
+  useYn          String   @default("Y") @map("use_yn")
+  createdBy      String?  @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedBy      String?  @map("updated_by")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  screen    Screen     @relation(fields: [screenId], references: [screenId])
+  functions Function[]
+
+  @@index([screenId])
+  @@index([status])
+  @@map("tb_area")
 }
 
 model Function {
@@ -46,40 +74,36 @@ model Function {
   systemId    String   @unique @map("system_id")
   displayCode String?  @map("display_code")
   name        String   @map("name")
-  screenId    Int      @map("screen_id")
+  areaId      Int?     @map("area_id")
 
-  spec        String?  @map("spec")
-  dataFlow    String?  @map("data_flow")
-  changeReason String? @map("change_reason")
+  spec         String?  @map("spec")
+  dataFlow     String?  @map("data_flow")
+  changeReason String?  @map("change_reason")
 
-  status      String   @default("DRAFT") @map("status")  // DRAFT | REVIEW_REQ | AI_REVIEWING | REVIEW_DONE | DESIGN_REQ | DESIGN_DONE | CONFIRM_Y | IMPL_REQ | AI_IMPLEMENTING | IMPL_DONE
-  priority    String   @default("MEDIUM") @map("priority")
+  status   String @default("DRAFT") @map("status")  // DRAFT | REVIEW_REQ | AI_REVIEWING | REVIEW_DONE | DESIGN_REQ | DESIGN_DONE | CONFIRM_Y | IMPL_REQ | AI_IMPLEMENTING | IMPL_DONE
+  priority String @default("MEDIUM") @map("priority")
 
-  aiSummary           String? @map("ai_summary")
-  aiReviewResult      String? @map("ai_review_result")
-  aiConflictFunctions String? @map("ai_conflict_functions")
-  aiImpactAnalysis    String? @map("ai_impact_analysis")
-  aiDesignContent     String? @map("ai_design_content") // AI가 작성한 상세 설계 내용 (마크다운)
-  aiImplFeedback      String? @map("ai_impl_feedback")
-  aiImplIssues        String? @map("ai_impl_issues")
-  gitlabPrUrl         String? @map("gitlab_pr_url")
-  relatedFiles        String? @map("related_files")
-  refContent          String? @map("ref_content")   // 참고 프로그램 내용 (마크다운)
+  aiInspFeedback  String? @map("ai_insp_feedback")
+  aiDesignContent String? @map("ai_design_content") // AI가 작성한 상세 설계 내용 (마크다운)
+  aiImplFeedback  String? @map("ai_impl_feedback")
+  gitlabPrUrl     String? @map("gitlab_pr_url")
+  relatedFiles    String? @map("related_files")
+  refContent      String? @map("ref_content")   // 참고 프로그램 내용 (마크다운)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  screen Screen @relation(fields: [screenId], references: [screenId])
+  area Area? @relation(fields: [areaId], references: [areaId])
 
   @@index([status])
-  @@index([screenId])
+  @@index([areaId])
   @@map("tb_function")
 }
 
 model AiTask {
   aiTaskId     Int       @id @default(autoincrement()) @map("ai_task_id")
   systemId     String    @unique @map("system_id")
-  refTableName String    @map("ref_table_name")  // "tb_function" | "tb_standard_guide" | ...
+  refTableName String    @map("ref_table_name")  // "tb_function" | "tb_standard_guide" | "tb_area"
   refPkId      Int       @map("ref_pk_id")        // 대상 테이블의 PK
   taskType     String    @map("task_type")        // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS | INSPECT
   taskStatus   String    @default("NONE") @map("task_status") // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED

@@ -26,11 +26,12 @@
 import { Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 
 /* ─── UI 컴포넌트 임포트 ─────────────────────────────────── */
 import { DataGrid } from "@/components/common/DataGrid";
 import { StatusBadge } from "@/components/common/StatusBadge";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,11 +71,11 @@ interface FunctionRow {
   status: string;
   priority: string;
   updatedAt: string;
-  screen: {
+  area: {
     name: string;
-    systemId: string;
-    requirement: { name: string };
-  };
+    areaCode: string;
+    screen?: { name: string; systemId: string };
+  } | null;
   latestTask: {
     taskStatus: string;
     taskType: string;
@@ -82,7 +83,14 @@ interface FunctionRow {
   } | null;
 }
 
-/** 화면 목록 API 응답의 행 타입 (화면 선택 콤보박스용) */
+/** 영역 목록 API 응답의 행 타입 (영역 선택 콤보박스용) */
+interface AreaOption {
+  areaId: number;
+  areaCode: string;
+  name: string;
+}
+
+/** 화면 목록 API 응답의 행 타입 (화면 선택 필터용) */
 interface ScreenOption {
   screenId: number;
   systemId: string;
@@ -151,6 +159,7 @@ function FunctionsContent() {
 
   /** createOpen: 기능 등록 팝업 다이얼로그 열림/닫힘 */
   const [createOpen, setCreateOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<FunctionRow | null>(null);
 
   /**
    * createForm: 기능 등록 폼 상태
@@ -159,7 +168,7 @@ function FunctionsContent() {
   const [createForm, setCreateForm] = useState({
     name: "",
     displayCode: "",
-    screenId: "",
+    areaId: "",
     priority: "MEDIUM",
   });
 
@@ -174,7 +183,7 @@ function FunctionsContent() {
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
-        pageSize: "20",
+        pageSize: "10",
       });
       if (search) params.set("search", search);
       if (statusFilter) params.set("status", statusFilter);
@@ -185,11 +194,7 @@ function FunctionsContent() {
     gcTime: 0,
   });
 
-  /* ─── API: 화면 목록 조회 (콤보박스용) ───────────────────── */
-  /**
-   * 📌 화면 선택 콤보박스에 표시할 화면 목록
-   *    pageSize=200: 대부분의 프로젝트에서 화면이 200개 미만이므로 한번에 조회
-   */
+  /* ─── API: 화면 목록 조회 (화면 필터 콤보박스용) ─────────── */
   const { data: screensData } = useQuery({
     queryKey: ["screens-all"],
     queryFn: async () => {
@@ -198,6 +203,16 @@ function FunctionsContent() {
     },
   });
   const screens: ScreenOption[] = screensData?.data ?? [];
+
+  /* ─── API: 영역 목록 조회 (등록 폼 콤보박스용) ─────────── */
+  const { data: areasData } = useQuery({
+    queryKey: ["areas-all"],
+    queryFn: async () => {
+      const res = await fetch("/api/areas?pageSize=200");
+      return res.json();
+    },
+  });
+  const areas: AreaOption[] = areasData?.data ?? [];
 
   /* ─── API: 일괄 상태 변경 ────────────────────────────────── */
   const batchStatusMutation = useMutation({
@@ -215,6 +230,18 @@ function FunctionsContent() {
       queryClient.invalidateQueries({ queryKey: ["functions"] });
       toast.success("상태가 변경되었습니다.");
       setSelected([]);
+    },
+  });
+
+  /* ─── API: 기능 삭제 ─────────────────────────────────────── */
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) =>
+      apiFetch(`/api/functions/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["functions"] });
+      toast.success("삭제되었습니다.");
+      setDeleteItem(null);
+      setSelected((prev) => prev.filter((s) => s.functionId !== deleteItem?.functionId));
     },
   });
 
@@ -237,28 +264,19 @@ function FunctionsContent() {
     },
   });
 
-  /**
-   * handleCreate — 기능 등록 폼 제출 핸들러
-   * 📌 screenId를 문자열에서 정수로 변환 (API가 정수를 요구)
-   */
   const handleCreate = () => {
-    if (!createForm.name || !createForm.screenId) return;
+    if (!createForm.name) return;
     createMutation.mutate({
       ...createForm,
-      screenId: parseInt(createForm.screenId),
+      areaId: createForm.areaId ? parseInt(createForm.areaId) : null,
     });
   };
 
-  /**
-   * openCreateDialog — 기능 등록 팝업 열기
-   * 📌 화면 필터가 이미 선택되어 있으면 screenId를 자동으로 채움
-   *    예: 화면 관리에서 클릭해서 왔으면 해당 화면이 자동 선택
-   */
   const openCreateDialog = () => {
     setCreateForm({
       name: "",
       displayCode: "",
-      screenId: screenFilter, // 현재 화면 필터 값을 기본으로 사용
+      areaId: "",
       priority: "MEDIUM",
     });
     setCreateOpen(true);
@@ -294,11 +312,11 @@ function FunctionsContent() {
       size: 60,
     },
     {
-      id: "screen",
-      header: "화면명",
+      id: "area",
+      header: "영역명",
       cell: ({ row }) => (
         <span className="text-muted-foreground">
-          {row.original.screen?.name}
+          {row.original.area?.name ?? "-"}
         </span>
       ),
     },
@@ -333,6 +351,25 @@ function FunctionsContent() {
         </span>
       ),
       size: 80,
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          title="삭제"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteItem(row.original);
+          }}
+        >
+          <Trash2 className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      ),
+      size: 48,
+      enableSorting: false,
     },
   ];
 
@@ -515,26 +552,24 @@ function FunctionsContent() {
               />
             </div>
 
-            {/*
-             * 📌 소속 화면 — 필수 선택
-             *    어떤 화면(Screen)에 이 기능을 등록할지 선택
-             *    화면 관리에서 특정 화면 클릭 후 왔다면 자동 선택되어 있음
-             */}
             <div className="space-y-1.5">
-              <Label className="text-xs">소속 화면 *</Label>
+              <Label className="text-xs">소속 영역</Label>
               <Select
-                value={createForm.screenId}
+                value={createForm.areaId || "NONE"}
                 onValueChange={(v) =>
-                  setCreateForm((f) => ({ ...f, screenId: v }))
+                  setCreateForm((f) => ({ ...f, areaId: v === "NONE" ? "" : v }))
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="화면 선택" />
+                  <SelectValue placeholder="영역 선택 (선택사항)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {screens.map((s) => (
-                    <SelectItem key={s.screenId} value={String(s.screenId)}>
-                      {s.systemId} {s.name}
+                  <SelectItem value="NONE">
+                    <span className="text-muted-foreground">— 영역 미지정 —</span>
+                  </SelectItem>
+                  {areas.map((a) => (
+                    <SelectItem key={a.areaId} value={String(a.areaId)}>
+                      {a.areaCode} {a.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -577,8 +612,7 @@ function FunctionsContent() {
               onClick={handleCreate}
               disabled={
                 createMutation.isPending ||
-                !createForm.name ||
-                !createForm.screenId
+                !createForm.name
               }
             >
               {createMutation.isPending ? "등록중..." : "저장"}
@@ -586,6 +620,17 @@ function FunctionsContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteItem}
+        onOpenChange={() => setDeleteItem(null)}
+        title="기능 삭제"
+        description={`"${deleteItem?.name}"을(를) 삭제하시겠습니까?`}
+        variant="destructive"
+        confirmLabel="삭제"
+        onConfirm={() => deleteItem && deleteMutation.mutate(deleteItem.functionId)}
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }

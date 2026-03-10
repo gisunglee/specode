@@ -2,8 +2,8 @@ export interface Requirement {
   requirementId: number;
   systemId: string;
   name: string;
-  content: string | null;     // 요구사항 내용 (원문 HTML)
-  description: string | null; // 요구사항 분석 내용 (HTML)
+  content: string | null;
+  description: string | null;
   priority: string | null;
   createdAt: string;
   updatedAt: string;
@@ -26,10 +26,37 @@ export interface Screen {
   updatedAt: string;
   requirement?: Requirement;
   _count?: {
+    areas: number;
+  };
+  areas?: Area[];
+  attachments?: Attachment[];
+}
+
+export interface Area {
+  areaId: number;
+  areaCode: string;
+  screenId: number;
+  name: string;
+  sortOrder: number;
+  areaType: string;
+  spec: string | null;
+  imageUrl: string | null;
+  displayFields: string | null;
+  status: string;
+  reqComment: string | null;
+  aiFeedback: string | null;
+  aiDetailDesign: string | null;
+  useYn: string;
+  createdBy: string | null;
+  createdAt: string;
+  updatedBy: string | null;
+  updatedAt: string;
+  screen?: Screen;
+  functions?: FunctionItem[];
+  _count?: {
     functions: number;
   };
-  functions?: FunctionItem[];
-  attachments?: Attachment[];
+  tasks?: AiTask[];
 }
 
 export interface FunctionItem {
@@ -37,25 +64,21 @@ export interface FunctionItem {
   systemId: string;
   displayCode: string | null;
   name: string;
-  screenId: number;
+  areaId: number | null;
   spec: string | null;
   dataFlow: string | null;
   changeReason: string | null;
   status: string;
   priority: string;
-  aiSummary: string | null;
-  aiReviewResult: string | null;
-  aiConflictFunctions: string | null;
-  aiImpactAnalysis: string | null;
-  aiDesignContent: string | null;  // AI가 작성한 상세 설계 내용 (마크다운)
+  aiInspFeedback: string | null;
+  aiDesignContent: string | null;
   aiImplFeedback: string | null;
-  aiImplIssues: string | null;
   gitlabPrUrl: string | null;
   relatedFiles: string | null;
   refContent: string | null;
   createdAt: string;
   updatedAt: string;
-  screen?: Screen;
+  area?: Area;
   latestTask?: AiTask | null;
   tasks?: AiTask[];
   attachments?: Attachment[];
@@ -64,10 +87,10 @@ export interface FunctionItem {
 export interface AiTask {
   aiTaskId: number;
   systemId: string;
-  refTableName: string;   // "tb_function" | "tb_standard_guide" | ...
-  refPkId: number;        // 대상 테이블 PK
-  taskType: string;       // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS | INSPECT
-  taskStatus: string;     // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED
+  refTableName: string;
+  refPkId: number;
+  taskType: string;
+  taskStatus: string;
   spec: string | null;
   comment: string | null;
   feedback: string | null;
@@ -75,11 +98,10 @@ export interface AiTask {
   requestedAt: string;
   startedAt: string | null;
   completedAt: string | null;
-  // AI현황 페이지 전용: API에서 refTableName에 맞는 대상 정보를 담아 반환
   target?: {
     systemId: string;
-    name?: string;   // tb_function
-    title?: string;  // tb_standard_guide
+    name?: string;
+    title?: string;
     displayCode?: string | null;
     category?: string;
   } | null;
@@ -107,8 +129,8 @@ export interface StandardGuide {
   title: string;
   content: string | null;
   relatedFiles: string | null;
-  isActive: string; // "Y" | "N"
-  status: string; // REVIEW_REQ | REVIEW_DONE
+  isActive: string;
+  status: string;
   aiFeedbackContent: string | null;
   aiFeedbackAt: string | null;
   createdAt: string;
@@ -121,9 +143,10 @@ export interface TreeNode {
   id: number;
   systemId: string;
   name: string;
-  type: "requirement" | "screen" | "function";
+  type: "requirement" | "screen" | "area" | "function";
   displayCode?: string;
   screenType?: string;
+  areaType?: string;
   status?: string;
   children?: TreeNode[];
 }

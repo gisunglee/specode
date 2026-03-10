@@ -105,10 +105,25 @@ export const SCREEN_TYPES = [
   { value: "TAB", label: "탭" },
 ] as const;
 
+export const AREA_TYPES = [
+  { value: "GRID",        label: "그리드" },
+  { value: "FORM",        label: "폼" },
+  { value: "INFO_CARD",   label: "정보카드" },
+  { value: "TAB",         label: "탭" },
+  { value: "FULL_SCREEN", label: "전체화면" },
+] as const;
+
+export const AREA_STATUS_LABEL: Record<string, { label: string; class: string }> = {
+  NONE:        { label: "미요청",   class: "bg-zinc-100 text-zinc-500" },
+  DESIGN_REQ:  { label: "설계요청", class: "bg-blue-100 text-blue-700" },
+  DESIGN_DONE: { label: "설계완료", class: "bg-emerald-100 text-emerald-700" },
+};
+
 export const NAV_ITEMS = [
   { href: "/", label: "대시보드", icon: "LayoutDashboard" },
   { href: "/requirements", label: "요구사항", icon: "ClipboardList" },
   { href: "/screens", label: "화면", icon: "Monitor" },
+  { href: "/areas", label: "영역", icon: "LayoutGrid" },
   { href: "/functions", label: "기능", icon: "Cog" },
   { href: "/tree", label: "트리 뷰", icon: "GitBranch" },
   { href: "/import-export", label: "엑셀", icon: "FileSpreadsheet" },

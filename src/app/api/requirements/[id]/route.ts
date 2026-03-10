@@ -11,7 +11,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     where: { requirementId: parseInt(id) },
     include: {
       screens: {
-        include: { _count: { select: { functions: true } } },
+        include: { _count: { select: { areas: true } } },
       },
     },
   });

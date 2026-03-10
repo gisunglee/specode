@@ -42,11 +42,8 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
    *    값이 하나도 없고, 파일도 없고, PR도 없으면 "피드백 없음" 안내 표시
    */
   const hasFeedback =
-    func.aiReviewResult ||
-    func.aiConflictFunctions ||
-    func.aiImpactAnalysis ||
-    func.aiImplFeedback ||
-    func.aiImplIssues;
+    func.aiInspFeedback ||
+    func.aiImplFeedback;
 
   /* ─── 렌더링 ───────────────────────────────────────────── */
   return (
@@ -62,43 +59,15 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
         </div>
       ) : (
         <>
-          {/* ── 설계 검토 결과 ────────────────────────────── */}
-          {func.aiReviewResult && (
-            <Section
-              icon={<FileText className="h-4 w-4" />}
-              title="설계 검토 결과"
-            >
-              <div className="markdown-body text-sm">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {func.aiReviewResult}
-                </ReactMarkdown>
-              </div>
-            </Section>
-          )}
-
-          {/* ── 충돌 기능 목록 ────────────────────────────── */}
-          {func.aiConflictFunctions && (
-            <Section
-              icon={<AlertTriangle className="h-4 w-4 text-yellow-600" />}
-              title="충돌 기능 목록"
-            >
-              <div className="markdown-body text-sm">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {func.aiConflictFunctions}
-                </ReactMarkdown>
-              </div>
-            </Section>
-          )}
-
-          {/* ── 영향도 분석 ──────────────────────────────── */}
-          {func.aiImpactAnalysis && (
+          {/* ── AI 점검 피드백 ────────────────────────────── */}
+          {func.aiInspFeedback && (
             <Section
               icon={<AlertTriangle className="h-4 w-4" />}
-              title="영향도 분석"
+              title="AI 피드백"
             >
               <div className="markdown-body text-sm">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {func.aiImpactAnalysis}
+                  {func.aiInspFeedback}
                 </ReactMarkdown>
               </div>
             </Section>
@@ -114,21 +83,6 @@ export function AiFeedbackTab({ func }: AiFeedbackTabProps) {
               </div>
             </Section>
           )}
-
-          {/* ── 구현 이슈 ────────────────────────────────── */}
-          {func.aiImplIssues && (
-            <Section
-              icon={<AlertTriangle className="h-4 w-4 text-red-600" />}
-              title="구현 이슈"
-            >
-              <div className="markdown-body text-sm">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {func.aiImplIssues}
-                </ReactMarkdown>
-              </div>
-            </Section>
-          )}
-
 
           {/* ── GitLab PR 링크 ────────────────────────────── */}
           {func.gitlabPrUrl && (

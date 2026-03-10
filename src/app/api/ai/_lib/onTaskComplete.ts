@@ -38,28 +38,22 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
     const updateData: Record<string, unknown> = {};
 
     switch (taskType) {
+      case "INSPECT":
+        // AI 기능 점검 피드백 → aiInspFeedback, 상태 REVIEW_DONE
+        updateData.aiInspFeedback = feedback;
+        updateData.status = "REVIEW_DONE";
+        break;
+
       case "DESIGN":
         // AI 상세설계 결과 → aiDesignContent, 상태 DESIGN_DONE
         updateData.aiDesignContent = feedback;
         updateData.status = "DESIGN_DONE";
         break;
 
-      case "REVIEW":
-        // AI 검토 결과 → aiReviewResult, 상태 REVIEW_DONE
-        updateData.aiReviewResult = feedback;
-        updateData.status = "REVIEW_DONE";
-        break;
-
       case "IMPLEMENT":
-        // AI 구현 피드백 → aiImplFeedback, 수정 파일 목록 → aiImplIssues, 상태 IMPL_DONE
+        // AI 구현 피드백 → aiImplFeedback, 상태 IMPL_DONE
         updateData.aiImplFeedback = feedback;
-        updateData.aiImplIssues = resultFiles;
         updateData.status = "IMPL_DONE";
-        break;
-
-      case "IMPACT":
-        // AI 영향도 분석 → aiImpactAnalysis (상태 변경 없음)
-        updateData.aiImpactAnalysis = feedback;
         break;
 
       // 📌 신규 taskType 추가 시 여기에 case 추가
@@ -84,6 +78,21 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
           aiFeedbackContent: feedback,
           aiFeedbackAt: new Date(),
           status: "REVIEW_DONE",
+        },
+      });
+    }
+    return;
+  }
+
+  /* ─── tb_area 대상 ─────────────────────────────────────────── */
+  if (refTableName === "tb_area") {
+    if (taskType === "DESIGN") {
+      // AI 상세설계 결과 → aiDetailDesign, 상태 DESIGN_DONE
+      await prisma.area.update({
+        where: { areaId: refPkId },
+        data: {
+          aiDetailDesign: feedback,
+          status: "DESIGN_DONE",
         },
       });
     }

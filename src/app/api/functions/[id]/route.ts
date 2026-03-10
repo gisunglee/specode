@@ -10,9 +10,13 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const data = await prisma.function.findUnique({
     where: { functionId: parseInt(id) },
     include: {
-      screen: {
+      area: {
         include: {
-          requirement: { select: { name: true, systemId: true } },
+          screen: {
+            include: {
+              requirement: { select: { name: true, systemId: true } },
+            },
+          },
         },
       },
     },
@@ -27,7 +31,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       where: { refTableName: "tb_function", refPkId: parseInt(id), delYn: "N" },
       orderBy: { createdAt: "asc" },
     }),
-    // AiTask는 polymorphic이라 Prisma relation 없이 직접 조회
     prisma.aiTask.findMany({
       where: { refTableName: "tb_function", refPkId: parseInt(id) },
       orderBy: { requestedAt: "desc" },
@@ -57,7 +60,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: {
         name: body.name,
         displayCode: body.displayCode ?? undefined,
-        screenId: body.screenId ?? undefined,
+        areaId: body.areaId !== undefined ? (body.areaId || null) : undefined,
         spec: body.spec ?? undefined,
         aiDesignContent: body.aiDesignContent !== undefined ? body.aiDesignContent : undefined,
         relatedFiles: body.relatedFiles !== undefined ? (body.relatedFiles || null) : undefined,
@@ -110,14 +113,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const taskType =
       body.status === "IMPL_REQ" ? "IMPLEMENT" :
       body.status === "DESIGN_REQ" ? "DESIGN" :
-      "REVIEW";
+      "INSPECT";
 
-    /*
-     * 📌 AI 태스크 생성
-     *    - spec: 현재 시점의 기능 설계 내용을 스냅샷으로 저장
-     *    - comment: GS 코멘트가 있으면 함께 저장 (AI에게 추가 메시지로 전달됨)
-     *    - AI가 폴링으로 이 태스크를 가져가서 spec + comment를 프롬프트에 포함
-     */
     const taskSystemId = await generateSystemId("ATK");
     await prisma.aiTask.create({
       data: {
