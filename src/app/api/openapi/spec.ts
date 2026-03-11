@@ -23,6 +23,9 @@ export const openApiSpec = {
     { name: "화면", description: "tb_screen CRUD" },
     { name: "요구사항", description: "tb_requirement CRUD" },
     { name: "표준가이드", description: "tb_standard_guide CRUD + AI 점검" },
+    { name: "영역", description: "tb_area CRUD (화면 내 영역)" },
+    { name: "첨부파일", description: "tb_attachment 업로드/다운로드/삭제" },
+    { name: "콘텐츠 버전", description: "tb_content_version 단건/목록 조회" },
     { name: "기타", description: "대시보드, 트리 뷰" },
   ],
 
@@ -109,6 +112,51 @@ export const openApiSpec = {
           status:            { type: "string", example: "REVIEW_REQ" },
           aiFeedbackContent: { type: "string", nullable: true },
           aiFeedbackAt:      { type: "string", format: "date-time", nullable: true },
+        },
+      },
+      Area: {
+        type: "object",
+        properties: {
+          areaId:     { type: "integer" },
+          areaCode:   { type: "string", example: "AR-00001" },
+          screenId:   { type: "integer" },
+          name:       { type: "string" },
+          sortOrder:  { type: "integer" },
+          areaType:   { type: "string" },
+          spec:       { type: "string", nullable: true },
+          reqComment: { type: "string", nullable: true },
+          status:     { type: "string", example: "DRAFT" },
+          createdAt:  { type: "string", format: "date-time" },
+          updatedAt:  { type: "string", format: "date-time" },
+        },
+      },
+      Attachment: {
+        type: "object",
+        properties: {
+          attachmentId: { type: "integer" },
+          refTableName: { type: "string", example: "tb_area" },
+          refPkId:      { type: "integer" },
+          logicalName:  { type: "string" },
+          physicalName: { type: "string" },
+          filePath:     { type: "string" },
+          fileSize:     { type: "integer" },
+          fileExt:      { type: "string", nullable: true },
+          description:  { type: "string", nullable: true },
+          delYn:        { type: "string", example: "N" },
+          createdAt:    { type: "string", format: "date-time" },
+        },
+      },
+      ContentVersion: {
+        type: "object",
+        properties: {
+          versionId:    { type: "integer" },
+          refTableName: { type: "string", example: "tb_area" },
+          refPkId:      { type: "integer" },
+          fieldName:    { type: "string" },
+          content:      { type: "string", nullable: true },
+          changedBy:    { type: "string" },
+          aiTaskId:     { type: "integer", nullable: true },
+          createdAt:    { type: "string", format: "date-time" },
         },
       },
       ApiSuccess: {
@@ -459,6 +507,190 @@ export const openApiSpec = {
         },
         responses: { 200: { description: "생성된 AiTask" } },
       },
+    },
+
+    /* ═══════════════════════════════════════════════
+     * 영역
+     * ═══════════════════════════════════════════════ */
+    "/api/areas": {
+      get: {
+        tags: ["영역"],
+        summary: "영역 목록",
+        parameters: [
+          { name: "page",     in: "query", schema: { type: "integer", default: 1 } },
+          { name: "pageSize", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "screenId", in: "query", schema: { type: "integer" } },
+          { name: "status",   in: "query", schema: { type: "string" } },
+          { name: "search",   in: "query", schema: { type: "string" } },
+        ],
+        responses: { 200: { description: "영역 목록" } },
+      },
+      post: {
+        tags: ["영역"],
+        summary: "영역 생성",
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "screenId", "areaType"],
+                properties: {
+                  name:       { type: "string" },
+                  screenId:   { type: "integer" },
+                  areaType:   { type: "string" },
+                  sortOrder:  { type: "integer", default: 1 },
+                  spec:       { type: "string" },
+                  reqComment: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: { 200: { description: "생성된 영역" } },
+      },
+    },
+    "/api/areas/{id}": {
+      get: {
+        tags: ["영역"],
+        summary: "영역 단건 조회",
+        description: "하위 기능(functions), tasks, attachments 포함",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: { 200: { description: "영역 상세 정보" } }
+      },
+      put: {
+        tags: ["영역"],
+        summary: "영역 수정",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name:           { type: "string" },
+                  screenId:       { type: "integer" },
+                  areaType:       { type: "string" },
+                  sortOrder:      { type: "integer" },
+                  spec:           { type: "string" },
+                  reqComment:     { type: "string" },
+                  saveVersionLog: { type: "boolean", description: "spec 변경시 버전 이력 저장 여부" }
+                }
+              }
+            }
+          }
+        },
+        responses: { 200: { description: "수정된 영역" } }
+      },
+      patch: {
+        tags: ["영역"],
+        summary: "영역 상태 변경",
+        description: "`DESIGN_REQ` 로 상태 변경 시 DESIGN AiTask 자동 생성",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["status"],
+                properties: {
+                  status:  { type: "string" },
+                  comment: { type: "string", description: "AI 추가 요청사항 전달용" }
+                }
+              }
+            }
+          }
+        },
+        responses: { 200: { description: "수정된 영역" } }
+      },
+      delete: {
+        tags: ["영역"],
+        summary: "영역 삭제",
+        description: "하위 기능이 있으면 삭제 제한됨. mode 쿼리를 통해 강제 삭제/연결 해제 가능",
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "integer" } },
+          { name: "mode", in: "query", schema: { type: "string", enum: ["cascade", "detach"] }, description: "cascade: 하위기능 같이삭제, detach: 하위기능 참조해제" }
+        ],
+        responses: { 200: { description: "삭제 성공" }, 409: { description: "하위 기능 존재로 인한 삭제 불가" } }
+      }
+    },
+
+    /* ═══════════════════════════════════════════════
+     * 첨부파일
+     * ═══════════════════════════════════════════════ */
+    "/api/attachments": {
+      post: {
+        tags: ["첨부파일"],
+        summary: "첨부파일 업로드",
+        requestBody: {
+          content: {
+            "multipart/form-data": {
+              schema: {
+                type: "object",
+                required: ["file", "refTableName", "refPkId"],
+                properties: {
+                  file:         { type: "string", format: "binary" },
+                  refTableName: { type: "string" },
+                  refPkId:      { type: "string" }
+                }
+              }
+            }
+          }
+        },
+        responses: { 200: { description: "업로드된 파일 정보" } }
+      }
+    },
+    "/api/attachments/{id}": {
+      get: {
+        tags: ["첨부파일"],
+        summary: "첨부파일 다운로드",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: {
+          200: {
+            description: "파일 스트림 응답",
+            content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } }
+          }
+        }
+      },
+      patch: {
+        tags: ["첨부파일"],
+        summary: "첨부파일 설명 수정",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { description: { type: "string" } }
+              }
+            }
+          }
+        },
+        responses: { 200: { description: "수정된 첨부파일" } }
+      },
+      delete: {
+        tags: ["첨부파일"],
+        summary: "첨부파일 (논리적) 삭제",
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "integer" } }],
+        responses: { 200: { description: "성공" } }
+      }
+    },
+
+    /* ═══════════════════════════════════════════════
+     * 콘텐츠 버전
+     * ═══════════════════════════════════════════════ */
+    "/api/content-versions": {
+      get: {
+        tags: ["콘텐츠 버전"],
+        summary: "콘텐츠 버전 조회 (목록/단건)",
+        description: "versionId가 있으면 단건 상세 조회(content 포함). 없으면 목록 조회(content 제외).",
+        parameters: [
+          { name: "refTableName", in: "query", required: true,  schema: { type: "string" } },
+          { name: "refPkId",      in: "query", required: true,  schema: { type: "string" } },
+          { name: "fieldName",    in: "query", required: true,  schema: { type: "string" } },
+          { name: "versionId",    in: "query", required: false, schema: { type: "string" } },
+        ],
+        responses: { 200: { description: "목록 또는 단건 상세 정보" } }
+      }
     },
 
     /* ═══════════════════════════════════════════════

@@ -163,6 +163,21 @@ model ContentVersion {
   @@map("tb_content_version")
 }
 
+model DbSchema {
+  schemaId       Int      @id @default(autoincrement()) @map("schema_id")
+  tableName      String   @unique @db.VarChar(100) @map("table_name")
+  tableComment   String?  @db.VarChar(200) @map("table_comment")
+  ddlScript      String   @map("ddl_script")
+  columnsJson    String   @default("[]")   @map("columns_json")
+  relationsJson  String?  @map("relations_json")
+  indexesJson    String?  @map("indexes_json")
+  tableGroup     String?  @db.VarChar(50)  @map("table_group")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([tableGroup])
+  @@map("tb_db_schema")
+}
+
 model StandardGuide {
   guideId   Int      @id @default(autoincrement()) @map("guide_id")
   systemId  String   @unique @db.VarChar(10) @map("system_id")

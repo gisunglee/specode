@@ -33,6 +33,13 @@ export const statusChangeSchema = z.object({
   status: z.string().min(1),
 });
 
+export const dbSchemaSchema = z.object({
+  tableName: z.string().min(1, "테이블명은 필수입니다.").max(100),
+  tableComment: z.string().max(200).optional().nullable(),
+  ddlScript: z.string().default(""),
+  tableGroup: z.string().max(50).optional().nullable(),
+});
+
 export const commentSchema = z.object({
   content: z.string().min(1, "코멘트 내용은 필수입니다."),
   aiTaskId: z.number().optional().nullable(),

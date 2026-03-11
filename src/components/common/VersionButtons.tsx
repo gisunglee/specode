@@ -12,8 +12,9 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { VersionDiffDialog } from "./VersionDiffDialog";
 
 interface VersionItem {
   versionId: number;
@@ -26,6 +27,8 @@ interface VersionButtonsProps {
   refTableName: string;
   refPkId: number;
   fieldName: string;
+  /** 현재 편집기 내용 (비교 팝업에서 "현재" 항목으로 표시) */
+  currentContent?: string;
   /** 버전 선택 시 콜백 (content, versionId) */
   onVersionSelect: (content: string, versionId: number) => void;
 }
@@ -41,11 +44,21 @@ export function VersionButtons({
   refTableName,
   refPkId,
   fieldName,
+  currentContent,
   onVersionSelect,
 }: VersionButtonsProps) {
   const [versions, setVersions] = useState<VersionItem[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
+
+  // 버전 미선택 상태일 때만 원본 내용 업데이트 — 버전 클릭 후에는 동결
+  const originalContentRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (selectedId === null) {
+      originalContentRef.current = currentContent;
+    }
+  }, [currentContent, selectedId]);
 
   useEffect(() => {
     if (!refPkId) return;
@@ -80,11 +93,13 @@ export function VersionButtons({
 
   // 최신이 왼쪽 (index 0 = 가장 최신) → 버튼 번호는 총 개수부터 역순
   const total = versions.length;
+  // 버튼은 최근 7개만 표시 (비교 다이얼로그는 전체 versions 사용)
+  const visibleVersions = versions.slice(0, 7);
 
   return (
     <div className="flex items-center gap-1">
-      {versions.map((v, idx) => {
-        const num = total - idx; // 최신 = total, 오래된 = 1
+      {visibleVersions.map((v, idx) => {
+        const num = total - idx; // 최신 = total, 오래된 = total-6
         const isAi = v.changedBy === "ai";
         const isSelected = selectedId === v.versionId;
 
@@ -97,7 +112,7 @@ export function VersionButtons({
             disabled={loading}
             className={cn(
               "w-6 h-6 rounded text-[10px] font-bold text-white transition-all cursor-pointer",
-              isAi ? "bg-blue-500 hover:bg-blue-600" : "bg-red-500 hover:bg-red-600",
+              isAi ? "bg-blue-500 hover:bg-blue-600" : "bg-slate-400 hover:bg-slate-500",
               isSelected && "ring-2 ring-offset-1 ring-foreground",
               loading && "opacity-50 cursor-not-allowed"
             )}
@@ -106,6 +121,40 @@ export function VersionButtons({
           </button>
         );
       })}
+      {selectedId !== null && (
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedId(null);
+            if (originalContentRef.current !== undefined) {
+              onVersionSelect(originalContentRef.current, 0);
+            }
+          }}
+          className="ml-1 text-[10px] text-orange-500 hover:text-orange-600 underline underline-offset-2 cursor-pointer"
+          title="원래 내용으로 복원"
+        >
+          ↩ 복원
+        </button>
+      )}
+      {versions.length >= 2 && (
+        <button
+          type="button"
+          onClick={() => setDiffOpen(true)}
+          className="ml-1 text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 cursor-pointer"
+        >
+          비교
+        </button>
+      )}
+
+      {diffOpen && (
+        <VersionDiffDialog
+          refTableName={refTableName}
+          refPkId={refPkId}
+          fieldName={fieldName}
+          currentContent={originalContentRef.current}
+          onClose={() => setDiffOpen(false)}
+        />
+      )}
     </div>
   );
 }

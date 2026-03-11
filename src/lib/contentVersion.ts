@@ -15,10 +15,11 @@ const VERSIONED_FIELDS: Record<string, string[]> = {
   tb_function: ["spec", "ai_design_content", "ref_content"],
   tb_area: ["spec"],
   tb_standard_guide: ["content"],
+  tb_db_schema: ["ddl_script"],
 };
 
 export interface SaveVersionParams {
-  refTableName: "tb_function" | "tb_area" | "tb_standard_guide";
+  refTableName: "tb_function" | "tb_area" | "tb_standard_guide" | "tb_db_schema";
   refPkId: number;
   fieldName: string;
   /** 변경 직전의 현재 값 (이걸 이력으로 남긴다) */

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 interface DataGridProps<T> {
   columns: ColumnDef<T, unknown>[];
   data: T[];
+  loading?: boolean;
   onRowClick?: (row: T) => void;
   pagination?: {
     page: number;
@@ -27,15 +28,18 @@ interface DataGridProps<T> {
   selectable?: boolean;
   onSelectionChange?: (selected: T[]) => void;
   emptyMessage?: string;
+  getRowClassName?: (row: T) => string;
 }
 
 export function DataGrid<T>({
   columns,
   data,
+  loading,
   onRowClick,
   pagination,
   onPageChange,
   emptyMessage = "데이터가 없습니다.",
+  getRowClassName,
 }: DataGridProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -87,7 +91,13 @@ export function DataGrid<T>({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={columns.length} className="px-4 py-12 text-center text-muted-foreground">
+                  로딩 중...
+                </td>
+              </tr>
+            ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={columns.length}
@@ -102,7 +112,8 @@ export function DataGrid<T>({
                   key={row.id}
                   className={cn(
                     "border-b border-border/50 transition-colors hover:bg-muted/30",
-                    onRowClick && "cursor-pointer"
+                    onRowClick && "cursor-pointer",
+                    getRowClassName?.(row.original)
                   )}
                   onClick={() => onRowClick?.(row.original)}
                 >

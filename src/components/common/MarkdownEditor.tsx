@@ -102,6 +102,7 @@ export function MarkdownEditor({
             refTableName={refTableName!}
             refPkId={refPkId!}
             fieldName={fieldName!}
+            currentContent={value}
             onVersionSelect={handleVersionSelect}
           />
         )}
