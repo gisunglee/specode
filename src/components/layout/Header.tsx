@@ -25,6 +25,8 @@ export function Header() {
     let currentPath = "";
     for (const segment of segments) {
       currentPath += `/${segment}`;
+      // 숫자 ID 세그먼트는 브레드크럼에 표시하지 않음 (상세 페이지 자체 헤더에 표시)
+      if (/^\d+$/.test(segment)) continue;
       const label = ROUTE_LABELS[currentPath] || segment;
       breadcrumbs.push({ label, href: currentPath });
     }

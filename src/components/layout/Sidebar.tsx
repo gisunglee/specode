@@ -15,6 +15,7 @@ import {
   FileCode2,
   PanelLeftClose,
   PanelLeftOpen,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,12 +61,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Logo */}
       <div className="flex items-center h-14 px-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2 overflow-hidden">
-          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Bot className="h-5 w-5 text-primary" />
+          <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center">
+            <Sparkles className="h-6 w-6 text-yellow-400 fill-yellow-400" />
           </div>
           {!collapsed && (
-            <span className="font-bold text-sm text-sidebar-foreground whitespace-nowrap">
-              AI Dev Hub
+            <span className="font-extrabold text-lg text-sidebar-foreground whitespace-nowrap tracking-tight">
+              Specode
             </span>
           )}
         </div>

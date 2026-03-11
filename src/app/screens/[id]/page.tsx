@@ -69,9 +69,6 @@ export default function ScreenDetailPage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const [headerHidden, setHeaderHidden] = useState(false);
-
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["screen", id],
     queryFn: async () => {
@@ -92,17 +89,6 @@ export default function ScreenDetailPage({
   const screen = data?.data;
 
   useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setHeaderHidden(!entry.isIntersecting),
-      { threshold: 0, rootMargin: "-56px 0px 0px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isLoading]);
-
-  useEffect(() => {
     if (screen) {
       setSpec(screen.spec || DEFAULT_SCREEN_SPEC);
       setLayoutRows(parseLayoutData(screen.layoutData));
@@ -110,8 +96,7 @@ export default function ScreenDetailPage({
       setCategoryM(screen.categoryM ?? "");
       setCategoryS(screen.categoryS ?? "");
       setMenuOrder(screen.menuOrder ?? null);
-      if (!name) setName(screen.name); // 초기 로드 시 한 번만 세팅
-      // 초기 로드 시 모든 영역 펼침
+      if (!name) setName(screen.name);
       if (screen.areas?.length) {
         setExpandedAreas(new Set(screen.areas.map((a: AreaRow) => a.areaId)));
       }
@@ -214,237 +199,224 @@ export default function ScreenDetailPage({
   const areaCount = areas.length;
   const totalFuncCount = areas.reduce((acc: number, a: AreaRow) => acc + (a.functions?.length ?? 0), 0);
 
-
   return (
-    <div className="space-y-6">
-      {/* ── Full 헤더 ───────────────────────────────────── */}
-      <div ref={headerRef} className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/screens")}>
+    <div>
+      {/* ─── 슬림 Sticky 헤더 ────────────────────────────────── */}
+      <div className="sticky top-0 z-20 -mx-6 -mt-6 px-6 bg-background/95 backdrop-blur-sm mb-2">
+        <div className="flex items-center gap-2 h-12">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => router.push("/screens")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">
-                {screen.systemId}
-                {screen.displayCode && (
-                  <span className="text-muted-foreground ml-1">({screen.displayCode})</span>
-                )}
-              </h1>
-              {screenTypeLabel && (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-                  {screenTypeLabel}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              <span className="font-medium text-foreground">{name}</span>
-              {screen.requirement?.name && (
-                <span className="ml-1">— {screen.requirement.name}</span>
-              )}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {saveSuccess && (
-            <span className="text-sm text-green-600 animate-in fade-in">저장됨 ✓</span>
-          )}
-          <Button variant="ghost" size="icon" title="화면 삭제" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-          </Button>
-          <Button onClick={handleSave} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "저장중..." : "저장"}
-          </Button>
-        </div>
-      </div>
 
-      {/* ── Sticky 컴팩트 헤더 ─────────────────────────── */}
-      <div className="sticky top-14 z-20 -mx-6 px-6 bg-background/95 backdrop-blur-sm border-b border-border">
-        {headerHidden && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                onClick={() => router.push("/screens")}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-sm font-semibold truncate">{screen.systemId}</span>
-              <span className="text-sm text-muted-foreground truncate hidden sm:inline">
-                {screen.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {saveSuccess && <span className="text-xs text-green-600">저장됨 ✓</span>}
-              <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "저장중..." : "저장"}
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── 메인 카드: 6:4 레이아웃 ────────────────────── */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <div className="grid grid-cols-10 gap-6">
-          <div className="col-span-6">
-            <MarkdownEditor
-              key={`md-${dataUpdatedAt}`}
-              value={spec}
-              onChange={setSpec}
-              label="화면 설명 (마크다운) *"
-              rows={30}
-              placeholder="화면 설명을 마크다운으로 작성하세요..."
-            />
-          </div>
-          <div className="col-span-4 space-y-5 pt-8">
-            {/* ── 기본 정보 ─────────────────────────────── */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">기본 정보</p>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">화면명 *</label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={handleSave}
-                  placeholder="화면명 입력"
-                />
-              </div>
-            </div>
-
-            {/* ── 메뉴 분류 ─────────────────────────────── */}
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">메뉴 분류</p>
-              <div className="grid grid-cols-2 gap-2">
-                <AutocompleteInput
-                  id="categoryL"
-                  label="대분류"
-                  value={categoryL}
-                  onChange={setCategoryL}
-                  suggestions={catL}
-                  placeholder="예: 예산관리"
-                />
-                <AutocompleteInput
-                  id="categoryM"
-                  label="중분류"
-                  value={categoryM}
-                  onChange={setCategoryM}
-                  suggestions={catM}
-                  placeholder="예: 감축량관리"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label htmlFor="categoryS" className="text-xs text-muted-foreground">소분류</label>
-                  <Input
-                    id="categoryS"
-                    value={categoryS}
-                    onChange={(e) => setCategoryS(e.target.value)}
-                    placeholder="3depth 메뉴"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label htmlFor="menuOrder" className="text-xs text-muted-foreground">메뉴순서</label>
-                  <Input
-                    id="menuOrder"
-                    type="number"
-                    value={menuOrder ?? ""}
-                    onChange={(e) => setMenuOrder(e.target.value ? parseInt(e.target.value) : null)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            </div>
-            <LayoutEditor
-              key={`layout-${dataUpdatedAt}`}
-              value={layoutRows}
-              onChange={setLayoutRows}
-              areas={areas}
-            />
-            <AttachmentManager
-              refTableName="tb_screen"
-              refPkId={screen.screenId}
-              attachments={screen.attachments ?? []}
-              onChanged={handleFileChange}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ── 하위 영역 + 기능 목록 ──────────────────────── */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            하위 영역 / 기능
-            {(areaCount > 0 || totalFuncCount > 0) && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                (영역 {areaCount}개 / 기능 {totalFuncCount}건)
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 text-sm overflow-hidden">
+            <span className="font-bold shrink-0">{screen.systemId}</span>
+            {screen.displayCode && (
+              <span className="text-xs text-muted-foreground shrink-0">
+                ({screen.displayCode})
               </span>
             )}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/areas?screenId=${id}`)}
-          >
-            영역 관리
-          </Button>
-        </div>
-
-        {areas.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4">등록된 영역이 없습니다.</p>
-        ) : (
-          <div className="space-y-3">
-            {areas.map((area: AreaRow) => {
-              const expanded = expandedAreas.has(area.areaId);
-              const areaTypeLabel =
-                AREA_TYPES.find((t) => t.value === area.areaType)?.label ?? area.areaType;
-              return (
-                <div key={area.areaId} className="rounded-lg border border-border bg-card overflow-hidden">
-                  <button
-                    onClick={() => toggleArea(area.areaId)}
-                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      {expanded ? (
-                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {area.areaCode}
-                      </span>
-                      <span className="font-medium">{area.name}</span>
-                      <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
-                        {areaTypeLabel}
-                      </span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      기능 {area.functions?.length ?? 0}건
-                    </span>
-                  </button>
-                  {expanded && (
-                    <div className="px-4 pb-3">
-                      <DataGrid
-                        columns={funcColumns}
-                        data={area.functions ?? []}
-                        onRowClick={(row: FunctionRow) =>
-                          router.push(`/functions/${row.functionId}`)
-                        }
-                        emptyMessage="기능이 없습니다."
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {screenTypeLabel && (
+              <span className="text-xs text-muted-foreground shrink-0">· {screenTypeLabel}</span>
+            )}
+            <span className="text-muted-foreground/40 mx-0.5 shrink-0">·</span>
+            <span className="font-medium truncate">{name || screen.name}</span>
+            {screen.requirement?.name && (
+              <>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
+                <span className="text-xs text-muted-foreground shrink-0 max-w-[160px] truncate">
+                  {screen.requirement.name}
+                </span>
+              </>
+            )}
           </div>
-        )}
+
+          <div className="flex items-center gap-2 shrink-0">
+            {saveSuccess && (
+              <span className="text-xs text-emerald-600 font-medium animate-pulse">
+                저장됨 ✓
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="화면 삭제"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "저장중..." : "저장"}
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* ── 화면 삭제 다이얼로그 ────────────────────────── */}
+      {/* ─── 콘텐츠 ──────────────────────────────────────────── */}
+      <div className="space-y-6">
+        {/* 메인 카드: 6:4 레이아웃 */}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <div className="grid grid-cols-10 gap-6">
+            <div className="col-span-6">
+              <MarkdownEditor
+                key={`md-${dataUpdatedAt}`}
+                value={spec}
+                onChange={setSpec}
+                label="화면 설명 (마크다운) *"
+                rows={30}
+                placeholder="화면 설명을 마크다운으로 작성하세요..."
+              />
+            </div>
+            <div className="col-span-4 space-y-5 pt-8">
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">기본 정보</p>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">화면명 *</label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={handleSave}
+                    placeholder="화면명 입력"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">메뉴 분류</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <AutocompleteInput
+                    id="categoryL"
+                    label="대분류"
+                    value={categoryL}
+                    onChange={setCategoryL}
+                    suggestions={catL}
+                    placeholder="예: 예산관리"
+                  />
+                  <AutocompleteInput
+                    id="categoryM"
+                    label="중분류"
+                    value={categoryM}
+                    onChange={setCategoryM}
+                    suggestions={catM}
+                    placeholder="예: 감축량관리"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label htmlFor="categoryS" className="text-xs text-muted-foreground">소분류</label>
+                    <Input
+                      id="categoryS"
+                      value={categoryS}
+                      onChange={(e) => setCategoryS(e.target.value)}
+                      placeholder="3depth 메뉴"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label htmlFor="menuOrder" className="text-xs text-muted-foreground">메뉴순서</label>
+                    <Input
+                      id="menuOrder"
+                      type="number"
+                      value={menuOrder ?? ""}
+                      onChange={(e) => setMenuOrder(e.target.value ? parseInt(e.target.value) : null)}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+              <LayoutEditor
+                key={`layout-${dataUpdatedAt}`}
+                value={layoutRows}
+                onChange={setLayoutRows}
+                areas={areas}
+              />
+              <AttachmentManager
+                refTableName="tb_screen"
+                refPkId={screen.screenId}
+                attachments={screen.attachments ?? []}
+                onChanged={handleFileChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 하위 영역 + 기능 목록 */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              하위 영역 / 기능
+              {(areaCount > 0 || totalFuncCount > 0) && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  (영역 {areaCount}개 / 기능 {totalFuncCount}건)
+                </span>
+              )}
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/areas?screenId=${id}`)}
+            >
+              영역 관리
+            </Button>
+          </div>
+
+          {areas.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">등록된 영역이 없습니다.</p>
+          ) : (
+            <div className="space-y-3">
+              {areas.map((area: AreaRow) => {
+                const expanded = expandedAreas.has(area.areaId);
+                const areaTypeLabel =
+                  AREA_TYPES.find((t) => t.value === area.areaType)?.label ?? area.areaType;
+                return (
+                  <div key={area.areaId} className="rounded-lg border border-border bg-card overflow-hidden">
+                    <button
+                      onClick={() => toggleArea(area.areaId)}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        {expanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {area.areaCode}
+                        </span>
+                        <span className="font-medium">{area.name}</span>
+                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
+                          {areaTypeLabel}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        기능 {area.functions?.length ?? 0}건
+                      </span>
+                    </button>
+                    {expanded && (
+                      <div className="px-4 pb-3">
+                        <DataGrid
+                          columns={funcColumns}
+                          data={area.functions ?? []}
+                          onRowClick={(row: FunctionRow) =>
+                            router.push(`/functions/${row.functionId}`)
+                          }
+                          emptyMessage="기능이 없습니다."
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ─── 화면 삭제 다이얼로그 ───────────────────────────── */}
       {areaCount > 0 ? (
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <DialogContent>

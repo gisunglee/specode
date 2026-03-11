@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronDown, History, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, History, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,15 +47,6 @@ interface FunctionRow {
   updatedAt: string;
 }
 
-const SECTIONS = [
-  { id: "basic",      label: "기본정보" },
-  { id: "spec",       label: "설계" },
-  { id: "feedback",   label: "피드백" },
-  { id: "functions",  label: "하위 기능" },
-] as const;
-
-type SectionId = (typeof SECTIONS)[number]["id"];
-
 export default function AreaDetailPage({
   params,
 }: {
@@ -65,8 +56,6 @@ export default function AreaDetailPage({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  /* ─── 스크롤 & 헤더 상태 ─────────────────────────────────── */
-  const [activeSection, setActiveSection] = useState<SectionId>("basic");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteMode, setDeleteMode] = useState<"cascade" | "detach">("detach");
   const [statusDialog, setStatusDialog] = useState<string | null>(null);
@@ -75,14 +64,7 @@ export default function AreaDetailPage({
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackViewMode, setFeedbackViewMode] = useState<"preview" | "code">("preview");
   const statusRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const [headerHidden, setHeaderHidden] = useState(false);
 
-  const sectionRefs = useRef<Record<SectionId, HTMLElement | null>>({
-    basic: null, spec: null, feedback: null, functions: null,
-  });
-
-  /* ─── 폼 상태 ────────────────────────────────────────────── */
   const [form, setForm] = useState({
     name: "",
     areaType: "GRID",
@@ -91,10 +73,8 @@ export default function AreaDetailPage({
     reqComment: "",
   });
 
-  /* ─── 설계 상태 ──────────────────────────────────────────── */
   const [spec, setSpec] = useState("");
 
-  /* ─── 버전 이력 저장 체크박스 (localStorage) ─────────── */
   const [saveVersionLog, setSaveVersionLog] = useState(true);
   useEffect(() => {
     const stored = localStorage.getItem("specode_save_version_log");
@@ -105,7 +85,6 @@ export default function AreaDetailPage({
     localStorage.setItem("specode_save_version_log", String(checked));
   };
 
-  /* ─── API 데이터 조회 ────────────────────────────────────── */
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["area", id],
     queryFn: async () => {
@@ -117,7 +96,6 @@ export default function AreaDetailPage({
 
   const area = data?.data;
 
-  /* ─── 화면 목록 조회 ─────────────────────────────────────── */
   const { data: screensData } = useQuery({
     queryKey: ["screens-all"],
     queryFn: async () => {
@@ -128,7 +106,6 @@ export default function AreaDetailPage({
   const screens: { screenId: number; systemId: string; name: string }[] =
     screensData?.data ?? [];
 
-  /* ─── 서버 데이터 → 폼 동기화 ───────────────────────────── */
   useEffect(() => {
     if (area) {
       setForm({
@@ -142,37 +119,6 @@ export default function AreaDetailPage({
     }
   }, [dataUpdatedAt]);
 
-  /* ─── 헤더 숨김 감지 ─────────────────────────────────────── */
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setHeaderHidden(!entry.isIntersecting),
-      { threshold: 0, rootMargin: "-56px 0px 0px 0px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [area]);
-
-  /* ─── 활성 섹션 감지 (IntersectionObserver) ─────────────── */
-  useEffect(() => {
-    const observers: IntersectionObserver[] = [];
-    SECTIONS.forEach(({ id: sId }) => {
-      const el = sectionRefs.current[sId];
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActiveSection(sId);
-        },
-        { rootMargin: "-30% 0px -60% 0px", threshold: 0 }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-    return () => observers.forEach((o) => o.disconnect());
-  }, [area]);
-
-  /* ─── 드롭다운 외부 클릭 닫기 ───────────────────────────── */
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
@@ -183,16 +129,6 @@ export default function AreaDetailPage({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  /* ─── 섹션으로 스크롤 ────────────────────────────────────── */
-  const scrollToSection = (sId: SectionId) => {
-    const el = sectionRefs.current[sId];
-    if (!el) return;
-    // sticky 탭 높이(56px nav + 탭바) 보정
-    const offset = el.getBoundingClientRect().top + window.scrollY - 120;
-    window.scrollTo({ top: offset, behavior: "smooth" });
-  };
-
-  /* ─── 기본정보 저장 ──────────────────────────────────────── */
   const updateMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       apiFetch(`/api/areas/${id}`, {
@@ -207,7 +143,6 @@ export default function AreaDetailPage({
     },
   });
 
-  /* ─── 설계 + 요청코멘트 통합 저장 ──────────────────────── */
   const designMutation = useMutation({
     mutationFn: () =>
       apiFetch(`/api/areas/${id}`, {
@@ -225,7 +160,6 @@ export default function AreaDetailPage({
     },
   });
 
-  /* ─── 상태 변경 (PATCH) ──────────────────────────────────── */
   const statusMutation = useMutation({
     mutationFn: (status: string) =>
       apiFetch(`/api/areas/${id}`, {
@@ -244,7 +178,6 @@ export default function AreaDetailPage({
     },
   });
 
-  /* ─── 삭제 ───────────────────────────────────────────────── */
   const deleteMutation = useMutation({
     mutationFn: (mode?: "cascade" | "detach") => {
       const url = mode ? `/api/areas/${id}?mode=${mode}` : `/api/areas/${id}`;
@@ -269,7 +202,6 @@ export default function AreaDetailPage({
     queryClient.invalidateQueries({ queryKey: ["area", id] });
   }, [queryClient, id]);
 
-  /* ─── 하위 기능 컬럼 ─────────────────────────────────────── */
   const funcColumns: ColumnDef<FunctionRow, unknown>[] = [
     { accessorKey: "systemId", header: "ID", size: 110 },
     { accessorKey: "displayCode", header: "표시코드", size: 100 },
@@ -290,7 +222,6 @@ export default function AreaDetailPage({
     },
   ];
 
-  /* ─── 로딩 & 에러 ────────────────────────────────────────── */
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -312,322 +243,279 @@ export default function AreaDetailPage({
   const statusCfg = AREA_STATUS_LABEL[area.status] ?? { label: area.status, class: "" };
 
   return (
-    <div className="space-y-6">
-      {/* ── Full 헤더 ──────────────────────────────────────── */}
-      <div ref={headerRef} className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/areas")}>
+    <div>
+      {/* ─── 슬림 Sticky 헤더 ────────────────────────────────── */}
+      <div className="sticky top-0 z-20 -mx-6 -mt-6 px-6 bg-background/95 backdrop-blur-sm mb-2">
+        <div className="flex items-center gap-2 h-12">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => router.push("/areas")}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">{area.areaCode}</h1>
-              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px]">
-                {areaTypeLabel}
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              <span className="font-medium text-foreground">{area.name}</span>
-              {area.screen?.name && (
-                <span className="ml-1">— {area.screen.name}</span>
-              )}
-            </p>
-          </div>
-        </div>
 
-        {/* 오른쪽: 삭제 버튼 + 상태 드롭다운 */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" title="영역 삭제" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-          </Button>
-
-          <div className="relative" ref={statusRef}>
-            <button
-              onClick={() => setStatusOpen(!statusOpen)}
-              className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 hover:bg-muted/50 transition-colors cursor-pointer"
-            >
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCfg.class}`}>
-                {statusCfg.label}
-              </span>
-              <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", statusOpen && "rotate-180")} />
-            </button>
-            {statusOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-lg border border-border bg-card shadow-lg py-1">
-                <p className="px-3 py-1.5 text-xs text-muted-foreground font-medium">상태 변경</p>
-                {Object.entries(AREA_STATUS_LABEL).map(([status, cfg]) => {
-                  if (status === area.status) return null;
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 transition-colors text-sm cursor-pointer"
-                    >
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.class}`}>
-                        {cfg.label}
-                      </span>
-                      {status === "DESIGN_REQ" && (
-                        <span className="text-[11px] text-amber-600 font-medium">AI요청</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 text-sm overflow-hidden">
+            <span className="font-bold shrink-0">{area.areaCode}</span>
+            <span className="text-xs text-muted-foreground shrink-0">({areaTypeLabel})</span>
+            <span className="text-muted-foreground/40 mx-0.5 shrink-0">·</span>
+            <span className="font-medium truncate">{area.name}</span>
+            {area.screen?.name && (
+              <>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
+                <button
+                  onClick={() => router.push(`/screens/${area.screen.screenId}`)}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors shrink-0 max-w-[160px] truncate"
+                >
+                  {area.screen.name}
+                </button>
+              </>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* ── Sticky 탭 네비게이션 (스크롤 이동) ────────────── */}
-      <div className="sticky top-14 z-20 -mx-6 px-6 bg-background/95 backdrop-blur-sm border-b border-border">
-        {headerHidden && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                onClick={() => router.push("/areas")}
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-sm font-semibold truncate">{area.areaCode}</span>
-              <span className="text-sm text-muted-foreground truncate hidden sm:inline">
-                {area.name}
-              </span>
-            </div>
-          </div>
-        )}
-        <nav className="flex gap-1 py-2">
-          {SECTIONS.map((sec) => (
-            <button
-              key={sec.id}
-              onClick={() => scrollToSection(sec.id)}
-              className={cn(
-                "px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer",
-                activeSection === sec.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-              )}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              title="영역 삭제"
+              onClick={() => setDeleteOpen(true)}
             >
-              {sec.label}
-            </button>
-          ))}
-        </nav>
+              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+            </Button>
+
+            <div className="relative" ref={statusRef}>
+              <button
+                onClick={() => setStatusOpen(!statusOpen)}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1 hover:bg-muted/50 transition-colors cursor-pointer"
+              >
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusCfg.class}`}>
+                  {statusCfg.label}
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", statusOpen && "rotate-180")} />
+              </button>
+              {statusOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-lg border border-border bg-card shadow-lg py-1">
+                  <p className="px-3 py-1.5 text-xs text-muted-foreground font-medium">
+                    상태 변경{" "}
+                    <span className="text-[10px] opacity-60">— 선택 시 바로 저장됩니다</span>
+                  </p>
+                  {Object.entries(AREA_STATUS_LABEL).map(([status, cfg]) => {
+                    if (status === area.status) return null;
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => handleStatusChange(status)}
+                        className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 transition-colors text-sm cursor-pointer"
+                      >
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${cfg.class}`}>
+                          {cfg.label}
+                        </span>
+                        {status === "DESIGN_REQ" && (
+                          <span className="text-[11px] text-amber-600 font-medium">AI요청</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════ */}
-      {/* 기본정보 섹션                                     */}
-      {/* ══════════════════════════════════════════════════ */}
-      <section
-        ref={(el) => { sectionRefs.current["basic"] = el; }}
-        className="space-y-4 scroll-mt-32"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">기본정보</h2>
-          <Button
-            onClick={() =>
-              updateMutation.mutate({
-                ...form,
-                sortOrder: Number(form.sortOrder),
-                screenId: form.screenId ? parseInt(form.screenId) : undefined,
-              })
-            }
-            disabled={updateMutation.isPending}
-          >
-            {updateMutation.isPending ? "저장중..." : "저장"}
-          </Button>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs">영역코드</Label>
-              <Input value={area.areaCode} disabled className="bg-muted/30" />
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs">영역명 *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">순서</Label>
-              <Input
-                type="number"
-                value={form.sortOrder}
-                onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))}
-                min={1}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">영역 유형 *</Label>
-              <Select
-                value={form.areaType}
-                onValueChange={(v) => setForm((f) => ({ ...f, areaType: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {AREA_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs">소속 화면</Label>
-              <Select
-                value={form.screenId || "NONE"}
-                onValueChange={(v) => setForm((f) => ({ ...f, screenId: v === "NONE" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="화면 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NONE">
-                    <span className="text-muted-foreground">— 미지정 —</span>
-                  </SelectItem>
-                  {screens.map((s) => (
-                    <SelectItem key={s.screenId} value={String(s.screenId)}>
-                      {s.systemId} {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════ */}
-      {/* 설계 섹션 (설계 + 상세설계 + AI요청코멘트 + 첨부) */}
-      {/* ══════════════════════════════════════════════════ */}
-      <section
-        ref={(el) => { sectionRefs.current["spec"] = el; }}
-        className="space-y-4 scroll-mt-32"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">설계</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setFeedbackOpen(true)}>
-              <Bot className="h-3.5 w-3.5 mr-1.5" />
-              AI 피드백
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
-              <History className="h-3.5 w-3.5 mr-1.5" />
-              AI 요청 이력
-            </Button>
-            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={saveVersionLog}
-                onChange={(e) => handleVersionLogChange(e.target.checked)}
-                className="h-3.5 w-3.5 accent-primary"
-              />
-              버전 이력 저장
-            </label>
-            <Button onClick={() => designMutation.mutate()} disabled={designMutation.isPending}>
-              {designMutation.isPending ? "저장중..." : "저장"}
+      {/* ─── 콘텐츠 섹션 ─────────────────────────────────────── */}
+      <div className="space-y-6">
+        {/* 기본정보 섹션 */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">기본정보</h2>
+            <Button
+              onClick={() =>
+                updateMutation.mutate({
+                  ...form,
+                  sortOrder: Number(form.sortOrder),
+                  screenId: form.screenId ? parseInt(form.screenId) : undefined,
+                })
+              }
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "저장중..." : "저장"}
             </Button>
           </div>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-6">
-          <div className="grid grid-cols-5 gap-6">
-            {/* ── 왼쪽: 설계 + 상세 설계 ─────────────────────── */}
-            <div className="col-span-3 space-y-4">
-              <MarkdownEditor
-                key={`spec-${dataUpdatedAt}`}
-                value={spec}
-                onChange={setSpec}
-                label="영역 설계 (마크다운)"
-                rows={25}
-                placeholder="영역 설계 내용을 마크다운으로 작성하세요..."
-                refTableName="tb_area"
-                refPkId={area?.areaId}
-                fieldName="spec"
-              />
-            </div>
-
-            {/* ── 오른쪽: AI 요청 코멘트 + 첨부파일 ──────────── */}
-            <div className="col-span-2 space-y-5 pt-3">
+          <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+            <div className="grid grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs">AI 요청 코멘트</Label>
-                <Textarea
-                  value={form.reqComment}
-                  onChange={(e) => setForm((f) => ({ ...f, reqComment: e.target.value }))}
-                  placeholder="AI에게 전달할 추가 요청 사항을 입력하세요..."
-                  rows={6}
+                <Label className="text-muted-foreground text-xs">영역코드</Label>
+                <Input value={area.areaCode} disabled className="bg-muted/30" />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs">영역명 *</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 />
               </div>
-
-              <div className="pt-2 border-t border-border">
-                <AttachmentManager
-                  refTableName="tb_area"
-                  refPkId={area.areaId}
-                  attachments={area.attachments ?? []}
-                  onChanged={handleAttachmentChanged}
+              <div className="space-y-1.5">
+                <Label className="text-xs">순서</Label>
+                <Input
+                  type="number"
+                  value={form.sortOrder}
+                  onChange={(e) => setForm((f) => ({ ...f, sortOrder: Number(e.target.value) }))}
+                  min={1}
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">영역 유형 *</Label>
+                <Select
+                  value={form.areaType}
+                  onValueChange={(v) => setForm((f) => ({ ...f, areaType: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {AREA_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <Label className="text-xs">소속 화면</Label>
+                <Select
+                  value={form.screenId || "NONE"}
+                  onValueChange={(v) => setForm((f) => ({ ...f, screenId: v === "NONE" ? "" : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="화면 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">
+                      <span className="text-muted-foreground">— 미지정 —</span>
+                    </SelectItem>
+                    {screens.map((s) => (
+                      <SelectItem key={s.screenId} value={String(s.screenId)}>
+                        {s.systemId} {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-
-      {/* ══════════════════════════════════════════════════ */}
-      {/* 피드백 섹션                                       */}
-      {/* ══════════════════════════════════════════════════ */}
-      <section
-        ref={(el) => { sectionRefs.current["feedback"] = el; }}
-        className="space-y-4 scroll-mt-32"
-      >
-        <h2 className="text-lg font-semibold">AI 피드백</h2>
-        <div className="rounded-lg border border-border bg-card p-6">
-          {area.aiFeedback ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
-              {area.aiFeedback}
+        {/* 설계 섹션 */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">설계</h2>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setFeedbackOpen(true)}>
+                <Bot className="h-3.5 w-3.5 mr-1.5" />
+                AI 피드백
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
+                <History className="h-3.5 w-3.5 mr-1.5" />
+                AI 요청 이력
+              </Button>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={saveVersionLog}
+                  onChange={(e) => handleVersionLogChange(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                버전 이력 저장
+              </label>
+              <Button onClick={() => designMutation.mutate()} disabled={designMutation.isPending}>
+                {designMutation.isPending ? "저장중..." : "저장"}
+              </Button>
             </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">AI 피드백이 없습니다.</p>
-          )}
-        </div>
-      </section>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="grid grid-cols-5 gap-6">
+              <div className="col-span-3 space-y-4">
+                <MarkdownEditor
+                  key={`spec-${dataUpdatedAt}`}
+                  value={spec}
+                  onChange={setSpec}
+                  label="영역 설계 (마크다운)"
+                  rows={25}
+                  placeholder="영역 설계 내용을 마크다운으로 작성하세요..."
+                  refTableName="tb_area"
+                  refPkId={area?.areaId}
+                  fieldName="spec"
+                />
+              </div>
+              <div className="col-span-2 space-y-5 pt-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">AI 요청 코멘트</Label>
+                  <Textarea
+                    value={form.reqComment}
+                    onChange={(e) => setForm((f) => ({ ...f, reqComment: e.target.value }))}
+                    placeholder="AI에게 전달할 추가 요청 사항을 입력하세요..."
+                    rows={6}
+                  />
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <AttachmentManager
+                    refTableName="tb_area"
+                    refPkId={area.areaId}
+                    attachments={area.attachments ?? []}
+                    onChanged={handleAttachmentChanged}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      {/* ══════════════════════════════════════════════════ */}
-      {/* 하위 기능 섹션                                    */}
-      {/* ══════════════════════════════════════════════════ */}
-      <section
-        ref={(el) => { sectionRefs.current["functions"] = el; }}
-        className="space-y-3 scroll-mt-32"
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            하위 기능
-            {funcCount > 0 && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">({funcCount}건)</span>
+        {/* AI 피드백 섹션 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold">AI 피드백</h2>
+          <div className="rounded-lg border border-border bg-card p-6">
+            {area.aiFeedback ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
+                {area.aiFeedback}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">AI 피드백이 없습니다.</p>
             )}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push(`/functions?areaId=${id}`)}
-          >
-            기능 관리
-          </Button>
-        </div>
-        <DataGrid
-          columns={funcColumns}
-          data={area.functions ?? []}
-          onRowClick={(row: FunctionRow) => router.push(`/functions/${row.functionId}`)}
-          emptyMessage="하위 기능이 없습니다."
-        />
-      </section>
+          </div>
+        </section>
 
-      {/* ── AI 요청 이력 팝업 ──────────────────────────────── */}
+        {/* 하위 기능 섹션 */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">
+              하위 기능
+              {funcCount > 0 && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">({funcCount}건)</span>
+              )}
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/functions?areaId=${id}`)}
+            >
+              기능 관리
+            </Button>
+          </div>
+          <DataGrid
+            columns={funcColumns}
+            data={area.functions ?? []}
+            onRowClick={(row: FunctionRow) => router.push(`/functions/${row.functionId}`)}
+            emptyMessage="하위 기능이 없습니다."
+          />
+        </section>
+      </div>
+
+      {/* ─── AI 요청 이력 팝업 ───────────────────────────────── */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -637,8 +525,14 @@ export default function AreaDetailPage({
         </DialogContent>
       </Dialog>
 
-      {/* ── AI 피드백 팝업 ──────────────────────────────────── */}
-      <Dialog open={feedbackOpen} onOpenChange={(v) => { setFeedbackOpen(v); if (!v) setFeedbackViewMode("preview"); }}>
+      {/* ─── AI 피드백 팝업 ──────────────────────────────────── */}
+      <Dialog
+        open={feedbackOpen}
+        onOpenChange={(v) => {
+          setFeedbackOpen(v);
+          if (!v) setFeedbackViewMode("preview");
+        }}
+      >
         <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
             <div className="flex items-center justify-between pr-8">
@@ -681,7 +575,7 @@ export default function AreaDetailPage({
         </DialogContent>
       </Dialog>
 
-      {/* ── AI 설계요청 확인 다이얼로그 ───────────────────── */}
+      {/* ─── AI 설계요청 확인 ────────────────────────────────── */}
       <ConfirmDialog
         open={!!statusDialog}
         onOpenChange={() => setStatusDialog(null)}
@@ -692,7 +586,7 @@ export default function AreaDetailPage({
         loading={statusMutation.isPending}
       />
 
-      {/* ── 영역 삭제 다이얼로그 ───────────────────────────── */}
+      {/* ─── 영역 삭제 다이얼로그 ───────────────────────────── */}
       {funcCount === 0 ? (
         <ConfirmDialog
           open={deleteOpen}
