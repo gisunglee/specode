@@ -109,6 +109,17 @@ export default function StandardGuidesPage() {
   const [editItem, setEditItem] = useState<StandardGuide | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
 
+  /* 버전 이력 저장 체크박스 */
+  const [saveVersionLog, setSaveVersionLog] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const v = localStorage.getItem("specode_save_version_log");
+    return v === null ? true : v === "true";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("specode_save_version_log", String(saveVersionLog));
+  }, [saveVersionLog]);
+
   /* 삭제 다이얼로그 */
   const [deleteItem, setDeleteItem] = useState<StandardGuide | null>(null);
 
@@ -184,7 +195,7 @@ export default function StandardGuidesPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...body }: { id: number } & typeof EMPTY_FORM) =>
+    mutationFn: ({ id, ...body }: { id: number; saveVersionLog?: boolean } & typeof EMPTY_FORM) =>
       apiFetch(`/api/standard-guides/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -251,7 +262,7 @@ export default function StandardGuidesPage() {
   const handleSubmit = () => {
     if (!form.title.trim()) return;
     if (editItem) {
-      updateMutation.mutate({ id: editItem.guideId, ...form });
+      updateMutation.mutate({ id: editItem.guideId, ...form, saveVersionLog });
     } else {
       createMutation.mutate(form);
     }
@@ -575,6 +586,9 @@ export default function StandardGuidesPage() {
                   label="가이드 내용 (마크다운)"
                   rows={24}
                   placeholder={`# 가이드 제목\n\n## 개요\n\n## 사용법\n\n\`\`\`typescript\n// 예시 코드\n\`\`\``}
+                  refTableName="tb_standard_guide"
+                  refPkId={editItem?.guideId}
+                  fieldName="content"
                 />
 
                 {/* 관련 파일 목록 */}
@@ -632,6 +646,17 @@ export default function StandardGuidesPage() {
           </div>
 
           <DialogFooter className="px-6 py-3 border-t border-border shrink-0 bg-muted/30">
+            {editItem && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mr-auto">
+                <input
+                  type="checkbox"
+                  checked={saveVersionLog}
+                  onChange={(e) => setSaveVersionLog(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                버전 이력 저장
+              </label>
+            )}
             <Button variant="outline" onClick={closeDialog}>취소</Button>
             <Button
               onClick={handleSubmit}

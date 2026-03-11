@@ -25,7 +25,6 @@ export const functionSchema = z.object({
   displayCode: z.string().optional().nullable(),
   areaId: z.number().optional().nullable(),
   spec: z.string().optional().nullable(),
-  dataFlow: z.string().optional().nullable(),
   changeReason: z.string().optional().nullable(),
   priority: z.string().default("MEDIUM"),
 });

@@ -64,7 +64,6 @@ export interface FunctionItem {
   areaId: number | null;
   sortOrder: number | null;
   spec: string | null;
-  dataFlow: string | null;
   changeReason: string | null;
   status: string;
   priority: string;
@@ -72,7 +71,6 @@ export interface FunctionItem {
   aiDesignContent: string | null;
   aiImplFeedback: string | null;
   gitlabPrUrl: string | null;
-  relatedFiles: string | null;
   refContent: string | null;
   createdAt: string;
   updatedAt: string;

@@ -94,6 +94,17 @@ export default function AreaDetailPage({
   /* ─── 설계 상태 ──────────────────────────────────────────── */
   const [spec, setSpec] = useState("");
 
+  /* ─── 버전 이력 저장 체크박스 (localStorage) ─────────── */
+  const [saveVersionLog, setSaveVersionLog] = useState(true);
+  useEffect(() => {
+    const stored = localStorage.getItem("specode_save_version_log");
+    setSaveVersionLog(stored === null ? true : stored === "true");
+  }, []);
+  const handleVersionLogChange = (checked: boolean) => {
+    setSaveVersionLog(checked);
+    localStorage.setItem("specode_save_version_log", String(checked));
+  };
+
   /* ─── API 데이터 조회 ────────────────────────────────────── */
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["area", id],
@@ -196,7 +207,7 @@ export default function AreaDetailPage({
     },
   });
 
-  /* ─── 설계 + 상세설계 + 요청코멘트 통합 저장 ────────────── */
+  /* ─── 설계 + 요청코멘트 통합 저장 ──────────────────────── */
   const designMutation = useMutation({
     mutationFn: () =>
       apiFetch(`/api/areas/${id}`, {
@@ -205,6 +216,7 @@ export default function AreaDetailPage({
         body: JSON.stringify({
           spec,
           reqComment: form.reqComment,
+          ...(saveVersionLog ? { saveVersionLog: true } : {}),
         }),
       }),
     onSuccess: () => {
@@ -509,6 +521,15 @@ export default function AreaDetailPage({
               <History className="h-3.5 w-3.5 mr-1.5" />
               AI 요청 이력
             </Button>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={saveVersionLog}
+                onChange={(e) => handleVersionLogChange(e.target.checked)}
+                className="h-3.5 w-3.5 accent-primary"
+              />
+              버전 이력 저장
+            </label>
             <Button onClick={() => designMutation.mutate()} disabled={designMutation.isPending}>
               {designMutation.isPending ? "저장중..." : "저장"}
             </Button>
@@ -525,6 +546,9 @@ export default function AreaDetailPage({
                 label="영역 설계 (마크다운)"
                 rows={25}
                 placeholder="영역 설계 내용을 마크다운으로 작성하세요..."
+                refTableName="tb_area"
+                refPkId={area?.areaId}
+                fieldName="spec"
               />
             </div>
 
@@ -617,7 +641,7 @@ export default function AreaDetailPage({
       <Dialog open={feedbackOpen} onOpenChange={(v) => { setFeedbackOpen(v); if (!v) setFeedbackViewMode("preview"); }}>
         <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pr-8">
               <DialogTitle>AI 피드백</DialogTitle>
               <div className="flex gap-1 text-xs">
                 <button

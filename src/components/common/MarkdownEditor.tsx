@@ -5,6 +5,7 @@
  *   - 편집 모드: textarea로 마크다운 원문 작성
  *   - 미리보기 모드: ReactMarkdown으로 렌더링된 결과 표시
  *   - 상단에 라벨 + 편집/미리보기 토글 버튼
+ *   - (선택) 버전 이력 버튼 표시 (refTableName, refPkId, fieldName 전달 시)
  *
  * 📌 사용처:
  *   - DesignInfoTab (기능 상세 → 기능 설명)
@@ -18,6 +19,7 @@ import remarkGfm from "remark-gfm";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { VersionButtons } from "@/components/common/VersionButtons";
 
 interface MarkdownEditorProps {
   /** 마크다운 내용 */
@@ -32,6 +34,10 @@ interface MarkdownEditorProps {
   placeholder?: string;
   /** 읽기 전용 모드 (기본: false) */
   readOnly?: boolean;
+  /* ── 버전 이력 버튼 관련 (선택) ─────────────────────────── */
+  refTableName?: string;
+  refPkId?: number;
+  fieldName?: string;
 }
 
 export function MarkdownEditor({
@@ -41,16 +47,26 @@ export function MarkdownEditor({
   rows = 24,
   placeholder = "마크다운으로 작성하세요...",
   readOnly = false,
+  refTableName,
+  refPkId,
+  fieldName,
 }: MarkdownEditorProps) {
   const [previewMode, setPreviewMode] = useState(readOnly);
 
   /* ─── 미리보기 영역의 최소 높이 계산 ─────────────────────── */
-  // textarea rows 기준으로 미리보기 min-height를 맞춤
   const minHeight = `${rows * 24}px`;
+
+  /** 버전 선택 시: 해당 content로 편집기 내용을 교체하고 편집 모드로 전환 */
+  const handleVersionSelect = (content: string) => {
+    if (onChange) onChange(content);
+    setPreviewMode(false);
+  };
+
+  const showVersionButtons = !!(refTableName && refPkId && fieldName);
 
   return (
     <div className="space-y-2">
-      {/* ── 라벨 + 편집/미리보기 토글 ──────────────────────── */}
+      {/* ── 라벨 + 편집/미리보기 토글 + 버전 버튼 ─────────── */}
       <div className="flex items-center gap-3">
         <Label>{label}</Label>
         {!readOnly && (
@@ -80,6 +96,14 @@ export function MarkdownEditor({
               미리보기
             </button>
           </div>
+        )}
+        {showVersionButtons && (
+          <VersionButtons
+            refTableName={refTableName!}
+            refPkId={refPkId!}
+            fieldName={fieldName!}
+            onVersionSelect={handleVersionSelect}
+          />
         )}
       </div>
 

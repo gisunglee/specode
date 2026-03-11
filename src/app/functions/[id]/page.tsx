@@ -662,7 +662,7 @@ export default function FunctionDetailPage({
       <Dialog open={feedbackOpen} onOpenChange={(v) => { setFeedbackOpen(v); if (!v) setFeedbackViewMode("preview"); }}>
         <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between pr-8">
               <DialogTitle>AI 피드백</DialogTitle>
               <div className="flex gap-1 text-xs">
                 <button

@@ -9,6 +9,7 @@
  *   - taskType 별 분기는 switch 케이스에 추가
  */
 import prisma from "@/lib/prisma";
+import { saveContentVersion } from "@/lib/contentVersion";
 
 export interface TaskCompletePayload {
   aiTaskId: number;
@@ -27,7 +28,7 @@ export interface TaskCompletePayload {
  * FAILED / WARNING 등의 경우 AiTask 자체에만 결과가 기록됩니다.
  */
 export async function onTaskComplete(payload: TaskCompletePayload): Promise<void> {
-  const { refTableName, refPkId, taskType, taskStatus, feedback, resultFiles } = payload;
+  const { aiTaskId, refTableName, refPkId, taskType, taskStatus, feedback, resultFiles } = payload;
 
   // 성공 계열 상태일 때만 엔티티 반영
   const isSuccess = taskStatus === "SUCCESS" || taskStatus === "AUTO_FIXED";
@@ -36,6 +37,7 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
   /* ─── tb_function 대상 ─────────────────────────────────────── */
   if (refTableName === "tb_function") {
     const updateData: Record<string, unknown> = {};
+    let versionFieldName: string | null = null;
 
     switch (taskType) {
       case "INSPECT":
@@ -48,6 +50,7 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
         // AI 상세설계 결과 → aiDesignContent, 상태 DESIGN_DONE
         updateData.aiDesignContent = feedback;
         updateData.status = "DESIGN_DONE";
+        versionFieldName = "ai_design_content";
         break;
 
       case "IMPLEMENT":
@@ -60,6 +63,24 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
     }
 
     if (Object.keys(updateData).length > 0) {
+      // 버전 이력: 변경 직전 현재 값 저장
+      if (versionFieldName) {
+        const current = await prisma.function.findUnique({
+          where: { functionId: refPkId },
+          select: { aiDesignContent: true },
+        });
+        if (current) {
+          await saveContentVersion({
+            refTableName: "tb_function",
+            refPkId,
+            fieldName: versionFieldName,
+            currentContent: current.aiDesignContent,
+            changedBy: "ai",
+            aiTaskId,
+          });
+        }
+      }
+
       await prisma.function.update({
         where: { functionId: refPkId },
         data: updateData,
@@ -100,4 +121,6 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
   }
 
   // 📌 신규 refTableName 추가 시 if 블록 추가
+
+  void resultFiles; // unused
 }

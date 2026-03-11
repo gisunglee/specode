@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { apiSuccess, apiError, isValidStatus } from "@/lib/utils";
 import { generateSystemId } from "@/lib/sequence";
+import { saveContentVersion } from "@/lib/contentVersion";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -45,34 +46,53 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const numId = parseInt(id);
     const body = await request.json();
+    const { saveVersionLog, ...updateBody } = body;
 
     const existing = await prisma.function.findUnique({
       where: { functionId: numId },
-      select: { spec: true },
+      select: { spec: true, aiDesignContent: true, refContent: true },
     });
 
     if (!existing) {
       return apiError("NOT_FOUND", "기능을 찾을 수 없습니다.", 404);
     }
 
+    // 버전 이력 저장 (saveVersionLog=true 일 때만)
+    if (saveVersionLog) {
+      const versionFields = [
+        { field: "spec", prismaKey: "spec" as const, bodyKey: "spec" },
+        { field: "ai_design_content", prismaKey: "aiDesignContent" as const, bodyKey: "aiDesignContent" },
+        { field: "ref_content", prismaKey: "refContent" as const, bodyKey: "refContent" },
+      ];
+      for (const { field, prismaKey, bodyKey } of versionFields) {
+        if (updateBody[bodyKey] !== undefined && updateBody[bodyKey] !== existing[prismaKey]) {
+          await saveContentVersion({
+            refTableName: "tb_function",
+            refPkId: numId,
+            fieldName: field,
+            currentContent: existing[prismaKey],
+            changedBy: "user",
+          });
+        }
+      }
+    }
+
     const data = await prisma.function.update({
       where: { functionId: numId },
       data: {
-        name: body.name,
-        displayCode: body.displayCode ?? undefined,
-        areaId: body.areaId !== undefined 
-          ? (body.areaId ? (isNaN(Number(body.areaId)) ? null : Number(body.areaId)) : null) 
+        name: updateBody.name,
+        displayCode: updateBody.displayCode ?? undefined,
+        areaId: updateBody.areaId !== undefined
+          ? (updateBody.areaId ? (isNaN(Number(updateBody.areaId)) ? null : Number(updateBody.areaId)) : null)
           : undefined,
-        sortOrder: body.sortOrder !== undefined 
-          ? (body.sortOrder !== "" && body.sortOrder !== null && !isNaN(Number(body.sortOrder)) ? Number(body.sortOrder) : null) 
+        sortOrder: updateBody.sortOrder !== undefined
+          ? (updateBody.sortOrder !== "" && updateBody.sortOrder !== null && !isNaN(Number(updateBody.sortOrder)) ? Number(updateBody.sortOrder) : null)
           : undefined,
-        spec: body.spec ?? undefined,
-        aiDesignContent: body.aiDesignContent !== undefined ? body.aiDesignContent : undefined,
-        relatedFiles: body.relatedFiles !== undefined ? (body.relatedFiles || null) : undefined,
-        refContent: body.refContent !== undefined ? (body.refContent || null) : undefined,
-        dataFlow: body.dataFlow ?? undefined,
-        changeReason: body.changeReason ?? undefined,
-        priority: body.priority ?? undefined,
+        spec: updateBody.spec ?? undefined,
+        aiDesignContent: updateBody.aiDesignContent !== undefined ? updateBody.aiDesignContent : undefined,
+        refContent: updateBody.refContent !== undefined ? (updateBody.refContent || null) : undefined,
+        changeReason: updateBody.changeReason ?? undefined,
+        priority: updateBody.priority ?? undefined,
       },
     });
 

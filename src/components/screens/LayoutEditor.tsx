@@ -21,7 +21,6 @@
 import { useState } from "react";
 import { Plus, X, Columns2, FileText, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -44,10 +43,8 @@ export interface LayoutColumn {
   id: string;
   /** 너비 비율 (%, 1~100) */
   widthRatio: number;
-  /** 영역 이름 (예: "검색조건", "목록") */
-  label: string;
-  /** 매핑된 기능 ID (선택) */
-  functionId?: number;
+  /** 매핑된 영역 ID (선택) */
+  areaId?: number;
 }
 
 /** 레이아웃 행 (열들의 묶음) */
@@ -56,10 +53,10 @@ export interface LayoutRow {
   columns: LayoutColumn[];
 }
 
-/** 기능 매핑용 간소화된 기능 정보 */
-interface FunctionOption {
-  functionId: number;
-  systemId: string;
+/** 영역 매핑용 간소화된 영역 정보 */
+interface AreaOption {
+  areaId: number;
+  areaCode: string;
   name: string;
 }
 
@@ -68,8 +65,8 @@ interface LayoutEditorProps {
   value: LayoutRow[];
   /** 레이아웃 변경 콜백 */
   onChange: (rows: LayoutRow[]) => void;
-  /** 하위 기능 목록 (Select 옵션으로 사용) */
-  functions: FunctionOption[];
+  /** 하위 영역 목록 (Select 옵션으로 사용) */
+  areas: AreaOption[];
 }
 
 /* ─── 유틸 ────────────────────────────────────────────────── */
@@ -81,7 +78,6 @@ const uid = () => crypto.randomUUID();
 const emptyColumn = (): LayoutColumn => ({
   id: uid(),
   widthRatio: 100,
-  label: "",
 });
 
 /** 빈 행 생성 */
@@ -99,7 +95,7 @@ const parseWidth = (text: string): number | null => {
 
 /* ─── 컴포넌트 ────────────────────────────────────────────── */
 
-export function LayoutEditor({ value, onChange, functions }: LayoutEditorProps) {
+export function LayoutEditor({ value, onChange, areas }: LayoutEditorProps) {
   /* ── 텍스트 내보내기 상태 ──────────────────────────────── */
   const [textOpen, setTextOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"text" | "json">("text");
@@ -114,14 +110,14 @@ export function LayoutEditor({ value, onChange, functions }: LayoutEditorProps) 
     const lines: string[] = [];
     value.forEach((row, i) => {
       lines.push(`### 행 ${i + 1}`);
-      lines.push("| 영역 | 너비 | 기능 |");
-      lines.push("|------|------|------|");
+      lines.push("| 영역 | 너비 |");
+      lines.push("|------|------|");
       row.columns.forEach((col) => {
-        const func = col.functionId
-          ? functions.find((f) => f.functionId === col.functionId)
+        const area = col.areaId
+          ? areas.find((a) => a.areaId === col.areaId)
           : null;
         lines.push(
-          `| ${col.label || "-"} | ${col.widthRatio}% | ${func ? `${func.systemId} ${func.name}` : "-"} |`
+          `| ${area ? `${area.areaCode} ${area.name}` : "-"} | ${col.widthRatio}% |`
         );
       });
       lines.push("");
@@ -137,13 +133,12 @@ export function LayoutEditor({ value, onChange, functions }: LayoutEditorProps) 
     return JSON.stringify(
       value.map((row) => ({
         columns: row.columns.map((col) => {
-          const func = col.functionId
-            ? functions.find((f) => f.functionId === col.functionId)
+          const area = col.areaId
+            ? areas.find((a) => a.areaId === col.areaId)
             : null;
           return {
-            label: col.label || "",
             width: `${col.widthRatio}%`,
-            ...(func ? { function: `${func.systemId} ${func.name}` } : {}),
+            ...(area ? { area: `${area.areaCode} ${area.name}` } : {}),
           };
         }),
       })),
@@ -185,7 +180,7 @@ export function LayoutEditor({ value, onChange, functions }: LayoutEditorProps) 
       )
     );
 
-  /** 열 속성 업데이트 (widthRatio, label, functionId) */
+  /** 열 속성 업데이트 (widthRatio, areaId) */
   const updateColumn = (
     rowId: string,
     colId: string,
@@ -304,38 +299,26 @@ export function LayoutEditor({ value, onChange, functions }: LayoutEditorProps) 
                       className="h-7 text-[11px] w-full rounded-md border border-input bg-transparent px-2 focus:outline-none focus:ring-1 focus:ring-ring"
                     />
 
-                    {/* 영역 라벨 입력 */}
-                    <Input
-                      value={col.label}
-                      onChange={(e) =>
-                        updateColumn(row.id, col.id, {
-                          label: e.target.value,
-                        })
-                      }
-                      placeholder="영역명"
-                      className="h-7 text-[11px]"
-                    />
-
-                    {/* 기능 매핑 선택 */}
+                    {/* 영역 선택 */}
                     <Select
-                      value={col.functionId ? String(col.functionId) : "NONE"}
+                      value={col.areaId ? String(col.areaId) : "NONE"}
                       onValueChange={(v) =>
                         updateColumn(row.id, col.id, {
-                          functionId: v === "NONE" ? undefined : parseInt(v),
+                          areaId: v === "NONE" ? undefined : parseInt(v),
                         })
                       }
                     >
                       <SelectTrigger className="h-7 text-[11px]">
-                        <SelectValue placeholder="기능 선택" />
+                        <SelectValue placeholder="영역 선택" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="NONE">미지정</SelectItem>
-                        {functions.map((fn) => (
+                        {areas.map((area) => (
                           <SelectItem
-                            key={fn.functionId}
-                            value={String(fn.functionId)}
+                            key={area.areaId}
+                            value={String(area.areaId)}
                           >
-                            {fn.systemId} {fn.name}
+                            {area.areaCode} {area.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

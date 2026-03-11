@@ -30,10 +30,12 @@ if sys.stderr.encoding != "utf-8":
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-BASE_URL  = os.getenv("SPECODE_URL", "http://localhost:3000")
-API_KEY   = os.getenv("API_SECRET_KEY", "")
-LIMIT     = int(os.getenv("TASK_LIMIT", "10"))
-TASK_TYPE = os.getenv("TASK_TYPE", "")  # 빈 문자열 = 전체
+BASE_URL     = os.getenv("SPECODE_URL", "http://localhost:3000")
+API_KEY      = os.getenv("API_SECRET_KEY", "")
+LIMIT        = int(os.getenv("TASK_LIMIT", "10"))
+TASK_TYPE    = os.getenv("TASK_TYPE", "")  # 빈 문자열 = 전체
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+IMAGE_EXTS   = {"png", "jpg", "jpeg", "gif", "webp"}
 
 HEADERS = {
     "X-API-Key": API_KEY,
@@ -106,6 +108,27 @@ PROMPTS = {
 }
 
 
+def build_image_section(task: dict) -> str:
+    """이미지 첨부파일 downloadUrl을 프롬프트 섹션으로 반환 (로컬/원격 서버 모두 동작)"""
+    images = [
+        a for a in task.get("attachments", [])
+        if (a.get("fileExt") or "").lower() in IMAGE_EXTS
+    ]
+    if not images:
+        return ""
+    lines = [
+        f"- {a['logicalName']}: {a['downloadUrl']}"
+        for a in images
+    ]
+    return (
+        "\n\n## 참고 이미지 파일\n"
+        + "\n".join(lines)
+        + "\n각 이미지를 Bash 도구로 curl 다운로드 후 Read 도구로 읽어 "
+        "화면 레이아웃, UI 구성요소, 데이터 항목을 파악하고 설계에 반영하세요.\n"
+        f"(다운로드 예: curl -s -H \"X-API-Key: {API_KEY}\" \"<url>\" -o /tmp/img.png)"
+    )
+
+
 def call_ai(task: dict) -> str:
     """claude CLI 서브프로세스로 AI 호출 (Pro 구독 사용, API 키 불필요)"""
     template = PROMPTS.get(task.get("taskType", ""), PROMPTS["_DEFAULT"])
@@ -113,8 +136,9 @@ def call_ai(task: dict) -> str:
     spec          = task.get("spec") or "(내용 없음)"
     comment       = task.get("comment") or ""
     comment_block = f"\n## 추가 요청사항\n{comment}" if comment else ""
+    image_block   = build_image_section(task)
 
-    prompt = template.format(spec=spec, comment=comment_block)
+    prompt = template.format(spec=spec, comment=comment_block + image_block)
 
     # claude 실행 파일 경로 탐색 (Windows: claude.cmd)
     claude_bin = shutil.which("claude")

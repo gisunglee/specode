@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateSystemId } from "@/lib/sequence";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { saveContentVersion } from "@/lib/contentVersion";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -41,19 +42,34 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const numId = parseInt(id);
     const body = await request.json();
+    const { saveVersionLog, ...updateBody } = body;
 
-    const existing = await prisma.area.findUnique({ where: { areaId: numId } });
+    const existing = await prisma.area.findUnique({
+      where: { areaId: numId },
+      select: { spec: true },
+    });
     if (!existing) return apiError("NOT_FOUND", "영역을 찾을 수 없습니다.", 404);
+
+    // 버전 이력 저장 (saveVersionLog=true 일 때만)
+    if (saveVersionLog && updateBody.spec !== undefined && updateBody.spec !== existing.spec) {
+      await saveContentVersion({
+        refTableName: "tb_area",
+        refPkId: numId,
+        fieldName: "spec",
+        currentContent: existing.spec,
+        changedBy: "user",
+      });
+    }
 
     const data = await prisma.area.update({
       where: { areaId: numId },
       data: {
-        name: body.name ?? undefined,
-        screenId: body.screenId !== undefined ? body.screenId : undefined,
-        areaType: body.areaType ?? undefined,
-        sortOrder: body.sortOrder ?? undefined,
-        spec: body.spec !== undefined ? (body.spec || null) : undefined,
-        reqComment: body.reqComment !== undefined ? (body.reqComment || null) : undefined,
+        name: updateBody.name ?? undefined,
+        screenId: updateBody.screenId !== undefined ? updateBody.screenId : undefined,
+        areaType: updateBody.areaType ?? undefined,
+        sortOrder: updateBody.sortOrder ?? undefined,
+        spec: updateBody.spec !== undefined ? (updateBody.spec || null) : undefined,
+        reqComment: updateBody.reqComment !== undefined ? (updateBody.reqComment || null) : undefined,
       },
     });
 

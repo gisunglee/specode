@@ -214,8 +214,6 @@ export default function ScreenDetailPage({
   const areaCount = areas.length;
   const totalFuncCount = areas.reduce((acc: number, a: AreaRow) => acc + (a.functions?.length ?? 0), 0);
 
-  // LayoutEditor용 전체 기능 목록 (플랫)
-  const allFunctions = areas.flatMap((a: AreaRow) => a.functions ?? []);
 
   return (
     <div className="space-y-6">
@@ -363,7 +361,7 @@ export default function ScreenDetailPage({
               key={`layout-${dataUpdatedAt}`}
               value={layoutRows}
               onChange={setLayoutRows}
-              functions={allFunctions}
+              areas={areas}
             />
             <AttachmentManager
               refTableName="tb_screen"

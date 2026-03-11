@@ -11,7 +11,7 @@
  *   limit     number   반환할 최대 건수 (기본 10, 최대 50)
  *   taskType  string   필터: DESIGN | REVIEW | IMPLEMENT | IMPACT | INSPECT
  *
- * Response: AiTask[] (spec, comment 포함)
+ * Response: AiTask[] (spec, comment, attachments 포함)
  */
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
   const authError = validateApiKey(request);
   if (authError) return authError;
 
-  const { searchParams } = new URL(request.url);
+  const reqUrl = new URL(request.url);
+  const baseUrl = `${reqUrl.protocol}//${reqUrl.host}`;
+  const { searchParams } = reqUrl;
   const limit = Math.min(parseInt(searchParams.get("limit") || "10"), 50);
   const taskType = searchParams.get("taskType") ?? undefined;
 
@@ -46,5 +48,31 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return apiSuccess(tasks);
+  // 각 태스크의 대상 엔티티에 업로드된 첨부파일 포함 (이미지 기반 설계 지원)
+  const tasksWithAttachments = await Promise.all(
+    tasks.map(async (task) => {
+      const attachments = await prisma.attachment.findMany({
+        where: {
+          refTableName: task.refTableName,
+          refPkId: task.refPkId,
+          delYn: "N",
+        },
+        select: {
+          attachmentId: true,
+          logicalName: true,
+          filePath: true,
+          fileExt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+      // downloadUrl: 서버 주소 기반 절대 URL (로컬/원격 모두 동작)
+      const attachmentsWithUrl = attachments.map((a) => ({
+        ...a,
+        downloadUrl: `${baseUrl}/api/attachments/${a.attachmentId}`,
+      }));
+      return { ...task, attachments: attachmentsWithUrl };
+    })
+  );
+
+  return apiSuccess(tasksWithAttachments);
 }

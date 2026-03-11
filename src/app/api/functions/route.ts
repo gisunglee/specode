@@ -106,7 +106,6 @@ export async function POST(request: NextRequest) {
         displayCode: body.displayCode ? String(body.displayCode) : undefined,
         sortOrder: body.sortOrder ? Number(body.sortOrder) : undefined,
         spec: body.spec ? String(body.spec) : undefined,
-        dataFlow: body.dataFlow ? String(body.dataFlow) : undefined,
         priority: body.priority ? String(body.priority) : "MEDIUM",
         ...(body.areaId && !isNaN(Number(body.areaId)) && {
           area: { connect: { areaId: Number(body.areaId) } },

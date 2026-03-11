@@ -10,6 +10,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/utils";
 import { generateSystemId } from "@/lib/sequence";
+import { saveContentVersion } from "@/lib/contentVersion";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -42,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const numId = parseInt(id);
     const body = await request.json();
-    const { category, title, content, isActive, relatedFiles, aiFeedbackContent, status } = body;
+    const { saveVersionLog, category, title, content, isActive, relatedFiles, aiFeedbackContent, status } = body;
 
     if (!category || !VALID_CATEGORIES.includes(category)) {
       return apiError("VALIDATION_ERROR", "유효하지 않은 카테고리입니다.");
@@ -61,20 +62,27 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiError("NOT_FOUND", "가이드를 찾을 수 없습니다.", 404);
     }
 
+    // 버전 이력 저장 (saveVersionLog=true 일 때만)
+    const newContent = content?.trim() || null;
+    if (saveVersionLog && newContent !== undefined && newContent !== existing.content) {
+      await saveContentVersion({
+        refTableName: "tb_standard_guide",
+        refPkId: numId,
+        fieldName: "content",
+        currentContent: existing.content,
+        changedBy: "user",
+      });
+    }
+
     const statusChanged = status === "REVIEW_REQ" && existing.status !== "REVIEW_REQ";
     const now = new Date();
 
-    /*
-     * 📌 aiFeedbackAt 업데이트 조건:
-     *   1. status가 REVIEW_REQ로 변경될 때 (AI 검토 요청)
-     *   2. aiFeedbackContent가 전달된 경우 (피드백 내용 직접 수정)
-     */
     const shouldUpdateFeedbackAt = statusChanged || aiFeedbackContent !== undefined;
 
     const updateData = {
       category,
       title: title.trim(),
-      content: content?.trim() || null,
+      content: newContent,
       isActive: isActive === "N" ? "N" : "Y",
       relatedFiles: relatedFiles !== undefined ? (relatedFiles?.trim() || null) : undefined,
       aiFeedbackContent: aiFeedbackContent !== undefined ? (aiFeedbackContent?.trim() || null) : undefined,
@@ -97,7 +105,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             refPkId: numId,
             taskType: "INSPECT",
             taskStatus: "NONE",
-            spec: content?.trim() || existing.content, // 요청 시점 내용 스냅샷
+            spec: newContent || existing.content,
           },
         }),
       ]);
