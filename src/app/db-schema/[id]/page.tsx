@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
+import { RelationsEditor } from "@/components/db-schema/RelationsEditor";
 import {
   Select,
   SelectContent,
@@ -25,6 +26,7 @@ interface DbSchemaData {
   tableComment: string | null;
   tableGroup: string | null;
   ddlScript: string;
+  relationsJson: string | null;
   updatedAt: string;
 }
 
@@ -41,6 +43,7 @@ export default function DbSchemaDetailPage({
   const [tableComment, setTableComment] = useState("");
   const [tableGroup, setTableGroup] = useState("");
   const [ddlScript, setDdlScript] = useState("");
+  const [relationsJson, setRelationsJson] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [versionKey, setVersionKey] = useState(0);
@@ -76,6 +79,7 @@ export default function DbSchemaDetailPage({
       setTableComment(schema.tableComment ?? "");
       setTableGroup(schema.tableGroup ?? "");
       setDdlScript(schema.ddlScript ?? "");
+      setRelationsJson(schema.relationsJson ?? null);
     }
   }, [dataUpdatedAt]);
 
@@ -119,8 +123,9 @@ export default function DbSchemaDetailPage({
       tableComment: tableComment || null,
       tableGroup: tableGroup || null,
       ddlScript,
+      relationsJson: relationsJson || null,
     });
-  }, [schema, tableName, tableComment, tableGroup, ddlScript, updateMutation]);
+  }, [schema, tableName, tableComment, tableGroup, ddlScript, relationsJson, updateMutation]);
 
   if (isLoading) {
     return (
@@ -186,7 +191,7 @@ export default function DbSchemaDetailPage({
         <div className="grid grid-cols-10 gap-6">
 
           {/* 왼쪽: DDL 스크립트 */}
-          <div className="col-span-7 space-y-2">
+          <div className="col-span-5 space-y-2">
             <MarkdownEditor
               key={versionKey}
               label="DDL 스크립트"
@@ -200,63 +205,75 @@ export default function DbSchemaDetailPage({
             />
           </div>
 
-          {/* 오른쪽: 메타 정보 */}
-          <div className="col-span-3 space-y-4 pt-6">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">테이블명</label>
-              <Input
-                value={tableName}
-                onChange={(e) => setTableName(e.target.value)}
-                placeholder="테이블명"
-                maxLength={100}
-                className="font-mono text-sm"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">설명</label>
-              <Input
-                value={tableComment}
-                onChange={(e) => setTableComment(e.target.value)}
-                placeholder="테이블 설명"
-                maxLength={200}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">업무그룹</label>
-              <div className="flex gap-1.5">
+          {/* 오른쪽: 메타 + 관계 */}
+          <div className="col-span-5 space-y-5 pt-6">
+            {/* 메타 정보 */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">테이블명</label>
                 <Input
-                  value={tableGroup}
-                  onChange={(e) => setTableGroup(e.target.value)}
-                  placeholder="예: 사용자관리"
-                  maxLength={50}
-                  className="flex-1"
+                  value={tableName}
+                  onChange={(e) => setTableName(e.target.value)}
+                  placeholder="테이블명"
+                  maxLength={100}
+                  className="font-mono text-sm"
                 />
-                {groups.length > 0 && (
-                  <Select
-                    value={tableGroup || "_none"}
-                    onValueChange={(v) => setTableGroup(v === "_none" ? "" : v)}
-                  >
-                    <SelectTrigger className="w-8 px-0 justify-center shrink-0">
-                      <span className="text-xs text-muted-foreground">▾</span>
-                    </SelectTrigger>
-                    <SelectContent align="end">
-                      <SelectItem value="_none">없음</SelectItem>
-                      {groups.map((g) => (
-                        <SelectItem key={g} value={g}>{g}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">설명</label>
+                <Input
+                  value={tableComment}
+                  onChange={(e) => setTableComment(e.target.value)}
+                  placeholder="테이블 설명"
+                  maxLength={200}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">업무그룹</label>
+                <div className="flex gap-1.5">
+                  <Input
+                    value={tableGroup}
+                    onChange={(e) => setTableGroup(e.target.value)}
+                    placeholder="예: 사용자관리"
+                    maxLength={50}
+                    className="flex-1"
+                  />
+                  {groups.length > 0 && (
+                    <Select
+                      value={tableGroup || "_none"}
+                      onValueChange={(v) => setTableGroup(v === "_none" ? "" : v)}
+                    >
+                      <SelectTrigger className="w-8 px-0 justify-center shrink-0">
+                        <span className="text-xs text-muted-foreground">▾</span>
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectItem value="_none">없음</SelectItem>
+                        {groups.map((g) => (
+                          <SelectItem key={g} value={g}>{g}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">수정일시</label>
+                <p className="text-xs text-muted-foreground">{formatDateTime(schema.updatedAt)}</p>
               </div>
             </div>
 
+            {/* 구분선 */}
+            <div className="border-t border-border" />
 
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">수정일시</label>
-              <p className="text-xs text-muted-foreground">{formatDateTime(schema.updatedAt)}</p>
-            </div>
+            {/* 관계 에디터 */}
+            <RelationsEditor
+              ddlScript={ddlScript}
+              value={relationsJson}
+              onChange={setRelationsJson}
+            />
           </div>
         </div>
       </div>

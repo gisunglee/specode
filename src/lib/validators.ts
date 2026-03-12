@@ -38,6 +38,7 @@ export const dbSchemaSchema = z.object({
   tableComment: z.string().max(200).optional().nullable(),
   ddlScript: z.string().default(""),
   tableGroup: z.string().max(50).optional().nullable(),
+  relationsJson: z.string().optional().nullable(),
 });
 
 export const commentSchema = z.object({

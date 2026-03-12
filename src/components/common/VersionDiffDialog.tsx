@@ -73,7 +73,6 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
   useEffect(() => {
     selected.forEach((vId) => {
       if (contents[vId] !== undefined) return;
-      // 현재 내용은 API 호출 없이 prop에서 직접 사용
       if (vId === CURRENT_VERSION_ID) {
         setContents((prev) => ({ ...prev, [vId]: currentContent ?? "" }));
         return;
@@ -94,7 +93,7 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
     setSelected((prev) => {
       if (prev.includes(vId)) return prev.filter((id) => id !== vId);
       if (prev.length < 2) return [...prev, vId];
-      return [prev[1], vId]; // 3번째 선택 시 첫 번째 해제
+      return [prev[1], vId];
     });
   };
 
@@ -103,15 +102,12 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
     setDeleting(true);
     try {
       await fetch(`/api/content-versions/${deleteTarget.versionId}`, { method: "DELETE" });
-      // 삭제된 버전이 선택 중이면 선택 해제
       setSelected((prev) => prev.filter((id) => id !== deleteTarget.versionId));
-      // content 캐시에서도 제거
       setContents((prev) => {
         const next = { ...prev };
         delete next[deleteTarget.versionId];
         return next;
       });
-      // 목록 갱신
       fetchVersions();
     } catch {
       // 무시
@@ -123,8 +119,6 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
 
   const total = versions.length;
 
-  // diff 대상: versionId 작은 것이 이전(left), 큰 것이 이후(right)
-  // CURRENT_VERSION_ID(-1)는 항상 이후(right)로 고정
   const sorted = [...selected].sort((a, b) => {
     if (a === CURRENT_VERSION_ID) return 1;
     if (b === CURRENT_VERSION_ID) return -1;
@@ -159,21 +153,11 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
               <div className="overflow-y-auto flex-1">
                 {/* 현재 내용 항목 — 삭제 불가 */}
                 {currentContent !== undefined && (
-                  <label
-                    className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 border-b border-border/50 ${selected.includes(CURRENT_VERSION_ID) ? "bg-muted" : ""}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(CURRENT_VERSION_ID)}
-                      onChange={() => toggleSelect(CURRENT_VERSION_ID)}
-                      className="h-3.5 w-3.5 shrink-0"
-                    />
+                  <label className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 border-b border-border/50 ${selected.includes(CURRENT_VERSION_ID) ? "bg-muted" : ""}`}>
+                    <input type="checkbox" checked={selected.includes(CURRENT_VERSION_ID)} onChange={() => toggleSelect(CURRENT_VERSION_ID)} className="h-3.5 w-3.5 shrink-0" />
                     <span className="text-xs font-mono text-muted-foreground w-9 shrink-0">현재</span>
                     <span className="text-xs text-muted-foreground flex-1 min-w-0 truncate">편집 중인 내용</span>
-                    <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">
-                      현재
-                    </Badge>
-                    {/* 현재는 삭제 불가 — 빈 공간으로 너비 맞춤 */}
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">현재</Badge>
                     <span className="w-5 shrink-0" />
                   </label>
                 )}
@@ -181,33 +165,15 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
                   const num = total - idx;
                   const isSelected = selected.includes(v.versionId);
                   const isAi = v.changedBy === "ai";
-
                   return (
-                    <div
-                      key={v.versionId}
-                      className={`flex items-center gap-2 px-3 py-2 border-b border-border/50 ${isSelected ? "bg-muted" : "hover:bg-muted/50"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelect(v.versionId)}
-                        className="h-3.5 w-3.5 shrink-0 cursor-pointer"
-                      />
+                    <div key={v.versionId} className={`flex items-center gap-2 px-3 py-2 border-b border-border/50 ${isSelected ? "bg-muted" : "hover:bg-muted/50"}`}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(v.versionId)} className="h-3.5 w-3.5 shrink-0 cursor-pointer" />
                       <span className="text-xs font-mono text-muted-foreground w-9 shrink-0">v{num}</span>
                       <span className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{formatDate(v.createdAt)}</span>
-                      <Badge
-                        variant="secondary"
-                        className={`text-[10px] px-1 py-0 shrink-0 ${isAi ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}`}
-                      >
+                      <Badge variant="secondary" className={`text-[10px] px-1 py-0 shrink-0 ${isAi ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : ""}`}>
                         {isAi ? "AI" : "사용자"}
                       </Badge>
-                      {/* 쓰레기통 버튼 */}
-                      <button
-                        type="button"
-                        title="이 버전 삭제"
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(v); }}
-                        className="w-5 h-5 shrink-0 flex items-center justify-center rounded hover:bg-red-100 hover:text-red-600 text-muted-foreground/40 transition-colors cursor-pointer"
-                      >
+                      <button type="button" title="이 버전 삭제" onClick={(e) => { e.stopPropagation(); setDeleteTarget(v); }} className="w-5 h-5 shrink-0 flex items-center justify-center rounded hover:bg-red-100 hover:text-red-600 text-muted-foreground/40 transition-colors cursor-pointer">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
@@ -219,13 +185,9 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
             {/* 오른쪽: Diff 뷰어 */}
             <div className="flex-1 overflow-auto">
               {selected.length < 2 ? (
-                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                  왼쪽 목록에서 버전 2개를 선택하세요
-                </div>
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">왼쪽 목록에서 버전 2개를 선택하세요</div>
               ) : oldContent === null || newContent === null ? (
-                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-                  로딩 중...
-                </div>
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">로딩 중...</div>
               ) : (
                 <ReactDiffViewer
                   oldValue={oldContent}
@@ -236,14 +198,7 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
                   rightTitle={`${newVerLabel} (이후)`}
                   useDarkTheme={false}
                   styles={{
-                    variables: {
-                      light: {
-                        diffViewerBackground: "transparent",
-                        gutterBackground: "hsl(var(--muted))",
-                        addedBackground: "#e6ffed",
-                        removedBackground: "#ffeef0",
-                      },
-                    },
+                    variables: { light: { diffViewerBackground: "transparent", gutterBackground: "hsl(var(--muted))", addedBackground: "#e6ffed", removedBackground: "#ffeef0" } },
                     contentText: { fontSize: "12px", fontFamily: "monospace" },
                     gutter: { minWidth: "40px" },
                   }}
@@ -254,7 +209,6 @@ export function VersionDiffDialog({ refTableName, refPkId, fieldName, currentCon
         </DialogContent>
       </Dialog>
 
-      {/* 삭제 confirm 다이얼로그 */}
       <ConfirmDialog
         open={!!deleteTarget}
         onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}

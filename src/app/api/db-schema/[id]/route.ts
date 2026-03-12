@@ -59,6 +59,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         tableComment: parsed.tableComment ?? null,
         tableGroup: parsed.tableGroup ?? null,
         ddlScript: parsed.ddlScript,
+        relationsJson: parsed.relationsJson ?? null,
       },
     });
 
