@@ -31,6 +31,7 @@ import { BasicInfoTab } from "@/components/functions/BasicInfoTab";
 import { DesignInfoTab } from "@/components/functions/DesignInfoTab";
 import { AiFeedbackTab } from "@/components/functions/AiFeedbackTab";
 import { HistoryTab } from "@/components/functions/HistoryTab";
+import { StoryCompass } from "@/components/user-story/StoryCompass";
 
 export default function FunctionDetailPage({
   params,
@@ -244,6 +245,13 @@ export default function FunctionDetailPage({
           <h2 className="text-lg font-semibold mb-3">AI 피드백</h2>
           <AiFeedbackTab func={func} />
         </section>
+
+        {func.area?.screen?.screenId && (
+          <section>
+            <h2 className="text-lg font-semibold mb-3">🧭 나침반</h2>
+            <StoryCompass screenId={func.area.screen.screenId} />
+          </section>
+        )}
       </div>
 
       {/* ─── AI 요청 이력 팝업 ───────────────────────────────── */}

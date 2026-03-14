@@ -8,18 +8,79 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model Requirement {
-  requirementId Int      @id @default(autoincrement()) @map("requirement_id")
-  systemId      String   @unique @map("system_id")
-  name          String   @map("name")
-  content       String?  @map("content")       // 요구사항 내용 (원문 HTML)
-  description   String?  @map("description")   // 요구사항 분석 내용 (HTML)
-  priority      String?  @map("priority")
+/// 기획 드래프트. AI와 협업하여 IA/Process/Mockup 결과물을 도출하는 샌드박스 공간.
+model PlanningDraft {
+  planSn        Int      @id @default(autoincrement()) @map("plan_sn")
+  planNm        String   @map("plan_nm")
+  planType      String?  @map("plan_type")           // IA / PROCESS / MOCKUP
+  manualInfo    String?  @map("manual_info")         // 사용자 상세 아이디어 (AI 1순위)
+  comment       String?                              // AI 지시사항 프롬프트
+  resultContent String?  @map("result_content")      // AI 생성 결과 (MD/HTML/Mermaid)
+  resultType    String?  @map("result_type")         // MD / HTML / MERMAID
+  groupUuid     String   @map("group_uuid")          // 연속 화면 세트 묶음 ID
+  sortOrd       Int      @default(1) @map("sort_ord") // 그룹 내 순서
+  isPicked      Boolean  @default(false) @map("is_picked")  // 확정 마킹 (화면설계 승격 후보)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  screens Screen[]
+  reqMaps  PlanningReqMap[]
 
+  @@index([groupUuid])
+  @@map("tb_planning_draft")
+}
+
+/// 기획-요구사항 매핑. 하나의 기획이 참조하는 여러 요구사항을 연결.
+model PlanningReqMap {
+  mapSn         Int      @id @default(autoincrement()) @map("map_sn")
+  planSn        Int      @map("plan_sn")
+  requirementId Int      @map("requirement_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  plan        PlanningDraft @relation(fields: [planSn], references: [planSn], onDelete: Cascade)
+  requirement Requirement   @relation(fields: [requirementId], references: [requirementId])
+
+  @@unique([planSn, requirementId])
+  @@map("tb_planning_req_map")
+}
+
+/// RFP 원문 대항목. 여러 요구사항으로 분할되는 분석 단위.
+model Task {
+  taskId      Int      @id @default(autoincrement()) @map("task_id")
+  systemId    String   @unique @map("system_id")  // T-00001
+  taskNo      String?  @map("task_no")             // 과업 번호 (사용자 정의)
+  name        String                               // 과업명
+  category    String?                              // 분류 (기능 요구사항 등)
+  definition  String?                              // 요약 정의
+  outputInfo  String?  @map("output_info")         // 산출정보
+  rfpPage     Int?     @map("rfp_page")            // RFP 페이지 번호
+  content     String?                              // RFP 세부내용 원문 전체
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  requirements Requirement[]
+
+  @@map("tb_task")
+}
+
+model Requirement {
+  requirementId   Int      @id @default(autoincrement()) @map("requirement_id")
+  systemId        String   @unique @map("system_id")
+  name            String   @map("name")
+  originalContent String?  @map("original_content")  // 요구사항 원문 보존용 (계약 근거)
+  currentContent  String?  @map("current_content")   // 협의/변경이 반영된 최종본
+  detailSpec      String?  @map("detail_spec")        // 요구사항 명세서
+  priority        String?  @map("priority")
+  taskId          Int?     @map("task_id")             // 소속 과업 (nullable)
+  source          String   @default("RFP") @map("source")  // 출처 (RFP, 내부, 추가 등)
+  discussionMd    String?  @map("discussion_md")       // AI 학습용 상세 협의 내용
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  task        Task?            @relation(fields: [taskId], references: [taskId])
+  screens     Screen[]
+  userStories UserStory[]
+  planReqMaps PlanningReqMap[]
+
+  @@index([taskId])
   @@map("tb_requirement")
 }
 
@@ -39,8 +100,9 @@ model Screen {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  requirement Requirement @relation(fields: [requirementId], references: [requirementId])
+  requirement Requirement      @relation(fields: [requirementId], references: [requirementId])
   areas       Area[]
+  storyMaps   ScreenStoryMap[]
 
   @@map("tb_screen")
 }
@@ -168,14 +230,45 @@ model DbSchema {
   tableName      String   @unique @db.VarChar(100) @map("table_name")
   tableComment   String?  @db.VarChar(200) @map("table_comment")
   ddlScript      String   @map("ddl_script")
-  columnsJson    String   @default("[]")   @map("columns_json")
   relationsJson  String?  @map("relations_json")
-  indexesJson    String?  @map("indexes_json")
   tableGroup     String?  @db.VarChar(50)  @map("table_group")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([tableGroup])
   @@map("tb_db_schema")
+}
+
+model UserStory {
+  userStoryId        Int      @id @default(autoincrement()) @map("user_story_id")
+  requirementId      Int      @map("requirement_id")
+  systemId           String   @unique @map("system_id")
+  name               String
+  persona            String?
+  scenario           String?
+  acceptanceCriteria Json?    @map("acceptance_criteria")  // [{text: string}][]
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  requirement Requirement      @relation(fields: [requirementId], references: [requirementId])
+  screenMaps  ScreenStoryMap[]
+
+  @@index([requirementId])
+  @@map("tb_user_story")
+}
+
+model ScreenStoryMap {
+  mapSn       Int      @id @default(autoincrement()) @map("map_sn")
+  screenId    Int      @map("screen_id")
+  userStoryId Int      @map("user_story_id")
+  isMainStory Boolean  @default(false) @map("is_main_story")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  screen    Screen    @relation(fields: [screenId], references: [screenId], onDelete: Cascade)
+  userStory UserStory @relation(fields: [userStoryId], references: [userStoryId], onDelete: Cascade)
+
+  @@unique([screenId, userStoryId])
+  @@index([screenId])
+  @@map("tb_screen_story_map")
 }
 
 model StandardGuide {

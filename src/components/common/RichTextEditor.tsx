@@ -18,6 +18,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import { ResizableImage } from "./ResizableImage";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -60,8 +61,10 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   /** 플레이스홀더 */
   placeholder?: string;
-  /** 에디터 높이 (Tailwind 클래스) */
+  /** 에디터 높이 (Tailwind 클래스) — fillHeight=true 시 무시됨 */
   heightClass?: string;
+  /** true → flex flex-col h-full 로 부모 컨테이너를 꽉 채움 */
+  fillHeight?: boolean;
 }
 
 export function RichTextEditor({
@@ -70,6 +73,7 @@ export function RichTextEditor({
   onChange,
   placeholder = "내용을 입력하세요...",
   heightClass = "min-h-48",
+  fillHeight = false,
 }: RichTextEditorProps) {
   const editor = useEditor({
     immediatelyRender: false, // SSR hydration 불일치 방지 (Next.js App Router 필수)
@@ -79,6 +83,7 @@ export function RichTextEditor({
         hardBreak: {},
       }),
       Underline,
+      ResizableImage,
     ],
     content: value,
     onUpdate: ({ editor }) => {
@@ -90,9 +95,40 @@ export function RichTextEditor({
       attributes: {
         class: cn(
           "outline-none prose prose-sm max-w-none",
-          heightClass,
+          !fillHeight && heightClass,
           "px-3 py-2 text-sm"
         ),
+      },
+      handlePaste(_view, event) {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            if (!file) continue;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const src = e.target?.result as string;
+              if (!src) return;
+              const img = new window.Image();
+              img.onload = () => {
+                const MAX_W = 800;
+                const ratio = Math.min(1, MAX_W / img.width);
+                const canvas = document.createElement("canvas");
+                canvas.width  = Math.round(img.width  * ratio);
+                canvas.height = Math.round(img.height * ratio);
+                canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const resized = canvas.toDataURL("image/jpeg", 0.82);
+                editor?.chain().focus().setImage({ src: resized }).run();
+              };
+              img.src = src;
+            };
+            reader.readAsDataURL(file);
+            return true;
+          }
+        }
+        return false;
       },
     },
   });
@@ -100,11 +136,11 @@ export function RichTextEditor({
   if (!editor) return null;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className={cn("flex flex-col gap-1.5", fillHeight && "h-full")}>
       {label && <Label className="text-xs">{label}</Label>}
 
       {/* ── 툴바 + 에디터를 하나의 border로 묶음 ────────────── */}
-      <div className="rounded-md border border-border overflow-hidden flex flex-col">
+      <div className={cn("rounded-md border border-border overflow-hidden flex flex-col", fillHeight && "flex-1 min-h-0")}>
 
       {/* ── 툴바 ──────────────────────────────────────────── */}
       <div className="flex items-center gap-0.5 flex-wrap border-b border-border bg-muted/40 px-2 py-1">

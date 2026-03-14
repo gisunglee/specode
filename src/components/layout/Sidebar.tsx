@@ -17,6 +17,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sparkles,
+  BookMarked,
+  FileSearch,
+  Palette,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,18 +36,26 @@ const icons = {
   BookOpen,
   FileCode2,
   Database,
+  BookMarked,
+  FileSearch,
+  Palette,
+  History,
 } as const;
 
 const NAV_ITEMS = [
   { href: "/", label: "대시보드", icon: "LayoutDashboard" as const },
-  { href: "/requirements", label: "요구사항", icon: "ClipboardList" as const },
   { href: "/standard-guides", label: "표준가이드", icon: "BookOpen" as const },
+  { href: "/tasks", label: "과업", icon: "FileSearch" as const },
+  { href: "/requirements", label: "요구사항", icon: "ClipboardList" as const },
+  { href: "/user-stories", label: "사용자 스토리", icon: "BookMarked" as const },
+  { href: "/planning", label: "기획 보드", icon: "Palette" as const },
   { href: "/screens", label: "화면", icon: "Monitor" as const },
   { href: "/areas", label: "영역", icon: "LayoutGrid" as const },
   { href: "/functions", label: "기능", icon: "Cog" as const },
   { href: "/tree", label: "트리 뷰", icon: "GitBranch" as const },
   { href: "/ai-tasks", label: "AI 현황", icon: "Bot" as const },
   { href: "/db-schema", label: "DB 스키마", icon: "Database" as const },
+  { href: "/content-versions", label: "변경 이력", icon: "History" as const },
 ];
 
 interface SidebarProps {

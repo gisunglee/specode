@@ -12,6 +12,8 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { StoryCompass } from "@/components/user-story/StoryCompass";
+import { StoryMapDialog } from "@/components/user-story/StoryMapDialog";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +69,7 @@ export default function ScreenDetailPage({
   const [menuOrder, setMenuOrder] = useState<number | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [storyMapOpen, setStoryMapOpen] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
 
   const { data, isLoading, dataUpdatedAt } = useQuery({
@@ -272,7 +275,7 @@ export default function ScreenDetailPage({
                 placeholder="화면 설명을 마크다운으로 작성하세요..."
               />
             </div>
-            <div className="col-span-4 space-y-5 pt-8">
+            <div className="col-span-4 space-y-5">
               <div className="space-y-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">기본 정보</p>
                 <div className="space-y-1">
@@ -340,6 +343,15 @@ export default function ScreenDetailPage({
                 attachments={screen.attachments ?? []}
                 onChanged={handleFileChange}
               />
+
+              {/* 🧭 나침반 */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">🧭 나침반</p>
+                <StoryCompass
+                  screenId={screen.screenId}
+                  onManage={() => setStoryMapOpen(true)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -415,6 +427,13 @@ export default function ScreenDetailPage({
           )}
         </div>
       </div>
+
+      {/* ─── 스토리 매핑 다이얼로그 ─────────────────────────── */}
+      <StoryMapDialog
+        open={storyMapOpen}
+        onOpenChange={setStoryMapOpen}
+        screenId={screen.screenId}
+      />
 
       {/* ─── 화면 삭제 다이얼로그 ───────────────────────────── */}
       {areaCount > 0 ? (

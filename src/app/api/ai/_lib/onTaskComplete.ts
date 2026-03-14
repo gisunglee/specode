@@ -120,6 +120,37 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
     return;
   }
 
+  /* ─── tb_planning_draft 대상 ───────────────────────────────── */
+  if (refTableName === "tb_planning_draft") {
+    if (taskType === "PLANNING") {
+      const resultTypeMap: Record<string, string> = {
+        IA: "MD", PROCESS: "MERMAID", MOCKUP: "HTML",
+      };
+      let resultType = "MD";
+      try {
+        const task = await prisma.aiTask.findUnique({ where: { aiTaskId }, select: { spec: true } });
+        resultType = resultTypeMap[JSON.parse(task?.spec || "{}").planType] ?? "MD";
+      } catch { /* spec 파싱 실패 시 MD 기본값 */ }
+
+      const current = await prisma.planningDraft.findUnique({
+        where: { planSn: refPkId }, select: { resultContent: true },
+      });
+      await saveContentVersion({
+        refTableName: "tb_planning_draft",
+        refPkId,
+        fieldName: "result_content",
+        currentContent: current?.resultContent ?? null,
+        changedBy: "ai",
+        aiTaskId,
+      });
+      await prisma.planningDraft.update({
+        where: { planSn: refPkId },
+        data: { resultContent: feedback, resultType },
+      });
+    }
+    return;
+  }
+
   // 📌 신규 refTableName 추가 시 if 블록 추가
 
   void resultFiles; // unused

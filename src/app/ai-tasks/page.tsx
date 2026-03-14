@@ -49,12 +49,14 @@ const TASK_TYPE_LABEL: Record<string, string> = {
   IMPACT:    "영향도분석",
   REPROCESS: "재처리",
   INSPECT:   "가이드점검",
+  PLANNING:  "기획생성",
 };
 
 const REF_TABLE_LABEL: Record<string, string> = {
   tb_function:       "기능",
   tb_standard_guide: "가이드",
   tb_area:           "영역화면설계",
+  tb_planning_draft: "기획캔버스",
 };
 
 const TASK_STATUS_LABEL: Record<string, { label: string; class: string }> = {
@@ -158,6 +160,9 @@ export default function AiTasksPage() {
     if (row.refTableName === "tb_area") {
       return `${row.target.areaCode ?? ""} ${row.target.name ?? ""}`.trim();
     }
+    if (row.refTableName === "tb_planning_draft") {
+      return (row.target as { planNm?: string }).planNm ?? `#${row.refPkId}`;
+    }
     return `${row.target.systemId ?? `#${row.refPkId}`}`;
   };
 
@@ -166,6 +171,7 @@ export default function AiTasksPage() {
     if (row.refTableName === "tb_function") return `/functions/${row.refPkId}`;
     if (row.refTableName === "tb_standard_guide") return `/standard-guides?openGuide=${row.refPkId}`;
     if (row.refTableName === "tb_area") return `/areas/${row.refPkId}`;
+    if (row.refTableName === "tb_planning_draft") return `/planning/${row.refPkId}`;
     return null;
   };
 

@@ -16,6 +16,21 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           screen: {
             include: {
               requirement: { select: { name: true, systemId: true } },
+              // 🧭 나침반: 해당 화면에 매핑된 사용자 스토리 포함
+              storyMaps: {
+                include: {
+                  userStory: {
+                    select: {
+                      userStoryId: true,
+                      systemId: true,
+                      name: true,
+                      persona: true,
+                      scenario: true,
+                    },
+                  },
+                },
+                orderBy: [{ isMainStory: "desc" }, { createdAt: "asc" }],
+              },
             },
           },
         },

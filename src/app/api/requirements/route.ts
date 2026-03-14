@@ -6,27 +6,32 @@ import { apiSuccess, apiError } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const page = parseInt(searchParams.get("page") || "1");
+  const page     = parseInt(searchParams.get("page")     || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
-  const search = searchParams.get("search") || "";
+  const search   = searchParams.get("search") || "";
+  const taskId   = searchParams.get("taskId");
 
-  const where = search
-    ? {
-        OR: [
-          { name: { contains: search } },
-          { systemId: { contains: search } },
-        ],
-      }
-    : {};
+  const where: Record<string, unknown> = {};
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search } },
+      { systemId: { contains: search } },
+    ];
+  }
+  if (taskId) {
+    where.taskId = parseInt(taskId);
+  }
 
   const [data, total] = await Promise.all([
     prisma.requirement.findMany({
       where,
       include: {
-        _count: { select: { screens: true } },
+        _count: { select: { screens: true, userStories: true } },
         screens: {
           include: { _count: { select: { areas: true } } },
         },
+        task: { select: { taskId: true, systemId: true, name: true } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
@@ -37,10 +42,11 @@ export async function GET(request: NextRequest) {
 
   const enriched = data.map((r) => ({
     ...r,
-    screenCount: r._count.screens,
-    functionCount: r.screens.reduce((sum, s) => sum + s._count.areas, 0),
+    screenCount:    r._count.screens,
+    functionCount:  r.screens.reduce((sum, s) => sum + s._count.areas, 0),
+    userStoryCount: r._count.userStories,
     screens: undefined,
-    _count: undefined,
+    _count:  undefined,
   }));
 
   return apiSuccess(enriched, {
@@ -53,7 +59,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body   = await request.json();
     const parsed = requirementSchema.parse(body);
 
     const systemId = await generateSystemId("RQ");
@@ -61,10 +67,14 @@ export async function POST(request: NextRequest) {
     const data = await prisma.requirement.create({
       data: {
         systemId,
-        name: parsed.name,
-        content: parsed.content ?? null,
-        description: parsed.description ?? null,
-        priority: parsed.priority ?? null,
+        name:            parsed.name,
+        originalContent: parsed.originalContent ?? null,
+        currentContent:  parsed.currentContent  ?? null,
+        detailSpec:      parsed.detailSpec       ?? null,
+        priority:        parsed.priority         ?? null,
+        taskId:          parsed.taskId           ?? null,
+        source:          parsed.source,
+        discussionMd:    parsed.discussionMd     ?? null,
       },
     });
 
