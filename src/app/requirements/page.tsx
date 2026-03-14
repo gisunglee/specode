@@ -520,6 +520,7 @@ export default function RequirementsPage() {
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 요구사항이 없습니다."}
+        dense={true}
       />
 
       {/* ════════════════════════════════════════════════════════

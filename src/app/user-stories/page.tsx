@@ -244,7 +244,7 @@ export default function UserStoriesPage() {
 
   const columns: ColumnDef<UserStoryRow, unknown>[] = [
     { accessorKey: "systemId", header: "ID", size: 100 },
-    { accessorKey: "name", header: "사용자 스토리" },
+    { accessorKey: "name", header: "사용자 스토리", size: 350 },
     {
       accessorKey: "persona",
       header: "페르소나",
@@ -367,6 +367,7 @@ export default function UserStoriesPage() {
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 사용자 스토리가 없습니다."}
+        dense={true}
       />
 
       {/* 등록/수정 다이얼로그 */}

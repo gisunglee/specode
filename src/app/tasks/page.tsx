@@ -238,6 +238,7 @@ export default function TasksPage() {
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 과업이 없습니다."}
+        dense={true}
       />
 
       {/* 등록 다이얼로그 */}

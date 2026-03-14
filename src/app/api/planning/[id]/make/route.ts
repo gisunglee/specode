@@ -19,7 +19,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
               requirementId: true,
               systemId: true,
               name: true,
-              discussionMd: true,
+              detailSpec:      true,
+              discussionMd:    true,
               originalContent: true,
               currentContent:  true,
             },
@@ -52,6 +53,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     requirements: draft.reqMaps.map((m) => ({
       systemId:     m.requirement.systemId,
       name:         m.requirement.name,
+      detailSpec:   m.requirement.detailSpec,   // 요구사항 명세서
       discussionMd: m.requirement.discussionMd, // 2순위: 상세 협의 내용
       content:      m.requirement.currentContent ?? m.requirement.originalContent,
     })),

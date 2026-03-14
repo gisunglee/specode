@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
@@ -17,6 +17,51 @@ import {
 import { apiFetch, formatDateTime } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
+
+/* ─── Spec 파싱 헬퍼 ───────────────────────────────────────── */
+
+function parseSpec(spec: string): { isJson: boolean; markdown: string } {
+  try {
+    const parsed = JSON.parse(spec);
+
+    // PLANNING 전용 포맷 (planType 필드 존재 시)
+    if (parsed.planType !== undefined) {
+      const lines: string[] = [];
+      lines.push(`## 기획 유형: ${parsed.planType}`);
+
+      lines.push("\n### 상세 아이디어 (manualInfo)");
+      lines.push(parsed.manualInfo?.trim() || "_없음_");
+
+      lines.push("\n### AI 지시사항 (comment)");
+      lines.push(parsed.comment?.trim() || "_없음_");
+
+      if (Array.isArray(parsed.requirements) && parsed.requirements.length > 0) {
+        lines.push(`\n### 연결 요구사항 (${parsed.requirements.length}건)`);
+        for (const req of parsed.requirements) {
+          lines.push(`\n---\n**${req.systemId} ${req.name}**`);
+          if (req.detailSpec)   lines.push(`- **명세:** ${req.detailSpec.replace(/<[^>]+>/g, "")}`);
+          if (req.discussionMd) lines.push(`- **협의:** ${req.discussionMd}`);
+          if (req.content)      lines.push(`- **원문:** ${req.content.replace(/<[^>]+>/g, "")}`);
+        }
+      }
+
+      if (parsed.prevContext) {
+        lines.push("\n### 이전 기획 컨텍스트");
+        lines.push(`**${parsed.prevContext.planNm}** (${parsed.prevContext.resultType})`);
+      }
+
+      return { isJson: true, markdown: lines.join("\n") };
+    }
+
+    // 그 외 JSON → 코드블록
+    return {
+      isJson: true,
+      markdown: "```json\n" + JSON.stringify(parsed, null, 2) + "\n```",
+    };
+  } catch {
+    return { isJson: false, markdown: spec };
+  }
+}
 
 /* ─── 로컬 타입 (AI현황 페이지 전용) ──────────────────────── */
 
@@ -92,6 +137,9 @@ export default function AiTasksPage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [specRawView, setSpecRawView] = useState(false);
+
+  useEffect(() => { setSpecRawView(false); }, [selectedTaskId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["ai-tasks", page, statusFilter],
@@ -362,13 +410,34 @@ export default function AiTasksPage() {
                 {/* 명세 및 피드백 (2-컬럼 레이아웃) */}
                 <div className="grid lg:grid-cols-2 gap-6">
                   {/* 왼쪽: 명세서 */}
-                  <div className="min-w-0">
-                    <MarkdownEditor
-                      value={taskDetail.data.spec || ""}
-                      label="작업 명세서 (Spec)"
-                      readOnly
-                      rows={20}
-                    />
+                  <div className="min-w-0 space-y-1.5">
+                    {(() => {
+                      const { isJson, markdown } = parseSpec(taskDetail.data.spec || "");
+                      const prettyJson = (() => {
+                        try { return JSON.stringify(JSON.parse(taskDetail.data.spec || ""), null, 2); }
+                        catch { return taskDetail.data.spec || ""; }
+                      })();
+                      const displayValue = specRawView
+                        ? ("```json\n" + prettyJson + "\n```")
+                        : markdown;
+                      return (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-muted-foreground">작업 명세서 (Spec)</span>
+                            {isJson && (
+                              <button
+                                type="button"
+                                onClick={() => setSpecRawView((v) => !v)}
+                                className="text-xs px-1.5 py-0.5 rounded border border-border hover:bg-muted transition-colors font-mono"
+                              >
+                                {specRawView ? "MD" : "JSON"}
+                              </button>
+                            )}
+                          </div>
+                          <MarkdownEditor value={displayValue} readOnly rows={20} />
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* 오른쪽: AI 피드백 */}

@@ -29,6 +29,7 @@ interface DataGridProps<T> {
   onSelectionChange?: (selected: T[]) => void;
   emptyMessage?: string;
   getRowClassName?: (row: T) => string;
+  dense?: boolean;
 }
 
 export function DataGrid<T>({
@@ -40,6 +41,7 @@ export function DataGrid<T>({
   onPageChange,
   emptyMessage = "데이터가 없습니다.",
   getRowClassName,
+  dense,
 }: DataGridProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -64,10 +66,12 @@ export function DataGrid<T>({
                   <th
                     key={header.id}
                     className={cn(
-                      "px-4 py-3 text-left font-medium text-muted-foreground",
+                      "px-4 text-left font-medium text-muted-foreground",
+                      dense ? "py-0.5" : "py-2",
                       header.column.getCanSort() && "cursor-pointer select-none hover:text-foreground"
                     )}
                     onClick={header.column.getToggleSortingHandler()}
+                    style={{ width: header.getSize() }}
                   >
                     <div className="flex items-center gap-1">
                       {header.isPlaceholder
@@ -118,7 +122,11 @@ export function DataGrid<T>({
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-4 py-3">
+                    <td 
+                      key={cell.id} 
+                      className={cn("px-4", dense ? "py-0.5" : "py-2")}
+                      style={{ width: cell.column.getSize() }}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
