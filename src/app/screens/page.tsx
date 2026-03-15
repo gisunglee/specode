@@ -43,7 +43,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { SCREEN_TYPES } from "@/lib/constants";
+import { SCREEN_TYPES, AI_TASK_STATUS_LABEL } from "@/lib/constants";
 import { apiFetch, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -60,6 +60,7 @@ interface ScreenRow {
   categoryL: string | null;
   categoryM: string | null;
   updatedAt: string;
+  latestTask: { taskStatus: string; taskType: string; completedAt: string | null } | null;
 }
 
 export default function ScreensPage() {
@@ -228,6 +229,24 @@ export default function ScreensPage() {
       size: 80,
     },
     {
+      id: "latestAi",
+      header: "AI 결과",
+      cell: ({ row }) => {
+        const latest = row.original.latestTask;
+        if (!latest) return <span className="text-muted-foreground">-</span>;
+        const cfg = AI_TASK_STATUS_LABEL[latest.taskStatus];
+        return (
+          <div>
+            <span className={`text-xs ${cfg?.class ?? ""}`}>{cfg?.label ?? latest.taskStatus}</span>
+            {latest.completedAt && (
+              <p className="text-[11px] text-muted-foreground">{formatDate(latest.completedAt)}</p>
+            )}
+          </div>
+        );
+      },
+      size: 120,
+    },
+    {
       /**
        * 📌 actions 컬럼 — 기능목록/수정/삭제 버튼
        *
@@ -334,6 +353,7 @@ export default function ScreensPage() {
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 화면이 없습니다."}
+        dense={true}
       />
 
       {/* Create/Edit Dialog */}

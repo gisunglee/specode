@@ -35,7 +35,24 @@ export async function GET(request: NextRequest) {
     prisma.area.count({ where }),
   ]);
 
-  return apiSuccess(areas, {
+  const areaIds = areas.map((a) => a.areaId);
+  const latestTasks = areaIds.length
+    ? await prisma.aiTask.findMany({
+        where: { refTableName: "tb_area", refPkId: { in: areaIds } },
+        orderBy: { requestedAt: "desc" },
+      })
+    : [];
+  const taskByAreaId = new Map<number, (typeof latestTasks)[0]>();
+  for (const t of latestTasks) {
+    if (!taskByAreaId.has(t.refPkId)) taskByAreaId.set(t.refPkId, t);
+  }
+
+  const enriched = areas.map((a) => ({
+    ...a,
+    latestTask: taskByAreaId.get(a.areaId) ?? null,
+  }));
+
+  return apiSuccess(enriched, {
     page,
     pageSize,
     total,

@@ -47,6 +47,10 @@ body {
     border-color: var(--color-border);
   }
 
+  ::placeholder {
+    opacity: 0.4;
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

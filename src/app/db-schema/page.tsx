@@ -34,6 +34,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 interface SchemaRow {
   schemaId: number;
   tableName: string;
+  entityName: string | null;
   tableComment: string | null;
   tableGroup: string | null;
   updatedAt: string;
@@ -131,6 +132,14 @@ export default function DbSchemaPage() {
       size: 220,
       cell: ({ getValue }) => (
         <span className="font-medium font-mono text-sm">{getValue() as string}</span>
+      ),
+    },
+    {
+      accessorKey: "entityName",
+      header: "엔티티명",
+      size: 160,
+      cell: ({ getValue }) => (
+        <span className="text-muted-foreground">{(getValue() as string) || "-"}</span>
       ),
     },
     {

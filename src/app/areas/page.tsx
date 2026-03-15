@@ -26,7 +26,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-import { AREA_TYPES, AREA_STATUS_LABEL } from "@/lib/constants";
+import { AREA_TYPES, AREA_STATUS_LABEL, AI_TASK_STATUS_LABEL } from "@/lib/constants";
 import { apiFetch, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -40,6 +40,7 @@ interface AreaRow {
   updatedAt: string;
   screen: { screenId: number; name: string; systemId: string } | null;
   _count: { functions: number };
+  latestTask: { taskStatus: string; taskType: string; completedAt: string | null } | null;
 }
 
 interface ScreenOption {
@@ -191,6 +192,24 @@ function AreasContent() {
       size: 70,
     },
     {
+      id: "latestAi",
+      header: "AI 결과",
+      cell: ({ row }) => {
+        const latest = row.original.latestTask;
+        if (!latest) return <span className="text-muted-foreground">-</span>;
+        const cfg = AI_TASK_STATUS_LABEL[latest.taskStatus];
+        return (
+          <div>
+            <span className={`text-xs ${cfg?.class ?? ""}`}>{cfg?.label ?? latest.taskStatus}</span>
+            {latest.completedAt && (
+              <p className="text-[11px] text-muted-foreground">{formatDate(latest.completedAt)}</p>
+            )}
+          </div>
+        );
+      },
+      size: 120,
+    },
+    {
       accessorKey: "updatedAt",
       header: "수정일",
       cell: ({ getValue }) => (
@@ -283,6 +302,7 @@ function AreasContent() {
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 영역이 없습니다."}
+        dense={true}
       />
 
       {/* ── 영역 등록 다이얼로그 ────────────────────────── */}

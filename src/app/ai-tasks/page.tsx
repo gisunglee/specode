@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
+import { X, RotateCcw } from "lucide-react";
 import { DataGrid } from "@/components/common/DataGrid";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,34 @@ export default function AiTasksPage() {
       return res.json();
     },
     refetchInterval: 10000,
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: (aiTaskId: number) =>
+      apiFetch(`/api/ai-tasks/${aiTaskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskStatus: "NONE" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-task-detail"] });
+      toast.success("재실행 대기 상태로 변경되었습니다.");
+    },
+  });
+
+  const forceFailMutation = useMutation({
+    mutationFn: (aiTaskId: number) =>
+      apiFetch(`/api/ai-tasks/${aiTaskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskStatus: "FAILED" }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["ai-task-detail"] });
+      toast.success("작업이 강제 종료되었습니다.");
+    },
   });
 
   const cancelMutation = useMutation({
@@ -313,23 +341,42 @@ export default function AiTasksPage() {
       id: "actions",
       header: "",
       cell: ({ row }) => {
-        if (row.original.taskStatus !== "NONE") return null;
+        const { taskStatus, aiTaskId } = row.original;
+        const RETRYABLE = ["FAILED", "NEEDS_CHECK", "WARNING", "CANCELLED"];
         return (
-          <Button
-            variant="ghost"
-            size="icon"
-            title="작업 취소"
-            onClick={(e) => {
-              e.stopPropagation();
-              cancelMutation.mutate(row.original.aiTaskId);
-            }}
-            disabled={cancelMutation.isPending}
-          >
-            <X className="h-4 w-4 text-muted-foreground" />
-          </Button>
+          <div className="flex items-center gap-1 h-5">
+            {RETRYABLE.includes(taskStatus) && (
+              <button
+                title="재실행"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm("다시 실행하겠습니까?")) {
+                    retryMutation.mutate(aiTaskId);
+                  }
+                }}
+                disabled={retryMutation.isPending}
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                <RotateCcw className="h-3.5 w-3.5 text-blue-500" />
+              </button>
+            )}
+            {taskStatus === "NONE" && (
+              <button
+                title="작업 취소"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelMutation.mutate(aiTaskId);
+                }}
+                disabled={cancelMutation.isPending}
+                className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            )}
+          </div>
         );
       },
-      size: 50,
+      size: 60,
       enableSorting: false,
     },
   ];
@@ -361,6 +408,7 @@ export default function AiTasksPage() {
         onPageChange={setPage}
         onRowClick={(row) => setSelectedTaskId(row.aiTaskId)}
         emptyMessage={isLoading ? "로딩 중..." : "AI 작업이 없습니다."}
+        spacious
       />
 
       {/* ── 상세 팝업 다이얼로그 ─────────────────────────────── */}
@@ -459,8 +507,8 @@ export default function AiTasksPage() {
           </div>
 
           <DialogFooter className="px-6 py-3 border-t border-border shrink-0 bg-muted/30 flex justify-between sm:justify-between w-full">
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={() => {
                 if (window.confirm("삭제 하시겠습니까?")) {
                   if (selectedTaskId) deleteMutation.mutate(selectedTaskId);
@@ -470,7 +518,50 @@ export default function AiTasksPage() {
             >
               삭제
             </Button>
-            <Button variant="outline" onClick={() => setSelectedTaskId(null)}>닫기</Button>
+
+            {/* 상태별 액션 버튼 */}
+            {taskDetail?.data && (() => {
+              const status = taskDetail.data.taskStatus;
+              const id = taskDetail.data.aiTaskId;
+              const RETRYABLE = ["FAILED", "NEEDS_CHECK", "WARNING", "CANCELLED", "RUNNING"];
+              return (
+                <div className="flex items-center gap-2">
+                  {status === "RUNNING" && (
+                    <Button
+                      variant="outline"
+                      className="text-red-500 border-red-200 hover:bg-red-50"
+                      onClick={() => {
+                        if (window.confirm("진행중 작업을 강제 종료하겠습니까?")) {
+                          forceFailMutation.mutate(id);
+                        }
+                      }}
+                      disabled={forceFailMutation.isPending}
+                    >
+                      강제 종료
+                    </Button>
+                  )}
+                  {RETRYABLE.includes(status) && (
+                    <Button
+                      variant="outline"
+                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                      onClick={() => {
+                        if (window.confirm("다시 실행하겠습니까?")) {
+                          retryMutation.mutate(id);
+                        }
+                      }}
+                      disabled={retryMutation.isPending}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1.5" />
+                      재실행
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setSelectedTaskId(null)}>닫기</Button>
+                </div>
+              );
+            })()}
+            {!taskDetail?.data && (
+              <Button variant="outline" onClick={() => setSelectedTaskId(null)}>닫기</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

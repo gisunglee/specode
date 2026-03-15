@@ -69,6 +69,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         areaType: updateBody.areaType ?? undefined,
         sortOrder: updateBody.sortOrder ?? undefined,
         spec: updateBody.spec !== undefined ? (updateBody.spec || null) : undefined,
+        layoutData: updateBody.layoutData !== undefined ? (updateBody.layoutData || null) : undefined,
+        designData: updateBody.designData !== undefined ? (updateBody.designData || null) : undefined,
         reqComment: updateBody.reqComment !== undefined ? (updateBody.reqComment || null) : undefined,
       },
     });

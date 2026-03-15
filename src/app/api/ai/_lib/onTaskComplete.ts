@@ -124,7 +124,7 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
   if (refTableName === "tb_planning_draft") {
     if (taskType === "PLANNING") {
       const resultTypeMap: Record<string, string> = {
-        IA: "MD", PROCESS: "MERMAID", MOCKUP: "HTML",
+        IA: "MD", PROCESS: "MERMAID", MOCKUP: "HTML", ERD: "MERMAID",
       };
       let resultType = "MD";
       try {

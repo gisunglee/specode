@@ -30,6 +30,7 @@ interface DataGridProps<T> {
   emptyMessage?: string;
   getRowClassName?: (row: T) => string;
   dense?: boolean;
+  spacious?: boolean;
 }
 
 export function DataGrid<T>({
@@ -42,6 +43,7 @@ export function DataGrid<T>({
   emptyMessage = "데이터가 없습니다.",
   getRowClassName,
   dense,
+  spacious,
 }: DataGridProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -58,7 +60,7 @@ export function DataGrid<T>({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-fixed">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id} className="border-b border-border bg-muted/50">
@@ -66,8 +68,7 @@ export function DataGrid<T>({
                   <th
                     key={header.id}
                     className={cn(
-                      "px-4 text-left font-medium text-muted-foreground",
-                      dense ? "py-0.5" : "py-2",
+                      "px-4 py-2 text-left font-medium text-muted-foreground",
                       header.column.getCanSort() && "cursor-pointer select-none hover:text-foreground"
                     )}
                     onClick={header.column.getToggleSortingHandler()}
@@ -124,7 +125,7 @@ export function DataGrid<T>({
                   {row.getVisibleCells().map((cell) => (
                     <td 
                       key={cell.id} 
-                      className={cn("px-4", dense ? "py-0.5" : "py-2")}
+                      className={cn("px-4", dense ? "py-1" : spacious ? "py-3" : "py-2")}
                       style={{ width: cell.column.getSize() }}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -18,8 +18,10 @@ export function FileUploadZone({
   onUploadComplete,
 }: FileUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const zoneRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -92,13 +94,18 @@ export function FileUploadZone({
     [uploadFiles]
   );
 
+  // 드롭존에 마우스가 올라와 있을 때만 paste 이벤트 수신
   useEffect(() => {
+    if (!hovered) return;
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [handlePaste]);
+  }, [hovered, handlePaste]);
 
   return (
     <div
+      ref={zoneRef}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);

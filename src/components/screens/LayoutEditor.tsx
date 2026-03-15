@@ -43,8 +43,10 @@ export interface LayoutColumn {
   id: string;
   /** 너비 비율 (%, 1~100) */
   widthRatio: number;
-  /** 매핑된 영역 ID (선택) */
+  /** 매핑된 영역 ID (선택, areas 있을 때) */
   areaId?: number;
+  /** 직접 입력 라벨 (areas 없을 때) */
+  label?: string;
 }
 
 /** 레이아웃 행 (열들의 묶음) */
@@ -116,8 +118,9 @@ export function LayoutEditor({ value, onChange, areas }: LayoutEditorProps) {
         const area = col.areaId
           ? areas.find((a) => a.areaId === col.areaId)
           : null;
+        const label = area ? `${area.areaCode} ${area.name}` : (col.label || "-");
         lines.push(
-          `| ${area ? `${area.areaCode} ${area.name}` : "-"} | ${col.widthRatio}% |`
+          `| ${label} | ${col.widthRatio}% |`
         );
       });
       lines.push("");
@@ -136,9 +139,10 @@ export function LayoutEditor({ value, onChange, areas }: LayoutEditorProps) {
           const area = col.areaId
             ? areas.find((a) => a.areaId === col.areaId)
             : null;
+          const label = area ? `${area.areaCode} ${area.name}` : (col.label || undefined);
           return {
             width: `${col.widthRatio}%`,
-            ...(area ? { area: `${area.areaCode} ${area.name}` } : {}),
+            ...(label ? { label } : {}),
           };
         }),
       })),
@@ -299,30 +303,45 @@ export function LayoutEditor({ value, onChange, areas }: LayoutEditorProps) {
                       className="h-7 text-[11px] w-full rounded-md border border-input bg-transparent px-2 focus:outline-none focus:ring-1 focus:ring-ring"
                     />
 
-                    {/* 영역 선택 */}
-                    <Select
-                      value={col.areaId ? String(col.areaId) : "NONE"}
-                      onValueChange={(v) =>
-                        updateColumn(row.id, col.id, {
-                          areaId: v === "NONE" ? undefined : parseInt(v),
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-7 text-[11px]">
-                        <SelectValue placeholder="영역 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NONE">미지정</SelectItem>
-                        {areas.map((area) => (
-                          <SelectItem
-                            key={area.areaId}
-                            value={String(area.areaId)}
-                          >
-                            {area.areaCode} {area.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {/* 영역 선택 or 라벨 입력 */}
+                    {areas.length > 0 ? (
+                      <Select
+                        value={col.areaId ? String(col.areaId) : "NONE"}
+                        onValueChange={(v) =>
+                          updateColumn(row.id, col.id, {
+                            areaId: v === "NONE" ? undefined : parseInt(v),
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-7 text-[11px]">
+                          <SelectValue placeholder="영역 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NONE">미지정</SelectItem>
+                          {areas.map((area) => (
+                            <SelectItem
+                              key={area.areaId}
+                              value={String(area.areaId)}
+                            >
+                              {area.areaCode} {area.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <input
+                        key={`l-${col.id}`}
+                        defaultValue={col.label ?? ""}
+                        onBlur={(e) =>
+                          updateColumn(row.id, col.id, { label: e.target.value || undefined })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                        placeholder="영역 라벨"
+                        className="h-7 text-[11px] w-full rounded-md border border-input bg-transparent px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    )}
 
                     {/* 열 삭제 (열이 2개 이상일 때만) */}
                     {row.columns.length > 1 && (

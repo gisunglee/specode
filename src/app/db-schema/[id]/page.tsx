@@ -7,6 +7,7 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { RelationsEditor } from "@/components/db-schema/RelationsEditor";
@@ -23,6 +24,7 @@ import { toast } from "sonner";
 interface DbSchemaData {
   schemaId: number;
   tableName: string;
+  entityName: string | null;
   tableComment: string | null;
   tableGroup: string | null;
   ddlScript: string;
@@ -40,6 +42,7 @@ export default function DbSchemaDetailPage({
   const queryClient = useQueryClient();
 
   const [tableName, setTableName] = useState("");
+  const [entityName, setEntityName] = useState("");
   const [tableComment, setTableComment] = useState("");
   const [tableGroup, setTableGroup] = useState("");
   const [ddlScript, setDdlScript] = useState("");
@@ -76,6 +79,7 @@ export default function DbSchemaDetailPage({
   useEffect(() => {
     if (schema) {
       setTableName(schema.tableName ?? "");
+      setEntityName(schema.entityName ?? "");
       setTableComment(schema.tableComment ?? "");
       setTableGroup(schema.tableGroup ?? "");
       setDdlScript(schema.ddlScript ?? "");
@@ -120,6 +124,7 @@ export default function DbSchemaDetailPage({
     if (!schema) return;
     updateMutation.mutate({
       tableName: tableName || schema.tableName,
+      entityName: entityName || null,
       tableComment: tableComment || null,
       tableGroup: tableGroup || null,
       ddlScript,
@@ -159,8 +164,11 @@ export default function DbSchemaDetailPage({
 
           <div className="flex items-center gap-1.5 flex-1 min-w-0 text-sm overflow-hidden">
             <span className="font-medium font-mono truncate">{tableName || schema.tableName}</span>
+            {entityName && (
+              <span className="text-xs text-muted-foreground shrink-0">({entityName})</span>
+            )}
             {tableComment && (
-              <span className="text-xs text-muted-foreground truncate shrink-0 max-w-[220px]">
+              <span className="text-xs text-muted-foreground truncate shrink-0 max-w-[200px]">
                 — {tableComment}
               </span>
             )}
@@ -210,23 +218,34 @@ export default function DbSchemaDetailPage({
             {/* 메타 정보 */}
             <div className="space-y-3">
               <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">테이블명</label>
-                <Input
-                  value={tableName}
-                  onChange={(e) => setTableName(e.target.value)}
-                  placeholder="테이블명"
-                  maxLength={100}
-                  className="font-mono text-sm"
-                />
+                <label className="text-xs text-muted-foreground">테이블명 (물리명) / 엔티티명 (논리명)</label>
+                <div className="flex gap-2">
+                  <Input
+                    value={tableName}
+                    onChange={(e) => setTableName(e.target.value)}
+                    placeholder="tb_xxx (물리명)"
+                    maxLength={100}
+                    className="font-mono text-sm flex-1"
+                  />
+                  <Input
+                    value={entityName}
+                    onChange={(e) => setEntityName(e.target.value)}
+                    placeholder="엔티티명 (논리명)"
+                    maxLength={100}
+                    className="flex-1"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">설명</label>
-                <Input
+                <Textarea
                   value={tableComment}
                   onChange={(e) => setTableComment(e.target.value)}
                   placeholder="테이블 설명"
                   maxLength={200}
+                  rows={3}
+                  className="resize-none"
                 />
               </div>
 

@@ -244,12 +244,27 @@ export default function UserStoriesPage() {
 
   const columns: ColumnDef<UserStoryRow, unknown>[] = [
     { accessorKey: "systemId", header: "ID", size: 100 },
-    { accessorKey: "name", header: "사용자 스토리", size: 350 },
+    {
+      accessorKey: "name",
+      header: "사용자 스토리",
+      cell: ({ getValue }) => (
+        <div className="overflow-hidden">
+          <span className="block truncate" title={getValue() as string}>
+            {getValue() as string}
+          </span>
+        </div>
+      ),
+      size: 350,
+    },
     {
       accessorKey: "persona",
       header: "페르소나",
       cell: ({ getValue }) => (
-        <span className="text-muted-foreground">{(getValue() as string) ?? "-"}</span>
+        <div className="overflow-hidden">
+          <span className="block truncate text-muted-foreground" title={(getValue() as string) ?? ""}>
+            {(getValue() as string) ?? "-"}
+          </span>
+        </div>
       ),
       size: 130,
     },
@@ -261,10 +276,12 @@ export default function UserStoriesPage() {
         const req = getValue() as { systemId: string; name: string } | null;
         if (!req) return <span className="text-muted-foreground">-</span>;
         return (
-          <span className="text-muted-foreground truncate">
-            <span className="text-foreground font-medium">{req.systemId}</span>{" "}
-            {req.name}
-          </span>
+          <div className="overflow-hidden">
+            <span className="block truncate text-muted-foreground" title={`${req.systemId} ${req.name}`}>
+              <span className="text-foreground font-medium">{req.systemId}</span>{" "}
+              {req.name}
+            </span>
+          </div>
         );
       },
       size: 190,

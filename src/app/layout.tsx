@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Specodㅓㅓㅓㅓㅓe",
+  title: "Specod",
   description: "AI 기반 SI 개발 자동화 시스템",
 };
 

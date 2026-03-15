@@ -56,6 +56,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       where: { schemaId: numId },
       data: {
         tableName: parsed.tableName,
+        entityName: parsed.entityName ?? null,
         tableComment: parsed.tableComment ?? null,
         tableGroup: parsed.tableGroup ?? null,
         ddlScript: parsed.ddlScript,

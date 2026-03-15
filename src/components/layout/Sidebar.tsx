@@ -21,6 +21,9 @@ import {
   FileSearch,
   Palette,
   History,
+  Layers,
+  Network,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,23 +43,32 @@ const icons = {
   FileSearch,
   Palette,
   History,
+  Layers,
+  Network,
+  BarChart2,
 } as const;
 
 const NAV_ITEMS = [
-  { href: "/", label: "대시보드", icon: "LayoutDashboard" as const },
-  { href: "/standard-guides", label: "표준가이드", icon: "BookOpen" as const },
-  { href: "/tasks", label: "과업", icon: "FileSearch" as const },
-  { href: "/requirements", label: "요구사항", icon: "ClipboardList" as const },
-  { href: "/user-stories", label: "사용자 스토리", icon: "BookMarked" as const },
-  { href: "/planning", label: "기획 보드", icon: "Palette" as const },
-  { href: "/screens", label: "화면", icon: "Monitor" as const },
-  { href: "/areas", label: "영역", icon: "LayoutGrid" as const },
-  { href: "/functions", label: "기능", icon: "Cog" as const },
-  { href: "/tree", label: "트리 뷰", icon: "GitBranch" as const },
-  { href: "/ai-tasks", label: "AI 현황", icon: "Bot" as const },
-  { href: "/db-schema", label: "DB 스키마", icon: "Database" as const },
-  { href: "/content-versions", label: "변경 이력", icon: "History" as const },
-];
+  { href: "/",          label: "대시보드",    icon: "LayoutDashboard" as const },
+  { href: "/dashboard2",label: "개발 현황판", icon: "BarChart2" as const },
+  { divider: true },
+  { href: "/standard-guides", label: "표준가이드",    icon: "BookOpen" as const },
+  { href: "/tasks",           label: "과업",          icon: "FileSearch" as const },
+  { href: "/requirements",    label: "요구사항",      icon: "ClipboardList" as const },
+  { href: "/user-stories",    label: "사용자 스토리", icon: "BookMarked" as const },
+  { href: "/planning",        label: "기획 보드",     icon: "Palette" as const },
+  { href: "/screens",         label: "화면",          icon: "Monitor" as const },
+  { href: "/areas",           label: "영역",          icon: "LayoutGrid" as const },
+  { href: "/functions",       label: "기능",          icon: "Cog" as const },
+  { divider: true },
+  { href: "/req-hub",     label: "요구사항 허브", icon: "Network" as const },
+  { href: "/composition", label: "화면 구성",    icon: "Layers" as const },
+  { divider: true },
+  { href: "/ai-tasks",         label: "AI 현황",  icon: "Bot" as const },
+  { href: "/db-schema",        label: "DB 스키마",icon: "Database" as const },
+  { href: "/content-versions", label: "변경 내역",icon: "History" as const },
+  { href: "/tree",             label: "트리 뷰",  icon: "GitBranch" as const },
+] as const;
 
 interface SidebarProps {
   collapsed: boolean;
@@ -89,7 +101,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.map((item, idx) => {
+          if ("divider" in item) {
+            return <div key={`div-${idx}`} className="my-1 border-t border-sidebar-border" />;
+          }
+
           const Icon = icons[item.icon];
           const isActive =
             item.href === "/"

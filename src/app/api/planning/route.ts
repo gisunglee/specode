@@ -35,10 +35,23 @@ export async function GET(request: NextRequest) {
     prisma.planningDraft.count({ where }),
   ]);
 
+  const planIds = data.map((d) => d.planSn);
+  const latestTasks = planIds.length
+    ? await prisma.aiTask.findMany({
+        where: { refTableName: "tb_planning_draft", refPkId: { in: planIds } },
+        orderBy: { requestedAt: "desc" },
+      })
+    : [];
+  const taskByPlanId = new Map<number, (typeof latestTasks)[0]>();
+  for (const t of latestTasks) {
+    if (!taskByPlanId.has(t.refPkId)) taskByPlanId.set(t.refPkId, t);
+  }
+
   const enriched = data.map((d) => ({
     ...d,
     reqCount: d._count.reqMaps,
     _count: undefined,
+    latestTask: taskByPlanId.get(d.planSn) ?? null,
   }));
 
   return apiSuccess(enriched, {

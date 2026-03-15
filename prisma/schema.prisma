@@ -115,6 +115,8 @@ model Area {
   sortOrder      Int      @default(1) @map("sort_order")
   areaType       String   @map("area_type")               // GRID|FORM|INFO_CARD|TAB|FULL_SCREEN
   spec           String?  @map("spec")
+  layoutData     String?  @map("layout_data")              // 레이아웃 JSON 문자열
+  designData     String?  @map("design_data")              // Excalidraw 설계 JSON 데이터
   status         String   @default("NONE") @map("status") // NONE|DESIGN_REQ|DESIGN_DONE|CONFIRM_Y
   reqComment     String?  @map("req_comment")
   aiFeedback     String?  @map("ai_feedback")
@@ -228,6 +230,7 @@ model ContentVersion {
 model DbSchema {
   schemaId       Int      @id @default(autoincrement()) @map("schema_id")
   tableName      String   @unique @db.VarChar(100) @map("table_name")
+  entityName     String?  @db.VarChar(100) @map("entity_name")
   tableComment   String?  @db.VarChar(200) @map("table_comment")
   ddlScript      String   @map("ddl_script")
   relationsJson  String?  @map("relations_json")

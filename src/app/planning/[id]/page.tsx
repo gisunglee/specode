@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   Loader2,
   Maximize2,
+  Copy,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -42,11 +43,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 
-const PLAN_TYPES = ["IA", "PROCESS", "MOCKUP"] as const;
+const PLAN_TYPES = ["IA", "PROCESS", "MOCKUP", "ERD"] as const;
 const PLAN_TYPE_COLORS: Record<string, string> = {
   IA:      "bg-blue-100 text-blue-700",
   PROCESS: "bg-amber-100 text-amber-700",
   MOCKUP:  "bg-purple-100 text-purple-700",
+  ERD:     "bg-emerald-100 text-emerald-700",
 };
 const AI_STATUS_COLORS: Record<string, string> = {
   NONE:        "bg-muted text-muted-foreground",
@@ -134,14 +136,20 @@ export default function PlanningCanvasPage() {
   // 삭제 확인
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  // 복제 다이얼로그
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [dupPlanNm,    setDupPlanNm]    = useState("");
+  const [dupGroupUuid, setDupGroupUuid] = useState("");
+  const [dupSortOrd,   setDupSortOrd]   = useState<number>(1);
+
   // Mermaid 전체화면 팝업
   const [mermaidDialogOpen, setMermaidDialogOpen] = useState(false);
 
   // AI 결과 로컬 편집 (버전 복원 또는 직접 수정)
   const [localResultContent, setLocalResultContent] = useState<string | null>(null);
 
-  const debounceRef       = useRef<ReturnType<typeof setTimeout>>();
-  const resultDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef       = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const resultDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const { data, isLoading } = useQuery<{ data: DraftDetail }>({
     queryKey: ["planning-detail", id],
@@ -206,6 +214,28 @@ export default function PlanningCanvasPage() {
       router.push("/planning");
     },
   });
+
+  const duplicateMutation = useMutation<{ data: { planSn: number } }, Error, { planNm: string; groupUuid: string; sortOrd: number }>({
+    mutationFn: (body) =>
+      apiFetch(`/api/planning/${id}/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }) as Promise<{ data: { planSn: number } }>,
+    onSuccess: (res) => {
+      toast.success("복제되었습니다.");
+      setDuplicateOpen(false);
+      router.push(`/planning/${res.data.planSn}`);
+    },
+    onError: () => toast.error("복제에 실패했습니다."),
+  });
+
+  const handleDuplicateOpen = () => {
+    setDupPlanNm(`${planNm} (복사)`);
+    setDupGroupUuid(groupUuid);
+    setDupSortOrd(sortOrd + 1);
+    setDuplicateOpen(true);
+  };
 
   const addReqMutation = useMutation({
     mutationFn: (requirementId: number) =>
@@ -454,6 +484,11 @@ export default function PlanningCanvasPage() {
             Make
           </Button>
 
+          {/* 복제 */}
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDuplicateOpen} title="복제">
+            <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+
           {/* 삭제 */}
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -620,6 +655,7 @@ export default function PlanningCanvasPage() {
                       {planType === "IA"      && "IA → Markdown 문서"}
                       {planType === "PROCESS" && "PROCESS → Mermaid 다이어그램"}
                       {planType === "MOCKUP"  && "MOCKUP → HTML/Tailwind 목업"}
+                      {planType === "ERD"     && "ERD → Mermaid erDiagram"}
                     </p>
                   </div>
                 </div>
@@ -708,6 +744,58 @@ export default function PlanningCanvasPage() {
           </DialogHeader>
           <div className="flex-1 overflow-auto p-4">
             <MermaidRenderer code={displayResultContent} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 복제 다이얼로그 ────────────────────────────────────────── */}
+      <Dialog open={duplicateOpen} onOpenChange={setDuplicateOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm">복제하시겠습니까? 정보를 입력해 주세요</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs">기획명</Label>
+              <Input
+                value={dupPlanNm}
+                onChange={(e) => setDupPlanNm(e.target.value)}
+                className="h-8 text-sm"
+                placeholder="기획명"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">그룹</Label>
+              <Input
+                value={dupGroupUuid}
+                onChange={(e) => setDupGroupUuid(e.target.value)}
+                className="h-8 text-sm font-mono"
+                placeholder="그룹 UUID"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">순서</Label>
+              <Input
+                type="number"
+                min={1}
+                value={dupSortOrd}
+                onChange={(e) => setDupSortOrd(parseInt(e.target.value) || 1)}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setDuplicateOpen(false)}>
+              취소
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => duplicateMutation.mutate({ planNm: dupPlanNm, groupUuid: dupGroupUuid, sortOrd: dupSortOrd })}
+              disabled={!dupPlanNm.trim() || duplicateMutation.isPending}
+            >
+              {duplicateMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+              확인
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

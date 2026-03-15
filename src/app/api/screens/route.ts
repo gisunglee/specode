@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       include: {
         requirement: { select: { name: true, systemId: true } },
         _count: { select: { areas: true } },
+        areas: { select: { functions: { select: { status: true } } } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
@@ -35,7 +36,29 @@ export async function GET(request: NextRequest) {
     prisma.screen.count({ where }),
   ]);
 
-  return apiSuccess(data, {
+  const screenIds = data.map((s) => s.screenId);
+  const latestTasks = screenIds.length
+    ? await prisma.aiTask.findMany({
+        where: { refTableName: "tb_screen", refPkId: { in: screenIds } },
+        orderBy: { requestedAt: "desc" },
+      })
+    : [];
+  const taskByScreenId = new Map<number, (typeof latestTasks)[0]>();
+  for (const t of latestTasks) {
+    if (!taskByScreenId.has(t.refPkId)) taskByScreenId.set(t.refPkId, t);
+  }
+
+  const processed = data.map((screen) => {
+    const funcCount = screen.areas.reduce((acc, a) => acc + a.functions.length, 0);
+    const confirmedCount = screen.areas.reduce(
+      (acc, a) => acc + a.functions.filter((f) => f.status === "CONFIRM_Y").length,
+      0
+    );
+    const { areas, ...rest } = screen;
+    return { ...rest, funcCount, confirmedCount, latestTask: taskByScreenId.get(screen.screenId) ?? null };
+  });
+
+  return apiSuccess(processed, {
     page,
     pageSize,
     total,

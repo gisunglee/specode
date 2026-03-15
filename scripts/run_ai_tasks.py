@@ -19,6 +19,8 @@ import os
 import sys
 import shutil
 import subprocess
+import tempfile
+import datetime
 import requests
 from dotenv import load_dotenv
 
@@ -36,6 +38,38 @@ LIMIT        = int(os.getenv("TASK_LIMIT", "10"))
 TASK_TYPE    = os.getenv("TASK_TYPE", "")  # 빈 문자열 = 전체
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGE_EXTS   = {"png", "jpg", "jpeg", "gif", "webp"}
+PROMPTS_DIR  = os.path.join(PROJECT_ROOT, "docs", "prompts")
+
+# PROJECT_CONTEXT.md 로드 (docs/PROJECT_CONTEXT.md)
+CONTEXT_FILE = os.path.join(PROJECT_ROOT, "docs", "PROJECT_CONTEXT.md")
+
+def _load_project_context() -> str:
+    try:
+        with open(CONTEXT_FILE, "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"⚠️  PROJECT_CONTEXT.md 없음: {CONTEXT_FILE}")
+        return ""
+
+PROJECT_CONTEXT = _load_project_context()
+
+
+def _load_prompt(ref_table: str, task_type: str) -> str:
+    """refTableName + taskType 조합으로 전용 프롬프트 파일 로드.
+    우선순위: area-design.md → design.md → PROMPTS dict 폴백
+    """
+    table_short = ref_table.replace("tb_", "")  # tb_area → area
+    candidates = [
+        f"{table_short}-{task_type.lower()}.md",  # area-design.md
+        f"{task_type.lower()}.md",                 # design.md (공통)
+    ]
+    for fname in candidates:
+        path = os.path.join(PROMPTS_DIR, fname)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    return PROMPTS.get(task_type, PROMPTS["_DEFAULT"])
+
 
 HEADERS = {
     "X-API-Key": API_KEY,
@@ -131,14 +165,19 @@ def build_image_section(task: dict) -> str:
 
 def call_ai(task: dict) -> str:
     """claude CLI 서브프로세스로 AI 호출 (Pro 구독 사용, API 키 불필요)"""
-    template = PROMPTS.get(task.get("taskType", ""), PROMPTS["_DEFAULT"])
+    template = _load_prompt(task.get("refTableName", ""), task.get("taskType", ""))
 
     spec          = task.get("spec") or "(내용 없음)"
     comment       = task.get("comment") or ""
     comment_block = f"\n## 추가 요청사항\n{comment}" if comment else ""
     image_block   = build_image_section(task)
 
-    prompt = template.format(spec=spec, comment=comment_block + image_block)
+    task_body = template.format(spec=spec, comment=comment_block + image_block)
+    if PROJECT_CONTEXT:
+        prompt = f"{PROJECT_CONTEXT}\n\n---\n\n{task_body}"
+    else:
+        prompt = task_body
+
 
     # claude 실행 파일 경로 탐색 (Windows: claude.cmd)
     claude_bin = shutil.which("claude")
@@ -146,22 +185,36 @@ def call_ai(task: dict) -> str:
         raise RuntimeError("claude CLI를 찾을 수 없습니다. Claude Code가 설치되어 있는지 확인하세요.")
 
     # CLAUDECODE 제거: 중첩 실행 방지 오류 우회
+    # ANTHROPIC_API_KEY 제거: .env에 미입력 플레이스홀더가 있으면 ByteString 오류 발생
     env = os.environ.copy()
     env.pop("CLAUDECODE", None)
+    env.pop("ANTHROPIC_API_KEY", None)
 
-    result = subprocess.run(
-        [claude_bin, "-p", prompt, "--output-format", "text"],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        timeout=120,
-        env=env,
-    )
+    # Windows 파이프 인코딩 문제 우회: UTF-8 temp 파일 → 파일 핸들로 stdin 연결
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".txt", delete=False) as f:
+        f.write(prompt.encode("utf-8"))
+        prompt_file = f.name
+
+    try:
+        with open(prompt_file, "rb") as fin:
+            result = subprocess.run(
+                [claude_bin, "-p", "--output-format", "text"],
+                stdin=fin,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=300,
+                env=env,
+                cwd=tempfile.gettempdir(),  # CLAUDE.md 자동 로딩 차단
+            )
+        stdout = result.stdout.decode("utf-8", errors="replace")
+        stderr = result.stderr.decode("utf-8", errors="replace")
+    finally:
+        os.unlink(prompt_file)
 
     if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "claude CLI 오류")
+        raise RuntimeError(stderr.strip() or stdout.strip() or "claude CLI 오류")
 
-    return result.stdout.strip()
+    return stdout.strip()
 
 
 # ────────────────────────────────────────────────────────────
@@ -174,6 +227,8 @@ def main():
     print(f"  서버  : {BASE_URL}")
     print(f"  AI    : claude CLI (Pro 구독)")
     print(f"  필터  : taskType={TASK_TYPE or '전체'}, limit={LIMIT}")
+    ctx_status = "✅ 로딩됨" if PROJECT_CONTEXT else "⚠️  없음 (docs/PROJECT_CONTEXT.md)"
+    print(f"  컨텍스트: {ctx_status}")
     print("=" * 50)
 
     # 1. 태스크 조회
@@ -194,20 +249,28 @@ def main():
     success, failed = 0, 0
 
     for i, task in enumerate(tasks, 1):
-        tid  = task["aiTaskId"]
-        sid  = task["systemId"]
+        tid   = task["aiTaskId"]
+        sid   = task["systemId"]
         ttype = task.get("taskType", "?")
-        print(f"\n[{i}/{len(tasks)}] {sid} | {ttype}")
+        # 대상 이름 (refTableName에 따라 필드 다름)
+        ref   = task.get("refTableName", "")
+        target_name = (
+            task.get("name") or task.get("title") or task.get("areaCode") or f"#{task.get('refPkId','?')}"
+        )
+        print(f"\n[{i}/{len(tasks)}] {sid} | {ttype} | {target_name}")
 
         try:
             start_task(tid)
-            print("  → RUNNING")
+            t0 = datetime.datetime.now()
+            print(f"  → RUNNING  ({t0.strftime('%H:%M:%S')})")
 
-            print("  → AI 처리 중...")
+            print("  → AI 처리 중...", flush=True)
             feedback = call_ai(task)
+            elapsed = (datetime.datetime.now() - t0).seconds
 
+            print(f"  → 결과 전송 중... ({len(feedback):,}자)", flush=True)
             complete_task(tid, "SUCCESS", feedback)
-            print("  ✅ SUCCESS")
+            print(f"  ✅ SUCCESS  ({elapsed}초 / {len(feedback):,}자)")
             success += 1
 
         except Exception as e:

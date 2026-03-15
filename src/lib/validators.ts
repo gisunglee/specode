@@ -64,6 +64,7 @@ export const statusChangeSchema = z.object({
 
 export const dbSchemaSchema = z.object({
   tableName: z.string().min(1, "테이블명은 필수입니다.").max(100),
+  entityName: z.string().max(100).optional().nullable(),
   tableComment: z.string().max(200).optional().nullable(),
   ddlScript: z.string().default(""),
   tableGroup: z.string().max(50).optional().nullable(),

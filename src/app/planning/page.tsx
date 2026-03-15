@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Search, Trash2, CheckCircle } from "lucide-react";
+import { AI_TASK_STATUS_LABEL } from "@/lib/constants";
 import { apiFetch, formatDate } from "@/lib/utils";
 import { DataGrid } from "@/components/common/DataGrid";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
@@ -32,12 +33,14 @@ const PLAN_TYPES = [
   { value: "IA",      label: "IA (정보구조)" },
   { value: "PROCESS", label: "PROCESS (프로세스)" },
   { value: "MOCKUP",  label: "MOCKUP (목업)" },
+  { value: "ERD",     label: "ERD (데이터 모델)" },
 ];
 
 const PLAN_TYPE_COLORS: Record<string, string> = {
   IA:      "bg-blue-100 text-blue-700",
   PROCESS: "bg-amber-100 text-amber-700",
   MOCKUP:  "bg-purple-100 text-purple-700",
+  ERD:     "bg-emerald-100 text-emerald-700",
 };
 
 interface PlanningRow {
@@ -50,6 +53,7 @@ interface PlanningRow {
   reqCount:      number;
   reqMaps:       { requirement: { systemId: string; name: string } }[];
   createdAt:     string;
+  latestTask:    { taskStatus: string; taskType: string; completedAt: string | null } | null;
 }
 
 interface GroupOption {
@@ -143,21 +147,7 @@ export default function PlanningPage() {
       accessorKey: "planNm",
       header: "기획명",
       cell: ({ row }) => (
-        <div>
-          <div className="font-medium">{row.original.planNm}</div>
-          {row.original.reqMaps.length > 0 && (
-            <div className="text-xs text-muted-foreground mt-0.5 flex gap-1 flex-wrap">
-              {row.original.reqMaps.map((m) => (
-                <span key={m.requirement.systemId} className="font-mono">
-                  {m.requirement.systemId}
-                </span>
-              ))}
-              {row.original.reqCount > 3 && (
-                <span className="text-muted-foreground">+{row.original.reqCount - 3}</span>
-              )}
-            </div>
-          )}
-        </div>
+        <span className="font-medium">{row.original.planNm}</span>
       ),
     },
     {
@@ -220,6 +210,24 @@ export default function PlanningPage() {
       size: 80,
     },
     {
+      id: "latestAi",
+      header: "AI 결과",
+      cell: ({ row }) => {
+        const latest = row.original.latestTask;
+        if (!latest) return <span className="text-muted-foreground">-</span>;
+        const cfg = AI_TASK_STATUS_LABEL[latest.taskStatus];
+        return (
+          <div>
+            <span className={`text-xs ${cfg?.class ?? ""}`}>{cfg?.label ?? latest.taskStatus}</span>
+            {latest.completedAt && (
+              <p className="text-[11px] text-muted-foreground">{formatDate(latest.completedAt)}</p>
+            )}
+          </div>
+        );
+      },
+      size: 120,
+    },
+    {
       id: "actions",
       header: "",
       cell: ({ row }) => (
@@ -268,6 +276,7 @@ export default function PlanningPage() {
         getRowClassName={(row) =>
           row.isPicked ? "bg-green-500/5" : ""
         }
+        dense={true}
       />
 
       {/* 등록 다이얼로그 */}

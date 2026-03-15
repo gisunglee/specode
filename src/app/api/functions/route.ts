@@ -5,6 +5,35 @@ import { apiSuccess, apiError } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const idsParam = searchParams.get("ids"); // "ALL" | "1,2,3" — AI 워커용 벌크 조회
+
+  // ── ids 파라미터: AI 워커용 벌크 조회 (페이지네이션 없음) ──────────────
+  if (idsParam !== null) {
+    const where: Record<string, unknown> = {};
+    if (idsParam !== "ALL") {
+      const ids = idsParam.split(",").map((s) => parseInt(s.trim())).filter((n) => !isNaN(n));
+      if (ids.length === 0) return apiError("VALIDATION_ERROR", "유효한 ids 값이 없습니다.");
+      where.functionId = { in: ids };
+    }
+
+    const functions = await prisma.function.findMany({
+      where,
+      include: {
+        area: {
+          select: {
+            name: true,
+            areaCode: true,
+            screen: { select: { name: true, systemId: true, categoryL: true, categoryM: true, categoryS: true } },
+          },
+        },
+      },
+      orderBy: [{ area: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+    });
+
+    return apiSuccess(functions);
+  }
+
+  // ── 기존 페이지네이션 조회 (웹 UI용) ─────────────────────────────────
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
   const status = searchParams.get("status");

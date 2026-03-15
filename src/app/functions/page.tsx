@@ -515,6 +515,7 @@ function FunctionsContent() {
         pagination={data?.pagination}
         onPageChange={setPage}
         emptyMessage={isLoading ? "로딩 중..." : "등록된 기능이 없습니다."}
+        dense={true}
       />
 
       {/* ═══════════════════════════════════════════════════════ */}

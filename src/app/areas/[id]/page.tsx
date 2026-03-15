@@ -4,6 +4,7 @@ import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bot, ChevronDown, ChevronRight, History, Trash2 } from "lucide-react";
+import { ExcalidrawDialog } from "@/components/common/ExcalidrawDialog";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
+import { LayoutEditor, type LayoutRow } from "@/components/screens/LayoutEditor";
 import { AREA_TYPES, AREA_STATUS_LABEL } from "@/lib/constants";
 import { apiFetch, cn, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -74,6 +76,8 @@ export default function AreaDetailPage({
   });
 
   const [spec, setSpec] = useState("");
+  const [layoutRows, setLayoutRows] = useState<LayoutRow[]>([]);
+  const [designData, setDesignData] = useState<string | null>(null);
 
   const [saveVersionLog, setSaveVersionLog] = useState(true);
   useEffect(() => {
@@ -116,6 +120,8 @@ export default function AreaDetailPage({
         reqComment: area.reqComment || "",
       });
       setSpec(area.spec || "");
+      setLayoutRows(parseLayoutData(area.layoutData));
+      setDesignData(area.designData || null);
     }
   }, [dataUpdatedAt]);
 
@@ -150,6 +156,7 @@ export default function AreaDetailPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           spec,
+          layoutData: JSON.stringify(layoutRows),
           reqComment: form.reqComment,
           ...(saveVersionLog ? { saveVersionLog: true } : {}),
         }),
@@ -157,6 +164,20 @@ export default function AreaDetailPage({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["area", id] });
       toast.success("설계 정보가 저장되었습니다.");
+    },
+  });
+
+  const saveDesignMutation = useMutation({
+    mutationFn: (json: string) =>
+      apiFetch(`/api/areas/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designData: json }),
+      }),
+    onSuccess: (_data, json) => {
+      setDesignData(json);
+      queryClient.invalidateQueries({ queryKey: ["area", id] });
+      toast.success("설계 도안이 저장되었습니다.");
     },
   });
 
@@ -415,6 +436,11 @@ export default function AreaDetailPage({
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">설계</h2>
             <div className="flex items-center gap-2">
+              <ExcalidrawDialog
+                value={designData}
+                onSave={(json) => saveDesignMutation.mutate(json)}
+                saving={saveDesignMutation.isPending}
+              />
               <Button variant="outline" size="sm" onClick={() => setFeedbackOpen(true)}>
                 <Bot className="h-3.5 w-3.5 mr-1.5" />
                 AI 피드백
@@ -462,6 +488,12 @@ export default function AreaDetailPage({
                     rows={6}
                   />
                 </div>
+                <LayoutEditor
+                  key={`layout-${dataUpdatedAt}`}
+                  value={layoutRows}
+                  onChange={setLayoutRows}
+                  areas={[]}
+                />
                 <div className="pt-2 border-t border-border">
                   <AttachmentManager
                     refTableName="tb_area"
@@ -654,4 +686,14 @@ export default function AreaDetailPage({
       )}
     </div>
   );
+}
+
+function parseLayoutData(layoutData: string | null): LayoutRow[] {
+  if (!layoutData) return [];
+  try {
+    const parsed = JSON.parse(layoutData);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }

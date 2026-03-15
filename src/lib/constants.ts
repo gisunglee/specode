@@ -106,6 +106,7 @@ export const SCREEN_TYPES = [
 ] as const;
 
 export const AREA_TYPES = [
+  { value: "SEARCH",      label: "검색조건" },
   { value: "GRID",        label: "그리드" },
   { value: "FORM",        label: "폼" },
   { value: "INFO_CARD",   label: "정보카드" },
