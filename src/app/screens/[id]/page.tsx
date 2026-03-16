@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,8 @@ import {
 import { AutocompleteInput } from "@/components/common/AutocompleteInput";
 
 import { SCREEN_TYPES, AREA_TYPES } from "@/lib/constants";
+import { buildScreenTemplate, SCREEN_EXAMPLE } from "@/lib/specTemplates";
+import { SpecExampleDialog } from "@/components/common/SpecExampleDialog";
 import { apiFetch, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { DEFAULT_SCREEN_SPEC } from "@/lib/templates/screenSpec";
@@ -69,6 +71,7 @@ export default function ScreenDetailPage({
   const [menuOrder, setMenuOrder] = useState<number | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
   const [storyMapOpen, setStoryMapOpen] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
 
@@ -133,6 +136,20 @@ export default function ScreenDetailPage({
   const handleFileChange = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["screen", id] });
   }, [queryClient, id]);
+
+  const handleExportPrd = async () => {
+    if (!screen) return;
+    const res = await fetch(`/api/screens/${id}/prd`);
+    if (!res.ok) { toast.error("PRD 생성에 실패했습니다."); return; }
+    const md = await res.text();
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PRD_screen-v1_${screen.systemId}_${screen.name}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleSave = () => {
     if (!screen) return;
@@ -244,6 +261,10 @@ export default function ScreenDetailPage({
                 저장됨 ✓
               </span>
             )}
+            <Button variant="outline" size="sm" onClick={handleExportPrd} title="화면+영역+기능을 PRD.md로 내보내기">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              PRD 내보내기
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -273,6 +294,30 @@ export default function ScreenDetailPage({
                 label="화면 설명 (마크다운) *"
                 rows={30}
                 placeholder="화면 설명을 마크다운으로 작성하세요..."
+                headerExtra={
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      onClick={() => setExampleOpen(true)}
+                    >
+                      <FileText className="h-3 w-3" />
+                      예시
+                    </button>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      onClick={() => {
+                        if (!spec.trim() || window.confirm("기존 내용을 템플릿으로 덮어쓰시겠습니까?")) {
+                          setSpec(buildScreenTemplate(layoutRows, areas));
+                        }
+                      }}
+                    >
+                      <FileText className="h-3 w-3" />
+                      템플릿 삽입
+                    </button>
+                  </div>
+                }
               />
             </div>
             <div className="col-span-4 space-y-5">
@@ -427,6 +472,15 @@ export default function ScreenDetailPage({
           )}
         </div>
       </div>
+
+      {/* ─── 예시 다이얼로그 ─────────────────────────────────── */}
+      <SpecExampleDialog
+        open={exampleOpen}
+        onClose={() => setExampleOpen(false)}
+        content={SCREEN_EXAMPLE}
+        onInsert={() => setSpec(SCREEN_EXAMPLE)}
+        title="화면 설계 예시 (공지사항 게시판)"
+      />
 
       {/* ─── 스토리 매핑 다이얼로그 ─────────────────────────── */}
       <StoryMapDialog

@@ -33,6 +33,8 @@ interface MarkdownEditorProps {
   refTableName?: string;
   refPkId?: number;
   fieldName?: string;
+  /** 헤더 우측에 추가로 렌더링할 요소 (예: 템플릿 삽입 버튼) */
+  headerExtra?: React.ReactNode;
 }
 
 export function MarkdownEditor({
@@ -47,6 +49,7 @@ export function MarkdownEditor({
   refTableName,
   refPkId,
   fieldName,
+  headerExtra,
 }: MarkdownEditorProps) {
   const [previewMode, setPreviewMode] = useState(readOnly);
 
@@ -107,6 +110,7 @@ export function MarkdownEditor({
               onVersionSelect={handleVersionSelect}
             />
           )}
+          {headerExtra && <div className="ml-auto">{headerExtra}</div>}
         </div>
       )}
 

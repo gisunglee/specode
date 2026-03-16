@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         refPkId: numId,
         taskType: "DESIGN",
         taskStatus: "NONE",
-        spec: area.spec,
+        spec: body.aiSpec ?? area.spec,
         comment: body.comment?.trim() || null,
       },
     });

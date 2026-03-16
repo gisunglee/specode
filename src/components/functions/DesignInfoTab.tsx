@@ -23,6 +23,9 @@ import { Label } from "@/components/ui/label";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import { apiFetch } from "@/lib/utils";
+import { FileText } from "lucide-react";
+import { FUNCTION_BASIC_TEMPLATE, FUNCTION_DETAIL_TEMPLATE, FUNCTION_BASIC_EXAMPLE, FUNCTION_DETAIL_EXAMPLE } from "@/lib/specTemplates";
+import { SpecExampleDialog } from "@/components/common/SpecExampleDialog";
 import { toast } from "sonner";
 import type { FunctionItem } from "@/types";
 
@@ -44,6 +47,8 @@ export function DesignInfoTab({
   const queryClient = useQueryClient();
 
   /* ─── 폼 상태 관리 ─────────────────────────────────────── */
+  const [example, setExample] = useState<{ content: string; title: string; onInsert: () => void } | null>(null);
+
   const [spec, setSpec] = useState(func.spec || "");
   const [aiDesignContent, setAiDesignContent] = useState(func.aiDesignContent || "");
   const [refContent, setRefContent] = useState(func.refContent || "");
@@ -131,16 +136,72 @@ export function DesignInfoTab({
               refTableName="tb_function"
               refPkId={func.functionId}
               fieldName="spec"
+              headerExtra={
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => setExample({
+                      content: FUNCTION_BASIC_EXAMPLE,
+                      title: "기능 설명 예시 (공지사항 목록 조회)",
+                      onInsert: () => setSpec(FUNCTION_BASIC_EXAMPLE),
+                    })}
+                  >
+                    <FileText className="h-3 w-3" />
+                    예시
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (!spec.trim() || window.confirm("기존 내용을 템플릿으로 덮어쓰시겠습니까?")) {
+                        setSpec(FUNCTION_BASIC_TEMPLATE);
+                      }
+                    }}
+                  >
+                    <FileText className="h-3 w-3" />
+                    템플릿 삽입
+                  </button>
+                </div>
+              }
             />
             <MarkdownEditor
               value={aiDesignContent}
               onChange={setAiDesignContent}
               label="AI 상세설계 (마크다운)"
-              rows={15}
+              rows={25}
               placeholder="AI가 설계요청 후 자동으로 작성하거나, 직접 작성할 수 있습니다..."
               refTableName="tb_function"
               refPkId={func.functionId}
               fieldName="ai_design_content"
+              headerExtra={
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => setExample({
+                      content: FUNCTION_DETAIL_EXAMPLE,
+                      title: "AI 상세설계 예시 (공지사항 목록 조회)",
+                      onInsert: () => setAiDesignContent(FUNCTION_DETAIL_EXAMPLE),
+                    })}
+                  >
+                    <FileText className="h-3 w-3" />
+                    예시
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (!aiDesignContent.trim() || window.confirm("기존 내용을 템플릿으로 덮어쓰시겠습니까?")) {
+                        setAiDesignContent(FUNCTION_DETAIL_TEMPLATE);
+                      }
+                    }}
+                  >
+                    <FileText className="h-3 w-3" />
+                    템플릿 삽입
+                  </button>
+                </div>
+              }
             />
           </div>
 
@@ -193,6 +254,16 @@ export function DesignInfoTab({
           </div>
         )}
       </div>
+
+      {example && (
+        <SpecExampleDialog
+          open
+          onClose={() => setExample(null)}
+          content={example.content}
+          onInsert={example.onInsert}
+          title={example.title}
+        />
+      )}
     </div>
   );
 }

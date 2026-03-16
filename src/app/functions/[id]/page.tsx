@@ -4,7 +4,7 @@
 import { use, useRef, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronRight, History, Bot, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, Download, History, Bot, Trash2 } from "lucide-react";
 
 /* ─── UI 컴포넌트 임포트 ─────────────────────────────────── */
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,21 @@ export default function FunctionDetailPage({
     }
   };
 
+  const handleExportPrd = async () => {
+    const fn = data?.data;
+    if (!fn) return;
+    const res = await fetch(`/api/functions/${id}/prd`);
+    if (!res.ok) { toast.error("PRD 생성에 실패했습니다."); return; }
+    const md = await res.text();
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PRD_func-v1_${fn.systemId}_${fn.name}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground">
@@ -182,6 +197,10 @@ export default function FunctionDetailPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={handleExportPrd} title="기능을 PRD.md로 내보내기">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              PRD 내보내기
+            </Button>
             <Button
               variant="ghost"
               size="icon"

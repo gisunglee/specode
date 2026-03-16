@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronDown, ChevronRight, History, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, Download, FileText, History, Trash2 } from "lucide-react";
 import { ExcalidrawDialog } from "@/components/common/ExcalidrawDialog";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { DataGrid } from "@/components/common/DataGrid";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { AiDesignRequestDialog } from "@/components/areas/AiDesignRequestDialog";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import { HistoryTab } from "@/components/functions/HistoryTab";
 import ReactMarkdown from "react-markdown";
@@ -36,6 +37,8 @@ import {
 
 import { LayoutEditor, type LayoutRow } from "@/components/screens/LayoutEditor";
 import { AREA_TYPES, AREA_STATUS_LABEL } from "@/lib/constants";
+import { AREA_TEMPLATE, AREA_EXAMPLE } from "@/lib/specTemplates";
+import { SpecExampleDialog } from "@/components/common/SpecExampleDialog";
 import { apiFetch, cn, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -65,6 +68,7 @@ export default function AreaDetailPage({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackViewMode, setFeedbackViewMode] = useState<"preview" | "code">("preview");
+  const [exampleOpen, setExampleOpen] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
@@ -182,14 +186,11 @@ export default function AreaDetailPage({
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: string) =>
+    mutationFn: (payload: { status: string; aiSpec?: string; comment?: string }) =>
       apiFetch(`/api/areas/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
-          comment: form.reqComment.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["area", id] });
@@ -215,13 +216,27 @@ export default function AreaDetailPage({
     if (status === "DESIGN_REQ") {
       setStatusDialog(status);
     } else {
-      statusMutation.mutate(status);
+      statusMutation.mutate({ status });
     }
   };
 
   const handleAttachmentChanged = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["area", id] });
   }, [queryClient, id]);
+
+  const handleExportPrd = async () => {
+    if (!area) return;
+    const res = await fetch(`/api/areas/${id}/prd`);
+    if (!res.ok) { toast.error("PRD 생성에 실패했습니다."); return; }
+    const md = await res.text();
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PRD_area-v1_${area.areaCode}_${area.name}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const funcColumns: ColumnDef<FunctionRow, unknown>[] = [
     { accessorKey: "systemId", header: "ID", size: 110 },
@@ -296,6 +311,10 @@ export default function AreaDetailPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={handleExportPrd} title="영역+기능을 PRD.md로 내보내기">
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              PRD 내보내기
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -476,6 +495,30 @@ export default function AreaDetailPage({
                   refTableName="tb_area"
                   refPkId={area?.areaId}
                   fieldName="spec"
+                  headerExtra={
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        onClick={() => setExampleOpen(true)}
+                      >
+                        <FileText className="h-3 w-3" />
+                        예시
+                      </button>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (!spec.trim() || window.confirm("기존 내용을 템플릿으로 덮어쓰시겠습니까?")) {
+                            setSpec(AREA_TEMPLATE);
+                          }
+                        }}
+                      >
+                        <FileText className="h-3 w-3" />
+                        템플릿 삽입
+                      </button>
+                    </div>
+                  }
                 />
               </div>
               <div className="col-span-2 space-y-5 pt-3">
@@ -547,6 +590,15 @@ export default function AreaDetailPage({
         </section>
       </div>
 
+      {/* ─── 예시 다이얼로그 ─────────────────────────────────── */}
+      <SpecExampleDialog
+        open={exampleOpen}
+        onClose={() => setExampleOpen(false)}
+        content={AREA_EXAMPLE}
+        onInsert={() => setSpec(AREA_EXAMPLE)}
+        title="영역 설계 예시 (공지사항 검색 영역)"
+      />
+
       {/* ─── AI 요청 이력 팝업 ───────────────────────────────── */}
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -607,14 +659,22 @@ export default function AreaDetailPage({
         </DialogContent>
       </Dialog>
 
-      {/* ─── AI 설계요청 확인 ────────────────────────────────── */}
-      <ConfirmDialog
+      {/* ─── AI 설계요청 옵션 다이얼로그 ─────────────────────── */}
+      <AiDesignRequestDialog
         open={!!statusDialog}
-        onOpenChange={() => setStatusDialog(null)}
-        title="AI 설계 요청"
-        description="이 영역의 AI 상세 설계를 요청하시겠습니까? reqComment가 있으면 AI에게 함께 전달됩니다."
-        confirmLabel="요청"
-        onConfirm={() => statusDialog && statusMutation.mutate(statusDialog)}
+        onClose={() => setStatusDialog(null)}
+        onConfirm={(aiSpec, comment) => {
+          if (statusDialog) {
+            statusMutation.mutate({
+              status: statusDialog,
+              aiSpec: aiSpec || undefined,
+              comment: comment || undefined,
+            });
+          }
+        }}
+        areaSpec={spec}
+        designData={designData}
+        currentComment={form.reqComment}
         loading={statusMutation.isPending}
       />
 
