@@ -169,10 +169,12 @@ model AiTask {
   systemId     String    @unique @map("system_id")
   refTableName String    @map("ref_table_name")  // "tb_function" | "tb_standard_guide" | "tb_area"
   refPkId      Int       @map("ref_pk_id")        // 대상 테이블의 PK
-  taskType     String    @map("task_type")        // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS | INSPECT
+  taskType     String    @map("task_type")        // DESIGN | REVIEW | IMPLEMENT | IMPACT | REPROCESS | INSPECT | PRD_EXPORT
   taskStatus   String    @default("NONE") @map("task_status") // NONE | RUNNING | SUCCESS | AUTO_FIXED | NEEDS_CHECK | WARNING | FAILED
 
-  spec        String?   @map("spec")             // AI 호출 시점 내용 스냅샷
+  spec            String?   @map("spec")              // AI 호출 시점 spec 필드 스냅샷 (하위 호환)
+  contextSnapshot String?   @map("context_snapshot")  // JSON: {spec, aiDesignContent, refContent} 전체 스냅샷
+  changeNote      String?   @map("change_note")        // 이전 구현 대비 변경사항 메모 (사용자 작성 or 자동 생성)
   comment     String?   @map("comment")          // GS 추가 요청 (재처리용, NULL이면 최초 요청)
   feedback    String?   @map("feedback")         // AI 결과 (마크다운 통째로)
   resultFiles String?   @map("result_files")     // AI가 수정한 파일 목록 (줄바꿈 구분)

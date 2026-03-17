@@ -3,9 +3,10 @@
 import { Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, Wand2 } from "lucide-react";
 
 import { DataGrid } from "@/components/common/DataGrid";
+import { ExcalidrawDialog } from "@/components/common/ExcalidrawDialog";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
 
 import { AREA_TYPES, AREA_STATUS_LABEL, AI_TASK_STATUS_LABEL } from "@/lib/constants";
 import { apiFetch, formatDate } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -38,6 +40,7 @@ interface AreaRow {
   areaType: string;
   status: string;
   updatedAt: string;
+  designData: string | null;
   screen: { screenId: number; name: string; systemId: string } | null;
   _count: { functions: number };
   latestTask: { taskStatus: string; taskType: string; completedAt: string | null } | null;
@@ -86,6 +89,8 @@ function AreasContent() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<AreaRow | null>(null);
   const [deleteMode, setDeleteMode] = useState<"cascade" | "detach">("detach");
+  const [designReqItem, setDesignReqItem] = useState<AreaRow | null>(null);
+  const [designComment, setDesignComment] = useState("");
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -129,6 +134,37 @@ function AreasContent() {
       setCreateOpen(false);
       router.push(`/areas/${result.data.areaId}`);
     },
+  });
+
+  /* ─── 디자인 설계 저장 뮤테이션 ────────────────────────────── */
+  const saveDesignMutation = useMutation({
+    mutationFn: ({ id, json }: { id: number; json: string }) =>
+      apiFetch(`/api/areas/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ designData: json }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["areas"] });
+      toast.success("설계 도안이 저장되었습니다.");
+    },
+  });
+
+  /* ─── 설계 요청 뮤테이션 ─────────────────────────────────── */
+  const designReqMutation = useMutation({
+    mutationFn: ({ id, comment }: { id: number; comment: string }) =>
+      apiFetch(`/api/areas/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "DESIGN_REQ", comment: comment.trim() || null }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["areas"] });
+      toast.success("설계 요청이 등록되었습니다.");
+      setDesignReqItem(null);
+      setDesignComment("");
+    },
+    onError: () => toast.error("설계 요청에 실패했습니다."),
   });
 
   /* ─── 영역 삭제 뮤테이션 ─────────────────────────────────── */
@@ -221,19 +257,38 @@ function AreasContent() {
       id: "actions",
       header: "",
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          title="삭제"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDeleteItem(row.original);
-          }}
-        >
-          <Trash2 className="h-4 w-4 text-muted-foreground" />
-        </Button>
+        <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+          <ExcalidrawDialog
+            value={row.original.designData}
+            onSave={(json) => saveDesignMutation.mutate({ id: row.original.areaId, json })}
+            saving={saveDesignMutation.isPending}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            title="설계 요청"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDesignComment("");
+              setDesignReqItem(row.original);
+            }}
+          >
+            <Wand2 className="h-4 w-4 text-violet-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="삭제"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteItem(row.original);
+            }}
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
       ),
-      size: 48,
+      size: 110,
       enableSorting: false,
     },
   ];
@@ -369,6 +424,42 @@ function AreasContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── 설계 요청 다이얼로그 ────────────────────────── */}
+      {designReqItem && (
+        <Dialog open={!!designReqItem} onOpenChange={() => setDesignReqItem(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>AI 설계 요청</DialogTitle>
+              <DialogDescription>
+                <span className="font-medium text-foreground">{designReqItem.areaCode} {designReqItem.name}</span>의
+                상태를 <span className="font-medium text-foreground">설계 요청</span>으로 변경하고 AI 태스크를 생성합니다.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-1.5 py-2">
+              <Label className="text-xs">추가 요청사항 (선택)</Label>
+              <Textarea
+                value={designComment}
+                onChange={(e) => setDesignComment(e.target.value)}
+                placeholder="AI에게 전달할 추가 요청사항을 입력하세요"
+                rows={3}
+                className="text-sm resize-none"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDesignReqItem(null)} disabled={designReqMutation.isPending}>
+                취소
+              </Button>
+              <Button
+                onClick={() => designReqMutation.mutate({ id: designReqItem.areaId, comment: designComment })}
+                disabled={designReqMutation.isPending}
+              >
+                {designReqMutation.isPending ? "요청 중..." : "설계 요청"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* ── 영역 삭제 다이얼로그 ────────────────────────── */}
       {deleteItem && (() => {

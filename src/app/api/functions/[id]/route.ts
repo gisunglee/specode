@@ -129,7 +129,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const func = await prisma.function.findUnique({
     where: { functionId: numId },
-    select: { status: true, spec: true },
+    select: { status: true, spec: true, aiDesignContent: true, refContent: true },
   });
 
   if (!func) {
@@ -163,7 +163,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         refPkId: numId,
         taskType,
         taskStatus: "NONE",
-        spec: func.spec,
+        spec: [
+          func.spec ? `## 기본 설계 내용\n\n${func.spec}` : "",
+          func.aiDesignContent ? `## 상세설계\n\n${func.aiDesignContent}` : "",
+        ].filter(Boolean).join("\n\n---\n\n") || null,
+        contextSnapshot: JSON.stringify({
+          spec: func.spec || "",
+          aiDesignContent: func.aiDesignContent || "",
+          refContent: func.refContent || "",
+        }),
+        changeNote: body.changeNote?.trim() || null,
         comment: body.comment?.trim() || null,
       },
     });

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateFunctionPrd } from "@/lib/prd/function/v1";
 import { PRD_VERSIONS } from "@/lib/prd";
+import { generateSystemId } from "@/lib/sequence";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,25 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   if (!fn) {
     return NextResponse.json({ error: "기능을 찾을 수 없습니다." }, { status: 404 });
   }
+
+  // PRD 다운로드 이벤트를 이력으로 기록 (비동기, 실패해도 다운로드는 진행)
+  generateSystemId("ATK").then((systemId) =>
+    prisma.aiTask.create({
+      data: {
+        systemId,
+        refTableName: "tb_function",
+        refPkId: numId,
+        taskType: "PRD_EXPORT",
+        taskStatus: "SUCCESS",
+        contextSnapshot: JSON.stringify({
+          spec: fn.spec || "",
+          aiDesignContent: fn.aiDesignContent || "",
+          refContent: fn.refContent || "",
+        }),
+        completedAt: new Date(),
+      },
+    })
+  ).catch(() => {/* 이력 기록 실패는 무시 */});
 
   const markdown = generateFunctionPrd(
     {

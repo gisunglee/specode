@@ -88,6 +88,8 @@ export interface AiTask {
   taskType: string;
   taskStatus: string;
   spec: string | null;
+  contextSnapshot: string | null;  // JSON: {spec, aiDesignContent, refContent}
+  changeNote: string | null;       // 이전 구현 대비 변경사항 메모
   comment: string | null;
   feedback: string | null;
   resultFiles: string | null;

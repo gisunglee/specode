@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
   const gIds       = tasks.filter(t => t.refTableName === "tb_standard_guide").map(t => t.refPkId);
   const areaIds    = tasks.filter(t => t.refTableName === "tb_area").map(t => t.refPkId);
   const planIds    = tasks.filter(t => t.refTableName === "tb_planning_draft").map(t => t.refPkId);
+  const screenIds  = tasks.filter(t => t.refTableName === "tb_screen").map(t => t.refPkId);
 
-  const [functions, guides, areas, plans] = await Promise.all([
+  const [functions, guides, areas, plans, screens] = await Promise.all([
     fnIds.length
       ? prisma.function.findMany({
           where: { functionId: { in: fnIds } },
@@ -54,12 +55,19 @@ export async function GET(request: NextRequest) {
           select: { planSn: true, planNm: true, planType: true },
         })
       : Promise.resolve([]),
+    screenIds.length
+      ? prisma.screen.findMany({
+          where: { screenId: { in: screenIds } },
+          select: { screenId: true, systemId: true, name: true },
+        })
+      : Promise.resolve([]),
   ]);
 
-  const fnMap   = new Map(functions.map(f => [f.functionId, f]));
-  const gMap    = new Map(guides.map(g => [g.guideId, g]));
-  const areaMap = new Map(areas.map(a => [a.areaId, a]));
-  const planMap = new Map(plans.map(p => [p.planSn, p]));
+  const fnMap     = new Map(functions.map(f => [f.functionId, f]));
+  const gMap      = new Map(guides.map(g => [g.guideId, g]));
+  const areaMap   = new Map(areas.map(a => [a.areaId, a]));
+  const planMap   = new Map(plans.map(p => [p.planSn, p]));
+  const screenMap = new Map(screens.map(s => [s.screenId, s]));
 
   const data = tasks.map(t => ({
     ...t,
@@ -72,7 +80,9 @@ export async function GET(request: NextRequest) {
             ? (areaMap.get(t.refPkId) ?? null)
             : t.refTableName === "tb_planning_draft"
               ? (planMap.get(t.refPkId) ?? null)
-              : null,
+              : t.refTableName === "tb_screen"
+                ? (screenMap.get(t.refPkId) ?? null)
+                : null,
   }));
 
   return apiSuccess(data, {

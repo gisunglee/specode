@@ -125,14 +125,14 @@ export function DesignInfoTab({
 
       <div className="rounded-lg border border-border bg-card p-6 space-y-5">
         <div className="grid grid-cols-5 gap-6">
-          {/* ── 왼쪽: 기능 설명 + AI 상세설계 ────────────── */}
+          {/* ── 왼쪽: 기본 설계 내용 + 상세설계 ────────────── */}
           <div className="col-span-3 space-y-4">
             <MarkdownEditor
               value={spec}
               onChange={setSpec}
-              label="기능 설명 (마크다운) *"
+              label="기본 설계 내용 (마크다운) *"
               rows={18}
-              placeholder="기능 설명을 마크다운으로 작성하세요..."
+              placeholder="기본 설계 내용을 마크다운으로 작성하세요..."
               refTableName="tb_function"
               refPkId={func.functionId}
               fieldName="spec"
@@ -143,7 +143,7 @@ export function DesignInfoTab({
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     onClick={() => setExample({
                       content: FUNCTION_BASIC_EXAMPLE,
-                      title: "기능 설명 예시 (공지사항 목록 조회)",
+                      title: "기본 설계 내용 예시 (공지사항 목록 조회)",
                       onInsert: () => setSpec(FUNCTION_BASIC_EXAMPLE),
                     })}
                   >
@@ -168,7 +168,7 @@ export function DesignInfoTab({
             <MarkdownEditor
               value={aiDesignContent}
               onChange={setAiDesignContent}
-              label="AI 상세설계 (마크다운)"
+              label="상세설계 (마크다운)"
               rows={25}
               placeholder="AI가 설계요청 후 자동으로 작성하거나, 직접 작성할 수 있습니다..."
               refTableName="tb_function"
@@ -181,7 +181,7 @@ export function DesignInfoTab({
                     className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     onClick={() => setExample({
                       content: FUNCTION_DETAIL_EXAMPLE,
-                      title: "AI 상세설계 예시 (공지사항 목록 조회)",
+                      title: "상세설계 예시 (공지사항 목록 조회)",
                       onInsert: () => setAiDesignContent(FUNCTION_DETAIL_EXAMPLE),
                     })}
                   >

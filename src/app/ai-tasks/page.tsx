@@ -77,7 +77,7 @@ interface AiTaskRow {
   completedAt: string | null;
   target: {
     systemId?: string;
-    name?: string;       // tb_function, tb_area
+    name?: string;       // tb_function, tb_area, tb_screen
     title?: string;      // tb_standard_guide
     areaCode?: string;   // tb_area
     displayCode?: string | null;
@@ -100,7 +100,8 @@ const TASK_TYPE_LABEL: Record<string, string> = {
 const REF_TABLE_LABEL: Record<string, string> = {
   tb_function:       "기능",
   tb_standard_guide: "가이드",
-  tb_area:           "영역화면설계",
+  tb_area:           "영역",
+  tb_screen:         "화면",
   tb_planning_draft: "기획캔버스",
 };
 
@@ -236,6 +237,9 @@ export default function AiTasksPage() {
     if (row.refTableName === "tb_area") {
       return `${row.target.areaCode ?? ""} ${row.target.name ?? ""}`.trim();
     }
+    if (row.refTableName === "tb_screen") {
+      return `${row.target.systemId ?? ""} ${row.target.name ?? ""}`.trim();
+    }
     if (row.refTableName === "tb_planning_draft") {
       return (row.target as { planNm?: string }).planNm ?? `#${row.refPkId}`;
     }
@@ -247,6 +251,7 @@ export default function AiTasksPage() {
     if (row.refTableName === "tb_function") return `/functions/${row.refPkId}`;
     if (row.refTableName === "tb_standard_guide") return `/standard-guides?openGuide=${row.refPkId}`;
     if (row.refTableName === "tb_area") return `/areas/${row.refPkId}`;
+    if (row.refTableName === "tb_screen") return `/screens/${row.refPkId}`;
     if (row.refTableName === "tb_planning_draft") return `/planning/${row.refPkId}`;
     return null;
   };

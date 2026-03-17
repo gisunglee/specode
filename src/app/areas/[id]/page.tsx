@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { AiDesignRequestDialog } from "@/components/areas/AiDesignRequestDialog";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import { HistoryTab } from "@/components/functions/HistoryTab";
+import { ImplRequestDialog } from "@/components/common/ImplRequestDialog";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -65,6 +66,7 @@ export default function AreaDetailPage({
   const [deleteMode, setDeleteMode] = useState<"cascade" | "detach">("detach");
   const [statusDialog, setStatusDialog] = useState<string | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [implDialogOpen, setImplDialogOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackViewMode, setFeedbackViewMode] = useState<"preview" | "code">("preview");
@@ -200,6 +202,20 @@ export default function AreaDetailPage({
     },
   });
 
+  const implMutation = useMutation({
+    mutationFn: (changeNote: string) =>
+      apiFetch(`/api/areas/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "IMPL_REQ", changeNote }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["area", id] });
+      toast.success("구현 요청이 등록되었습니다.");
+      setImplDialogOpen(false);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (mode?: "cascade" | "detach") => {
       const url = mode ? `/api/areas/${id}?mode=${mode}` : `/api/areas/${id}`;
@@ -311,6 +327,10 @@ export default function AreaDetailPage({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => setImplDialogOpen(true)}>
+              <Bot className="h-3.5 w-3.5 mr-1.5" />
+              구현 요청
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportPrd} title="영역+기능을 PRD.md로 내보내기">
               <Download className="h-3.5 w-3.5 mr-1.5" />
               PRD 내보내기
@@ -658,6 +678,28 @@ export default function AreaDetailPage({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ─── 구현 요청 다이얼로그 ──────────────────────────────── */}
+      {area && (
+        <ImplRequestDialog
+          open={implDialogOpen}
+          onClose={() => setImplDialogOpen(false)}
+          entityType="area"
+          entityId={area.areaId}
+          currentSnapshot={{
+            area: { spec: area.spec || "" },
+            functions: (area.functions ?? []).map((f: { functionId: number; name: string; spec: string | null; aiDesignContent: string | null; refContent: string | null }) => ({
+              functionId: f.functionId,
+              name: f.name,
+              spec: f.spec || "",
+              aiDesignContent: f.aiDesignContent || "",
+              refContent: f.refContent || "",
+            })),
+          }}
+          loading={implMutation.isPending}
+          onConfirm={(changeNote) => implMutation.mutate(changeNote)}
+        />
+      )}
 
       {/* ─── AI 설계요청 옵션 다이얼로그 ─────────────────────── */}
       <AiDesignRequestDialog

@@ -12,6 +12,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { screenSchema } from "@/lib/validators";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { generateSystemId } from "@/lib/sequence";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -70,6 +71,83 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   } catch {
     return apiError("SERVER_ERROR", "수정에 실패했습니다.", 500);
   }
+}
+
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const { id } = await params;
+  const numId = parseInt(id);
+  const body = await request.json();
+
+  if (body.action !== "IMPL_REQ") {
+    return apiError("VALIDATION_ERROR", "지원하지 않는 action입니다.");
+  }
+
+  const screen = await prisma.screen.findUnique({
+    where: { screenId: numId },
+    select: {
+      systemId: true,
+      name: true,
+      spec: true,
+      areas: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          areaId: true,
+          name: true,
+          spec: true,
+          functions: {
+            select: { functionId: true, name: true, spec: true, aiDesignContent: true, refContent: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
+    },
+  });
+  if (!screen) return apiError("NOT_FOUND", "화면을 찾을 수 없습니다.", 404);
+
+  // spec 조합: 화면 설명 + 영역 + 기능
+  const specParts: string[] = [];
+  if (screen.spec) specParts.push(`# 화면: ${screen.name} (${screen.systemId})\n\n## 화면 설명\n\n${screen.spec}`);
+  for (const area of screen.areas) {
+    const areaParts: string[] = [`# 영역: ${area.name}`];
+    if (area.spec) areaParts.push(`\n## 영역 설명\n\n${area.spec}`);
+    for (const f of area.functions) {
+      const fParts: string[] = [`\n## 기능: ${f.name}`];
+      if (f.spec) fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
+      if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+      if (fParts.length > 1) areaParts.push(fParts.join("\n"));
+    }
+    specParts.push(areaParts.join("\n"));
+  }
+
+  const taskSystemId = await generateSystemId("ATK");
+  await prisma.aiTask.create({
+    data: {
+      systemId: taskSystemId,
+      refTableName: "tb_screen",
+      refPkId: numId,
+      taskType: "IMPLEMENT",
+      taskStatus: "NONE",
+      spec: specParts.join("\n\n---\n\n") || null,
+      contextSnapshot: JSON.stringify({
+        screen: { spec: screen.spec || "" },
+        areas: screen.areas.map((a) => ({
+          areaId: a.areaId,
+          name: a.name,
+          spec: a.spec || "",
+          functions: a.functions.map((f) => ({
+            functionId: f.functionId,
+            name: f.name,
+            spec: f.spec || "",
+            aiDesignContent: f.aiDesignContent || "",
+            refContent: f.refContent || "",
+          })),
+        })),
+      }),
+      changeNote: body.changeNote?.trim() || null,
+    },
+  });
+
+  return apiSuccess({ requested: true });
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {

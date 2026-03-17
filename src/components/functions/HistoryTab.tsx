@@ -42,6 +42,8 @@ import {
   History, // 이력 아이콘
   FileText, // 파일/설계 아이콘
   MessageSquare, // GS 코멘트 아이콘
+  Download, // PRD 내보내기 아이콘
+  GitCompare, // 변경사항 아이콘
 } from "lucide-react";
 
 /* ─── 유틸 & 타입 임포트 ─────────────────────────────────── */
@@ -65,15 +67,20 @@ const TASK_TYPE_LABEL: Record<string, string> = {
   IMPLEMENT: "코드구현",
   IMPACT: "영향도분석",
   REPROCESS: "재처리",
+  INSPECT: "AI검토",
+  PRD_EXPORT: "PRD내보내기",
 };
 
 /**
  * 작업 상태(taskStatus) 코드 → 한글 라벨 매핑
  */
 const TASK_STATUS_LABEL: Record<string, string> = {
-  PENDING: "대기",
+  NONE: "대기",
   RUNNING: "진행중",
-  DONE: "완료",
+  SUCCESS: "완료",
+  AUTO_FIXED: "자동수정",
+  NEEDS_CHECK: "확인필요",
+  WARNING: "경고",
   FAILED: "실패",
 };
 
@@ -170,6 +177,14 @@ export function HistoryTab({ func, tasks: tasksProp }: HistoryTabProps) {
                     {/* 시스템 ID (ATK-00001 등) */}
                     <span className="text-sm truncate">{task.systemId}</span>
 
+                    {/* PRD 내보내기 타입 아이콘 */}
+                    {task.taskType === "PRD_EXPORT" && (
+                      <Download className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                    )}
+                    {/* 변경사항 메모가 있으면 아이콘 힌트 */}
+                    {task.changeNote && (
+                      <GitCompare className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                    )}
                     {/* GS 코멘트가 있으면 아이콘으로 힌트 표시 */}
                     {task.comment && (
                       <MessageSquare className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
@@ -193,6 +208,17 @@ export function HistoryTab({ func, tasks: tasksProp }: HistoryTabProps) {
                           <p className="text-sm whitespace-pre-wrap">
                             {task.spec}
                           </p>
+                        </div>
+                      )}
+
+                      {/* ── 변경사항 메모 (changeNote가 있을 때만) ── */}
+                      {task.changeNote && (
+                        <div className="rounded-md bg-emerald-500/10 border border-emerald-500/20 p-4">
+                          <p className="text-xs font-medium text-emerald-600 mb-1">
+                            <GitCompare className="h-3 w-3 inline mr-1" />
+                            변경사항 메모
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{task.changeNote}</p>
                         </div>
                       )}
 

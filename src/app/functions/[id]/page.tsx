@@ -31,6 +31,7 @@ import { BasicInfoTab } from "@/components/functions/BasicInfoTab";
 import { DesignInfoTab } from "@/components/functions/DesignInfoTab";
 import { AiFeedbackTab } from "@/components/functions/AiFeedbackTab";
 import { HistoryTab } from "@/components/functions/HistoryTab";
+import { ImplRequestDialog } from "@/components/functions/ImplRequestDialog";
 import { StoryCompass } from "@/components/user-story/StoryCompass";
 
 export default function FunctionDetailPage({
@@ -71,13 +72,14 @@ export default function FunctionDetailPage({
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status: string) =>
+    mutationFn: ({ status, changeNote }: { status: string; changeNote?: string }) =>
       apiFetch(`/api/functions/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status,
           comment: gsComment.trim() || undefined,
+          changeNote: changeNote?.trim() || undefined,
         }),
       }),
     onSuccess: () => {
@@ -106,7 +108,7 @@ export default function FunctionDetailPage({
     if (AI_REQUEST_STATUSES.includes(status)) {
       setStatusDialog(status);
     } else {
-      statusMutation.mutate(status);
+      statusMutation.mutate({ status });
     }
   };
 
@@ -356,15 +358,18 @@ export default function FunctionDetailPage({
       </Dialog>
 
       {/* ─── AI 요청 확인 대화상자 ───────────────────────────── */}
-      <ConfirmDialog
-        open={!!statusDialog}
-        onOpenChange={() => setStatusDialog(null)}
-        title="AI 요청"
-        description={`"${FUNC_STATUS_LABEL[statusDialog ?? ""]}" — AI 에게 요청 하시겠습니까?`}
-        confirmLabel="요청"
-        onConfirm={() => statusDialog && statusMutation.mutate(statusDialog)}
-        loading={statusMutation.isPending}
-      />
+      {statusDialog && (
+        <ImplRequestDialog
+          open={!!statusDialog}
+          onClose={() => setStatusDialog(null)}
+          targetStatus={statusDialog}
+          func={func}
+          loading={statusMutation.isPending}
+          onConfirm={(changeNote) =>
+            statusMutation.mutate({ status: statusDialog, changeNote })
+          }
+        />
+      )}
 
       <ConfirmDialog
         open={deleteOpen}

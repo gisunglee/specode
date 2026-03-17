@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronDown, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/common/StatusBadge";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { ImplRequestDialog } from "@/components/common/ImplRequestDialog";
 import { StoryCompass } from "@/components/user-story/StoryCompass";
 import { StoryMapDialog } from "@/components/user-story/StoryMapDialog";
 import {
@@ -71,6 +72,7 @@ export default function ScreenDetailPage({
   const [menuOrder, setMenuOrder] = useState<number | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [implDialogOpen, setImplDialogOpen] = useState(false);
   const [exampleOpen, setExampleOpen] = useState(false);
   const [storyMapOpen, setStoryMapOpen] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
@@ -108,6 +110,20 @@ export default function ScreenDetailPage({
       }
     }
   }, [dataUpdatedAt]);
+
+  const implMutation = useMutation({
+    mutationFn: (changeNote: string) =>
+      apiFetch(`/api/screens/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "IMPL_REQ", changeNote }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screen", id] });
+      toast.success("구현 요청이 등록되었습니다.");
+      setImplDialogOpen(false);
+    },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () => apiFetch(`/api/screens/${id}`, { method: "DELETE" }),
@@ -261,6 +277,10 @@ export default function ScreenDetailPage({
                 저장됨 ✓
               </span>
             )}
+            <Button variant="outline" size="sm" onClick={() => setImplDialogOpen(true)}>
+              <Bot className="h-3.5 w-3.5 mr-1.5" />
+              구현 요청
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExportPrd} title="화면+영역+기능을 PRD.md로 내보내기">
               <Download className="h-3.5 w-3.5 mr-1.5" />
               PRD 내보내기
@@ -487,6 +507,31 @@ export default function ScreenDetailPage({
         open={storyMapOpen}
         onOpenChange={setStoryMapOpen}
         screenId={screen.screenId}
+      />
+
+      {/* ─── 구현 요청 다이얼로그 ──────────────────────────────── */}
+      <ImplRequestDialog
+        open={implDialogOpen}
+        onClose={() => setImplDialogOpen(false)}
+        entityType="screen"
+        entityId={screen.screenId}
+        currentSnapshot={{
+          screen: { spec: screen.spec || "" },
+          areas: (screen.areas ?? []).map((a: AreaRow) => ({
+            areaId: a.areaId,
+            name: a.name,
+            spec: (a as { spec?: string }).spec || "",
+            functions: (a.functions ?? []).map((f: FunctionRow) => ({
+              functionId: f.functionId,
+              name: f.name,
+              spec: (f as { spec?: string }).spec || "",
+              aiDesignContent: (f as { aiDesignContent?: string }).aiDesignContent || "",
+              refContent: (f as { refContent?: string }).refContent || "",
+            })),
+          })),
+        }}
+        loading={implMutation.isPending}
+        onConfirm={(changeNote) => implMutation.mutate(changeNote)}
       />
 
       {/* ─── 화면 삭제 다이얼로그 ───────────────────────────── */}
