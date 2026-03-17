@@ -19,9 +19,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation"; // 페이지 이동용 라우터
-import { Plus, Search, Trash2, Pencil, List } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, List, Layers, Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { DataGrid } from "@/components/common/DataGrid";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import {
   DialogDescription,
@@ -72,6 +74,9 @@ export default function ScreensPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<ScreenRow | null>(null);
   const [deleteItem, setDeleteItem] = useState<ScreenRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [mockupDialogOpen, setMockupDialogOpen] = useState(false);
+  const [mockupComment, setMockupComment] = useState("");
 
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
@@ -141,6 +146,27 @@ export default function ScreensPage() {
     },
   });
 
+  const mockupMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      await Promise.all(
+        ids.map((id) =>
+          apiFetch(`/api/screens/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "MOCKUP_REQ", comment: mockupComment.trim() || null }),
+          })
+        )
+      );
+    },
+    onSuccess: () => {
+      toast.success(`${selectedIds.size}개 화면 목업 요청이 등록되었습니다.`);
+      setMockupDialogOpen(false);
+      setMockupComment("");
+      setSelectedIds(new Set());
+    },
+    onError: () => toast.error("목업 요청 중 오류가 발생했습니다."),
+  });
+
   const openCreate = () => {
     setEditItem(null);
     reset({ name: "", displayCode: "", screenType: "LIST", requirementId: "" });
@@ -177,7 +203,52 @@ export default function ScreensPage() {
 
   const requirements = reqData?.data ?? [];
 
+  const rows: ScreenRow[] = data?.data ?? [];
+  const allPageSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.screenId));
+
+  const toggleAll = () => {
+    if (allPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        rows.forEach((r) => next.delete(r.screenId));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        rows.forEach((r) => next.add(r.screenId));
+        return next;
+      });
+    }
+  };
+
   const columns: ColumnDef<ScreenRow, unknown>[] = [
+    {
+      id: "select",
+      header: () => (
+        <Checkbox
+          checked={allPageSelected}
+          onCheckedChange={toggleAll}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={selectedIds.has(row.original.screenId)}
+          onCheckedChange={() => {
+            setSelectedIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(row.original.screenId)) next.delete(row.original.screenId);
+              else next.add(row.original.screenId);
+              return next;
+            });
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      size: 40,
+      enableSorting: false,
+    },
     { accessorKey: "systemId", header: "ID", size: 100 },
     { accessorKey: "displayCode", header: "표시코드", size: 100 },
     {
@@ -305,10 +376,22 @@ export default function ScreensPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">화면 관리</h1>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1" />
-          화면 등록
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (selectedIds.size === 0) { toast.info("목업을 요청할 화면을 선택하세요."); return; }
+              setMockupDialogOpen(true);
+            }}
+          >
+            <Layers className="h-4 w-4 mr-1" />
+            목업 요청{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            화면 등록
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
@@ -348,7 +431,7 @@ export default function ScreensPage() {
        */}
       <DataGrid
         columns={columns}
-        data={data?.data ?? []}
+        data={rows}
         onRowClick={(row) => router.push(`/screens/${row.screenId}`)}
         pagination={data?.pagination}
         onPageChange={setPage}
@@ -413,6 +496,38 @@ export default function ScreensPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── 목업 요청 다이얼로그 ──────────────────────────────── */}
+      <Dialog open={mockupDialogOpen} onOpenChange={setMockupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>목업 요청 ({selectedIds.size}개 화면)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              선택된 화면의 영역·기능 설계 내용을 AI에게 전달하여 HTML 목업을 생성합니다.
+            </p>
+            <div className="space-y-1">
+              <Label>추가 요청사항 (선택)</Label>
+              <Textarea
+                placeholder="AI에게 전달할 추가 지시사항..."
+                value={mockupComment}
+                onChange={(e) => setMockupComment(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMockupDialogOpen(false)}>취소</Button>
+            <Button
+              disabled={mockupMutation.isPending}
+              onClick={() => mockupMutation.mutate([...selectedIds])}
+            >
+              {mockupMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />요청 중...</> : "목업 요청"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
