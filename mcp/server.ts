@@ -1,16 +1,22 @@
 /**
- * SPECODE MCP Server (stdio)
+ * SPECODE MCP Server
  *
  * Claude Code / Claude Desktop 에서 SPECODE 데이터를 조회·등록·AI 요청하는 MCP 서버.
  * Prisma에 직접 연결 — Next.js 서버 없이 독립 실행 가능.
  *
- * 실행: npx tsx mcp/server.ts
- * 등록: Claude Code 설정 → mcpServers → specode
+ * [stdio 모드] 기본 — Claude Code 로컬 연결
+ *   실행: npx tsx mcp/server.ts
+ *
+ * [HTTP 모드] 외부(claude.ai 등) 연결용
+ *   실행: MCP_HTTP_PORT=3001 MCP_API_KEY=your-secret npx tsx mcp/server.ts
+ *   또는: npx tsx mcp/server.ts --http --port 3001 --key your-secret
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
+import express from "express";
 
 const prisma = new PrismaClient();
 
@@ -494,9 +500,62 @@ server.tool(
 
 /* ─── 서버 기동 ─────────────────────────────────────────────── */
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  process.stderr.write("[SPECODE MCP] Server started (stdio)\n");
+  // HTTP 모드 여부 판단 (환경변수 또는 --http 플래그)
+  const args = process.argv.slice(2);
+  const isHttp = args.includes("--http") || !!process.env.MCP_HTTP_PORT;
+
+  if (!isHttp) {
+    // ── stdio 모드 (기본, Claude Code 로컬 연결) ──
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    process.stderr.write("[SPECODE MCP] Server started (stdio)\n");
+    return;
+  }
+
+  // ── HTTP 모드 (외부 연결용) ──
+  const portArg = args[args.indexOf("--port") + 1];
+  const port = portArg ? parseInt(portArg) : (parseInt(process.env.MCP_HTTP_PORT ?? "3001") || 3001);
+  const keyArg = args[args.indexOf("--key") + 1];
+  const apiKey = keyArg ?? process.env.MCP_API_KEY ?? "";
+
+  const app = express();
+  app.use(express.json());
+
+  // API Key 인증 미들웨어
+  if (apiKey) {
+    app.use((req, res, next) => {
+      const authHeader = req.headers["authorization"];
+      const keyHeader = req.headers["x-api-key"];
+      const provided = authHeader?.replace("Bearer ", "") ?? keyHeader;
+      if (provided !== apiKey) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      next();
+    });
+  }
+
+  // MCP Streamable HTTP 엔드포인트
+  app.all("/mcp", async (req, res) => {
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  });
+
+  // 헬스체크
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", server: "specode-mcp", mode: "http" });
+  });
+
+  app.listen(port, () => {
+    process.stderr.write(`[SPECODE MCP] HTTP server started on port ${port}\n`);
+    if (apiKey) {
+      process.stderr.write(`[SPECODE MCP] API Key auth enabled\n`);
+    } else {
+      process.stderr.write(`[SPECODE MCP] WARNING: No API Key set — anyone can access!\n`);
+    }
+    process.stderr.write(`[SPECODE MCP] MCP endpoint: http://localhost:${port}/mcp\n`);
+  });
 }
 
 main().catch((err) => {
