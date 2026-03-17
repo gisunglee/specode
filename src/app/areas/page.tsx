@@ -257,11 +257,12 @@ function AreasContent() {
       id: "actions",
       header: "",
       cell: ({ row }) => (
-        <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <ExcalidrawDialog
             value={row.original.designData}
             onSave={(json) => saveDesignMutation.mutate({ id: row.original.areaId, json })}
             saving={saveDesignMutation.isPending}
+            showText={false}
           />
           <Button
             variant="ghost"
@@ -288,7 +289,7 @@ function AreasContent() {
           </Button>
         </div>
       ),
-      size: 110,
+      size: 120,
       enableSorting: false,
     },
   ];

@@ -74,6 +74,20 @@ interface ReqMap {
   };
 }
 
+interface PlanRefMap {
+  mapSn:     number;
+  refPlanSn: number;
+}
+
+interface RefPlanDetail {
+  planSn:        number;
+  planNm:        string;
+  planType:      string | null;
+  manualInfo:    string | null;
+  resultContent: string | null;
+  resultType:    string | null;
+}
+
 interface PrevDraft {
   planSn:        number;
   planNm:        string;
@@ -99,6 +113,8 @@ interface DraftDetail {
   sortOrd:       number;
   isPicked:      boolean;
   reqMaps:       ReqMap[];
+  planRefMaps:   PlanRefMap[];
+  refPlanDetails: RefPlanDetail[];
   prevDraft:     PrevDraft | null;
   latestAiTask:  AiTask | null;
 }
@@ -107,6 +123,12 @@ interface ReqSearchRow {
   requirementId: number;
   systemId:      string;
   name:          string;
+}
+
+interface PlanSearchRow {
+  planSn:   number;
+  planNm:   string;
+  planType: string | null;
 }
 
 export default function PlanningCanvasPage() {
@@ -129,6 +151,10 @@ export default function PlanningCanvasPage() {
   // 요구사항 검색
   const [reqSearch,      setReqSearch]      = useState("");
   const [reqSearchFocus, setReqSearchFocus] = useState(false);
+
+  // 기획 참조 검색
+  const [planRefSearch,      setPlanRefSearch]      = useState("");
+  const [planRefSearchFocus, setPlanRefSearchFocus] = useState(false);
 
   // 요구사항 상세 팝업
   const [viewingReq, setViewingReq] = useState<ReqMap["requirement"] | null>(null);
@@ -257,6 +283,26 @@ export default function PlanningCanvasPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["planning-detail", id] }),
   });
 
+  const addPlanRefMutation = useMutation({
+    mutationFn: (refPlanSn: number) =>
+      apiFetch(`/api/planning/${id}/plan-ref-map`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refPlanSn }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["planning-detail", id] });
+      setPlanRefSearch("");
+    },
+    onError: () => toast.error("이미 추가된 기획입니다."),
+  });
+
+  const removePlanRefMutation = useMutation({
+    mutationFn: (refPlanSn: number) =>
+      apiFetch(`/api/planning/${id}/plan-ref-map?refPlanSn=${refPlanSn}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["planning-detail", id] }),
+  });
+
   // 디바운스 자동 저장 (편집 필드)
   const scheduleSave = useCallback(
     (fields: Partial<{ planNm: string; planType: string; manualInfo: string; comment: string; sortOrd: number; groupUuid: string }>) => {
@@ -329,6 +375,25 @@ export default function PlanningCanvasPage() {
     staleTime: 5000,
   });
   const reqSearchResults: ReqSearchRow[] = reqSearchData?.data ?? [];
+
+  // 기획 보드 검색 (포커스 시 최근 10건, 입력 시 필터)
+  const { data: planRefSearchData } = useQuery({
+    queryKey: ["plan-ref-search", planRefSearch],
+    queryFn: async () => {
+      const params = new URLSearchParams({ pageSize: "10" });
+      if (planRefSearch.trim()) params.set("search", planRefSearch.trim());
+      const res = await fetch(`/api/planning?${params}`);
+      return res.json();
+    },
+    enabled: planRefSearchFocus,
+    staleTime: 5000,
+  });
+  const planRefSearchResults: PlanSearchRow[] = (planRefSearchData?.data ?? []).filter(
+    (p: PlanSearchRow) => p.planSn !== parseInt(id)
+  );
+
+  // 이미 참조된 기획 SN 목록
+  const mappedRefPlanSns = new Set(draft?.planRefMaps.map((m) => m.refPlanSn) ?? []);
 
   // 이미 매핑된 요구사항 ID 목록
   const mappedReqIds = new Set(draft?.reqMaps.map((m) => m.requirement.requirementId) ?? []);
@@ -565,6 +630,81 @@ export default function PlanningCanvasPage() {
                     </button>
                   </span>
                 ))
+              )}
+            </div>
+          </div>
+
+          {/* 기획 참조 컨텍스트 */}
+          <div className="flex-shrink-0 border-b border-border px-4 py-3 space-y-2 bg-muted/10">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-muted-foreground shrink-0">기획 참조</span>
+              <div className="relative flex-1 max-w-xs">
+                <Input
+                  value={planRefSearch}
+                  onChange={(e) => setPlanRefSearch(e.target.value)}
+                  onFocus={() => setPlanRefSearchFocus(true)}
+                  onBlur={() => setTimeout(() => setPlanRefSearchFocus(false), 200)}
+                  placeholder="참조할 기획 보드 검색..."
+                  className="h-6 text-xs"
+                />
+                {planRefSearchFocus && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-popover border border-border rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                    {planRefSearchResults
+                      .filter((p) => !mappedRefPlanSns.has(p.planSn))
+                      .map((p) => (
+                        <button
+                          key={p.planSn}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors"
+                          onMouseDown={() => addPlanRefMutation.mutate(p.planSn)}
+                        >
+                          {p.planType && (
+                            <span className={`text-[10px] font-medium px-1 py-0.5 rounded mr-1.5 ${PLAN_TYPE_COLORS[p.planType] ?? "bg-muted text-muted-foreground"}`}>
+                              {p.planType}
+                            </span>
+                          )}
+                          <span>{p.planNm}</span>
+                        </button>
+                      ))}
+                    {planRefSearchResults.filter((p) => !mappedRefPlanSns.has(p.planSn)).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        {planRefSearchResults.length > 0 ? "이미 모두 추가됨" : "검색 결과가 없습니다"}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 참조 기획 칩 목록 */}
+            <div className="flex flex-wrap gap-1.5 min-h-[1.75rem]">
+              {(draft.planRefMaps.length === 0) ? (
+                <span className="text-xs text-muted-foreground">검색으로 기획 결과물을 Make 컨텍스트에 추가하세요</span>
+              ) : (
+                draft.refPlanDetails
+                  .sort((a, b) => {
+                    const ai = draft.planRefMaps.findIndex((m) => m.refPlanSn === a.planSn);
+                    const bi = draft.planRefMaps.findIndex((m) => m.refPlanSn === b.planSn);
+                    return ai - bi;
+                  })
+                  .map((p) => (
+                    <span
+                      key={p.planSn}
+                      className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-secondary text-secondary-foreground text-xs border border-border/50"
+                    >
+                      {p.planType && (
+                        <span className={`text-[10px] font-medium px-1 py-0.5 rounded ${PLAN_TYPE_COLORS[p.planType] ?? ""}`}>
+                          {p.planType}
+                        </span>
+                      )}
+                      <span className="max-w-[160px] truncate">{p.planNm}</span>
+                      <button
+                        onClick={() => removePlanRefMutation.mutate(p.planSn)}
+                        className="text-muted-foreground hover:text-destructive transition-colors ml-0.5"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </span>
+                  ))
               )}
             </div>
           </div>

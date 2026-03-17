@@ -3,10 +3,11 @@
 import { use, useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronDown, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, Download, FileText, Layers, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { DataGrid } from "@/components/common/DataGrid";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
@@ -74,6 +75,9 @@ export default function ScreenDetailPage({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [implDialogOpen, setImplDialogOpen] = useState(false);
   const [exampleOpen, setExampleOpen] = useState(false);
+  const [mockupDialogOpen, setMockupDialogOpen] = useState(false);
+  const [mockupViewOpen, setMockupViewOpen] = useState(false);
+  const [mockupComment, setMockupComment] = useState("");
   const [storyMapOpen, setStoryMapOpen] = useState(false);
   const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
 
@@ -95,6 +99,18 @@ export default function ScreenDetailPage({
   const catM: string[] = catData?.data?.categoryM ?? [];
 
   const screen = data?.data;
+  const latestMockupTask = screen?.latestMockupTask ?? null;
+  const isMockupRunning = latestMockupTask?.taskStatus === "RUNNING" || latestMockupTask?.taskStatus === "NONE";
+  const hasMockupResult = latestMockupTask?.taskStatus === "SUCCESS" || latestMockupTask?.taskStatus === "AUTO_FIXED";
+
+  // 목업 AI 폴링: RUNNING/NONE 상태면 3초마다 refetch
+  useEffect(() => {
+    if (!isMockupRunning) return;
+    const interval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["screen", id] });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isMockupRunning, id, queryClient]);
 
   useEffect(() => {
     if (screen) {
@@ -110,6 +126,22 @@ export default function ScreenDetailPage({
       }
     }
   }, [dataUpdatedAt]);
+
+  const mockupMutation = useMutation({
+    mutationFn: (comment: string) =>
+      apiFetch(`/api/screens/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "MOCKUP_REQ", comment }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screen", id] });
+      toast.success("목업 요청이 등록되었습니다.");
+      setMockupDialogOpen(false);
+      setMockupComment("");
+    },
+    onError: () => toast.error("목업 요청에 실패했습니다."),
+  });
 
   const implMutation = useMutation({
     mutationFn: (changeNote: string) =>
@@ -277,6 +309,18 @@ export default function ScreenDetailPage({
                 저장됨 ✓
               </span>
             )}
+            {hasMockupResult && (
+              <Button variant="outline" size="sm" onClick={() => setMockupViewOpen(true)}>
+                <Layers className="h-3.5 w-3.5 mr-1.5" />
+                목업 보기
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => { setMockupComment(""); setMockupDialogOpen(true); }} disabled={isMockupRunning}>
+              {isMockupRunning
+                ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />생성중...</>
+                : <><Layers className="h-3.5 w-3.5 mr-1.5" />목업 요청</>
+              }
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setImplDialogOpen(true)}>
               <Bot className="h-3.5 w-3.5 mr-1.5" />
               구현 요청
@@ -533,6 +577,54 @@ export default function ScreenDetailPage({
         loading={implMutation.isPending}
         onConfirm={(changeNote) => implMutation.mutate(changeNote)}
       />
+
+      {/* ─── 목업 요청 다이얼로그 ───────────────────────────── */}
+      <Dialog open={mockupDialogOpen} onOpenChange={setMockupDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>목업 요청</DialogTitle>
+            <DialogDescription>
+              화면의 영역·기능 정보를 AI에 전달해 HTML 목업을 생성합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5 py-2">
+            <label className="text-xs text-muted-foreground">AI 지시사항 (선택)</label>
+            <Textarea
+              value={mockupComment}
+              onChange={(e) => setMockupComment(e.target.value)}
+              placeholder="예: 모바일 레이아웃으로, 다크 테마로, 한국어 UI 등"
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMockupDialogOpen(false)}>취소</Button>
+            <Button onClick={() => mockupMutation.mutate(mockupComment)} disabled={mockupMutation.isPending}>
+              {mockupMutation.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+              요청
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 목업 보기 다이얼로그 ───────────────────────────── */}
+      <Dialog open={mockupViewOpen} onOpenChange={setMockupViewOpen}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-3 border-b border-border flex-shrink-0">
+            <DialogTitle className="text-sm">{screen?.name} — 목업 미리보기</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {latestMockupTask?.feedback && (
+              <iframe
+                srcDoc={latestMockupTask.feedback}
+                sandbox="allow-scripts allow-same-origin"
+                className="w-full border-0"
+                style={{ height: "calc(95vh - 60px)" }}
+                title="목업 미리보기"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── 화면 삭제 다이얼로그 ───────────────────────────── */}
       {areaCount > 0 ? (

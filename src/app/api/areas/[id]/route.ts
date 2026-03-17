@@ -87,6 +87,59 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const numId = parseInt(id);
   const body = await request.json();
 
+  // ── 목업 요청 ────────────────────────────────────────────
+  if (body.action === "MOCKUP_REQ") {
+    const area = await prisma.area.findUnique({
+      where: { areaId: numId },
+      select: {
+        areaCode: true,
+        name: true,
+        spec: true,
+        functions: {
+          select: { functionId: true, displayCode: true, name: true, spec: true, aiDesignContent: true, aiImplFeedback: true },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+    if (!area) return apiError("NOT_FOUND", "영역을 찾을 수 없습니다.", 404);
+
+    const specParts: string[] = [];
+    if (area.spec) specParts.push(`# 영역: ${area.name} (${area.areaCode})\n\n## 영역 설계\n\n${area.spec}`);
+    for (const f of area.functions) {
+      const code = f.displayCode ? `[${f.displayCode}] ` : "";
+      const fParts: string[] = [`## 기능: ${code}${f.name}`];
+      if (f.spec) fParts.push(`\n### 기본 설계\n\n${f.spec}`);
+      if (f.aiDesignContent) fParts.push(`\n### 상세 설계\n\n${f.aiDesignContent}`);
+      if (f.aiImplFeedback) fParts.push(`\n### 구현 가이드\n\n${f.aiImplFeedback}`);
+      if (fParts.length > 1) specParts.push(fParts.join("\n"));
+    }
+
+    const taskSystemId = await generateSystemId("ATK");
+    await prisma.aiTask.create({
+      data: {
+        systemId: taskSystemId,
+        refTableName: "tb_area",
+        refPkId: numId,
+        taskType: "MOCKUP",
+        taskStatus: "NONE",
+        spec: specParts.join("\n\n---\n\n") || null,
+        comment: body.comment?.trim() || null,
+        contextSnapshot: JSON.stringify({
+          area: { areaCode: area.areaCode, name: area.name, spec: area.spec || "" },
+          functions: area.functions.map((f) => ({
+            functionId: f.functionId,
+            displayCode: f.displayCode || "",
+            name: f.name,
+            spec: f.spec || "",
+            aiDesignContent: f.aiDesignContent || "",
+            aiImplFeedback: f.aiImplFeedback || "",
+          })),
+        }),
+      },
+    });
+    return apiSuccess({ requested: true });
+  }
+
   // ── 구현 요청 (상태 변경 없음, AiTask만 생성) ─────────────
   if (body.action === "IMPL_REQ") {
     const area = await prisma.area.findUnique({

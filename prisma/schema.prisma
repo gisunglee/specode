@@ -23,10 +23,24 @@ model PlanningDraft {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  reqMaps  PlanningReqMap[]
+  reqMaps     PlanningReqMap[]
+  planRefMaps PlanningDraftRefMap[] @relation("PlanningRefMaps")
 
   @@index([groupUuid])
   @@map("tb_planning_draft")
+}
+
+/// 기획-기획 참조 매핑. 현재 기획이 다른 기획 결과물을 AI 컨텍스트로 참조할 때 사용.
+model PlanningDraftRefMap {
+  mapSn     Int      @id @default(autoincrement()) @map("map_sn")
+  planSn    Int      @map("plan_sn")
+  refPlanSn Int      @map("ref_plan_sn")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  plan    PlanningDraft @relation("PlanningRefMaps", fields: [planSn], references: [planSn], onDelete: Cascade)
+
+  @@unique([planSn, refPlanSn])
+  @@map("tb_planning_draft_ref_map")
 }
 
 /// 기획-요구사항 매핑. 하나의 기획이 참조하는 여러 요구사항을 연결.

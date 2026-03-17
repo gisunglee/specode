@@ -30,8 +30,21 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         },
         orderBy: { createdAt: "asc" },
       },
+      planRefMaps: {
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
+
+  // planRefMaps에서 참조 기획 상세 조회
+  let refPlanDetails: { planSn: number; planNm: string; planType: string | null; manualInfo: string | null; resultContent: string | null; resultType: string | null }[] = [];
+  if (data && data.planRefMaps.length > 0) {
+    const refPlanSns = data.planRefMaps.map((m) => m.refPlanSn);
+    refPlanDetails = await prisma.planningDraft.findMany({
+      where: { planSn: { in: refPlanSns } },
+      select: { planSn: true, planNm: true, planType: true, manualInfo: true, resultContent: true, resultType: true },
+    });
+  }
 
   if (!data) {
     return apiError("NOT_FOUND", "기획을 찾을 수 없습니다.", 404);
@@ -53,7 +66,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     orderBy: { requestedAt: "desc" },
   });
 
-  return apiSuccess({ ...data, prevDraft: prevDraft ?? null, latestAiTask: latestAiTask ?? null });
+  return apiSuccess({ ...data, prevDraft: prevDraft ?? null, latestAiTask: latestAiTask ?? null, refPlanDetails });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {

@@ -27,12 +27,23 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
           },
         },
       },
+      planRefMaps: {
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
   if (!draft) {
     return apiError("NOT_FOUND", "기획을 찾을 수 없습니다.", 404);
   }
+
+  // 참조 기획 목록 조회
+  const refPlanDetails = draft.planRefMaps.length > 0
+    ? await prisma.planningDraft.findMany({
+        where: { planSn: { in: draft.planRefMaps.map((m) => m.refPlanSn) } },
+        select: { planSn: true, planNm: true, planType: true, manualInfo: true, resultContent: true, resultType: true },
+      })
+    : [];
 
   // 이전 기획 컨텍스트 (3순위)
   const prevDraft = await prisma.planningDraft.findFirst({
@@ -46,6 +57,13 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
   const systemId = await generateSystemId("ATK");
 
+  const PLAN_TYPE_DESC: Record<string, string> = {
+    IA:      "정보구조도(IA)",
+    PROCESS: "프로세스 다이어그램",
+    ERD:     "ERD(데이터 모델)",
+    MOCKUP:  "목업(MOCKUP)",
+  };
+
   const spec = JSON.stringify({
     planType:   draft.planType,
     manualInfo: draft.manualInfo,   // 1순위: 사용자 상세 아이디어
@@ -56,6 +74,14 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       detailSpec:   m.requirement.detailSpec,   // 요구사항 명세서
       discussionMd: m.requirement.discussionMd, // 2순위: 상세 협의 내용
       content:      m.requirement.currentContent ?? m.requirement.originalContent,
+    })),
+    refPlannings: refPlanDetails.map((p) => ({
+      planNm:        p.planNm,
+      planType:      p.planType,
+      description:   `이전에 분석 설계를 통해 만들어 낸 ${PLAN_TYPE_DESC[p.planType ?? ""] ?? "기획 결과물"} "${p.planNm}" 입니다. 참고하세요.`,
+      manualInfo:    p.manualInfo,
+      resultContent: p.resultContent,
+      resultType:    p.resultType,
     })),
     prevContext: prevDraft
       ? {

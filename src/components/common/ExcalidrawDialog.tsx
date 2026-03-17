@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ExcalidrawAPI = {
@@ -44,9 +45,11 @@ interface ExcalidrawDialogProps {
   onSave: (json: string) => void;
   /** 저장 중 여부 */
   saving?: boolean;
+  /** 버튼 텍스트 표시 여부 (기본값: true) */
+  showText?: boolean;
 }
 
-export function ExcalidrawDialog({ value, onSave, saving }: ExcalidrawDialogProps) {
+export function ExcalidrawDialog({ value, onSave, saving, showText = true }: ExcalidrawDialogProps) {
   const [open, setOpen] = useState(false);
   const [mountKey, setMountKey] = useState(0);
   const apiRef = useRef<ExcalidrawAPI | null>(null);
@@ -85,10 +88,20 @@ export function ExcalidrawDialog({ value, onSave, saving }: ExcalidrawDialogProp
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => handleOpenChange(true)}>
-        <Pencil className="h-3.5 w-3.5 mr-1.5" />
-        디자인 설계
-        {value && <span className="ml-1.5 text-[10px] text-primary font-semibold">●</span>}
+      <Button
+        variant="outline"
+        size={showText ? "sm" : "icon"}
+        onClick={() => handleOpenChange(true)}
+        title={showText ? undefined : "디자인 설계"}
+        className={cn(!showText && "h-8 w-8 relative")}
+      >
+        <Pencil className={cn("h-4 w-4", showText && "mr-1.5 h-3.5 w-3.5")} />
+        {showText && "디자인 설계"}
+        {value && (
+          <span className={cn("text-[10px] text-primary font-semibold", showText ? "ml-1.5" : "absolute top-1 right-1")}>
+            ●
+          </span>
+        )}
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>

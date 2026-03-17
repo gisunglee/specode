@@ -37,12 +37,19 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return apiError("NOT_FOUND", "화면을 찾을 수 없습니다.", 404);
   }
 
-  const attachments = await prisma.attachment.findMany({
-    where: { refTableName: "tb_screen", refPkId: numId, delYn: "N" },
-    orderBy: { createdAt: "asc" },
-  });
+  const [attachments, latestMockupTask] = await Promise.all([
+    prisma.attachment.findMany({
+      where: { refTableName: "tb_screen", refPkId: numId, delYn: "N" },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.aiTask.findFirst({
+      where: { refTableName: "tb_screen", refPkId: numId, taskType: "MOCKUP" },
+      orderBy: { requestedAt: "desc" },
+      select: { aiTaskId: true, taskStatus: true, feedback: true, requestedAt: true },
+    }),
+  ]);
 
-  return apiSuccess({ ...data, attachments });
+  return apiSuccess({ ...data, attachments, latestMockupTask: latestMockupTask ?? null });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -78,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const numId = parseInt(id);
   const body = await request.json();
 
-  if (body.action !== "IMPL_REQ") {
+  if (body.action !== "IMPL_REQ" && body.action !== "MOCKUP_REQ") {
     return apiError("VALIDATION_ERROR", "지원하지 않는 action입니다.");
   }
 
@@ -92,10 +99,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         orderBy: { sortOrder: "asc" },
         select: {
           areaId: true,
+          areaCode: true,
           name: true,
           spec: true,
           functions: {
-            select: { functionId: true, name: true, spec: true, aiDesignContent: true, refContent: true },
+            select: { functionId: true, displayCode: true, name: true, spec: true, aiDesignContent: true, aiImplFeedback: true, refContent: true },
             orderBy: { createdAt: "asc" },
           },
         },
@@ -104,16 +112,64 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
   if (!screen) return apiError("NOT_FOUND", "화면을 찾을 수 없습니다.", 404);
 
-  // spec 조합: 화면 설명 + 영역 + 기능
+  if (body.action === "IMPL_REQ") {
+    // spec 조합: 화면 설명 + 영역 + 기능
+    const specParts: string[] = [];
+    if (screen.spec) specParts.push(`# 화면: ${screen.name} (${screen.systemId})\n\n## 화면 설명\n\n${screen.spec}`);
+    for (const area of screen.areas) {
+      const areaParts: string[] = [`# 영역: ${area.name}`];
+      if (area.spec) areaParts.push(`\n## 영역 설명\n\n${area.spec}`);
+      for (const f of area.functions) {
+        const fParts: string[] = [`\n## 기능: ${f.name}`];
+        if (f.spec) fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
+        if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+        if (fParts.length > 1) areaParts.push(fParts.join("\n"));
+      }
+      specParts.push(areaParts.join("\n"));
+    }
+
+    const taskSystemId = await generateSystemId("ATK");
+    await prisma.aiTask.create({
+      data: {
+        systemId: taskSystemId,
+        refTableName: "tb_screen",
+        refPkId: numId,
+        taskType: "IMPLEMENT",
+        taskStatus: "NONE",
+        spec: specParts.join("\n\n---\n\n") || null,
+        contextSnapshot: JSON.stringify({
+          screen: { spec: screen.spec || "" },
+          areas: screen.areas.map((a) => ({
+            areaId: a.areaId,
+            name: a.name,
+            spec: a.spec || "",
+            functions: a.functions.map((f) => ({
+              functionId: f.functionId,
+              name: f.name,
+              spec: f.spec || "",
+              aiDesignContent: f.aiDesignContent || "",
+              refContent: f.refContent || "",
+            })),
+          })),
+        }),
+        changeNote: body.changeNote?.trim() || null,
+      },
+    });
+    return apiSuccess({ requested: true });
+  }
+
+  // MOCKUP_REQ
   const specParts: string[] = [];
   if (screen.spec) specParts.push(`# 화면: ${screen.name} (${screen.systemId})\n\n## 화면 설명\n\n${screen.spec}`);
   for (const area of screen.areas) {
-    const areaParts: string[] = [`# 영역: ${area.name}`];
-    if (area.spec) areaParts.push(`\n## 영역 설명\n\n${area.spec}`);
+    const areaParts: string[] = [`# 영역: ${area.areaCode} ${area.name}`];
+    if (area.spec) areaParts.push(`\n## 영역 설계\n\n${area.spec}`);
     for (const f of area.functions) {
-      const fParts: string[] = [`\n## 기능: ${f.name}`];
-      if (f.spec) fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
-      if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+      const code = f.displayCode ? `[${f.displayCode}] ` : "";
+      const fParts: string[] = [`\n## 기능: ${code}${f.name}`];
+      if (f.spec) fParts.push(`\n### 기본 설계\n\n${f.spec}`);
+      if (f.aiDesignContent) fParts.push(`\n### 상세 설계\n\n${f.aiDesignContent}`);
+      if (f.aiImplFeedback) fParts.push(`\n### 구현 가이드\n\n${f.aiImplFeedback}`);
       if (fParts.length > 1) areaParts.push(fParts.join("\n"));
     }
     specParts.push(areaParts.join("\n"));
@@ -125,28 +181,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       systemId: taskSystemId,
       refTableName: "tb_screen",
       refPkId: numId,
-      taskType: "IMPLEMENT",
+      taskType: "MOCKUP",
       taskStatus: "NONE",
       spec: specParts.join("\n\n---\n\n") || null,
+      comment: body.comment?.trim() || null,
       contextSnapshot: JSON.stringify({
-        screen: { spec: screen.spec || "" },
+        screen: { systemId: screen.systemId, name: screen.name, spec: screen.spec || "" },
         areas: screen.areas.map((a) => ({
           areaId: a.areaId,
+          areaCode: a.areaCode,
           name: a.name,
           spec: a.spec || "",
           functions: a.functions.map((f) => ({
             functionId: f.functionId,
+            displayCode: f.displayCode || "",
             name: f.name,
             spec: f.spec || "",
-            aiDesignContent: f.aiDesignContent || "",
-            refContent: f.refContent || "",
           })),
         })),
       }),
-      changeNote: body.changeNote?.trim() || null,
     },
   });
-
   return apiSuccess({ requested: true });
 }
 
