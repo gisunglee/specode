@@ -8,12 +8,17 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
-  const screenId = searchParams.get("screenId");
+  const screenId   = searchParams.get("screenId");
+  const unitWorkId = searchParams.get("unitWorkId");
   const status = searchParams.get("status");
   const search = searchParams.get("search") || "";
 
   const where: Record<string, unknown> = {};
-  if (screenId) where.screenId = parseInt(screenId);
+  if (screenId) {
+    where.screenId = parseInt(screenId);
+  } else if (unitWorkId) {
+    where.screen = { unitWorkId: parseInt(unitWorkId) };
+  }
   if (status) {
     // 구 status 문자열을 phase/phaseStatus로 변환하여 필터
     const phaseFilter = statusToPhase(status);

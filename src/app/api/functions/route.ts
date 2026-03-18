@@ -38,18 +38,20 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
   const status = searchParams.get("status");
-  const areaId = searchParams.get("areaId");
-  const screenId = searchParams.get("screenId"); // 화면 ID로 필터 (area 경유)
-  const priority = searchParams.get("priority");
-  const search = searchParams.get("search") || "";
+  const areaId     = searchParams.get("areaId");
+  const screenId   = searchParams.get("screenId");
+  const unitWorkId = searchParams.get("unitWorkId");
+  const priority   = searchParams.get("priority");
+  const search     = searchParams.get("search") || "";
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
   if (areaId) where.areaId = parseInt(areaId);
   if (priority) where.priority = priority;
   if (screenId) {
-    // 화면 ID로 필터 시 해당 화면의 영역들을 경유
     where.area = { screenId: parseInt(screenId) };
+  } else if (!areaId && unitWorkId) {
+    where.area = { screen: { unitWorkId: parseInt(unitWorkId) } };
   }
   if (search) {
     where.OR = [

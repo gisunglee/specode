@@ -66,7 +66,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         name: parsed.name,
         displayCode: parsed.displayCode ?? null,
         screenType: parsed.screenType ?? null,
-        requirementId: parsed.requirementId,
+        ...(parsed.requirementId !== undefined && parsed.requirementId !== null && {
+          requirementId: parsed.requirementId,
+        }),
         unitWorkId: body.unitWorkId !== undefined
           ? (body.unitWorkId ? parseInt(body.unitWorkId) : null)
           : undefined,

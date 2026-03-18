@@ -25,6 +25,7 @@ import {
   Network,
   BarChart2,
   Briefcase,
+  LayoutTemplate,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,7 @@ const icons = {
   Network,
   BarChart2,
   Briefcase,
+  LayoutTemplate,
 } as const;
 
 const NAV_ITEMS = [
@@ -65,8 +67,9 @@ const NAV_ITEMS = [
   { href: "/functions",       label: "기능",          icon: "Cog" as const },
   { href: "/design-contents", label: "설계마당",      icon: "FileCode2" as const },
   { divider: true },
-  { href: "/req-hub",     label: "요구사항 허브", icon: "Network" as const },
-  { href: "/composition", label: "화면 구성",    icon: "Layers" as const },
+  { href: "/req-hub",      label: "요구사항 허브",   icon: "Network"         as const },
+  { href: "/bulk-design",  label: "시스템 일괄 설계", icon: "LayoutTemplate"  as const },
+  { href: "/composition",  label: "화면 구성",       icon: "Layers"          as const },
   { divider: true },
   { href: "/ai-tasks",         label: "AI 현황",  icon: "Bot" as const },
   { href: "/db-schema",        label: "DB 스키마",icon: "Database" as const },
