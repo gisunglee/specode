@@ -28,6 +28,7 @@ interface DataGridProps<T> {
   selectable?: boolean;
   onSelectionChange?: (selected: T[]) => void;
   emptyMessage?: string;
+  emptyPadding?: "sm" | "md" | "lg";
   getRowClassName?: (row: T) => string;
   dense?: boolean;
   spacious?: boolean;
@@ -41,6 +42,7 @@ export function DataGrid<T>({
   pagination,
   onPageChange,
   emptyMessage = "데이터가 없습니다.",
+  emptyPadding = "lg",
   getRowClassName,
   dense,
   spacious,
@@ -98,7 +100,7 @@ export function DataGrid<T>({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-12 text-center text-muted-foreground">
+                <td colSpan={columns.length} className={cn("px-4 text-center text-muted-foreground", emptyPadding === "sm" ? "py-2" : emptyPadding === "md" ? "py-4" : "py-12")}>
                   로딩 중...
                 </td>
               </tr>
@@ -106,7 +108,7 @@ export function DataGrid<T>({
               <tr>
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-12 text-center text-muted-foreground"
+                  className={cn("px-4 text-center text-muted-foreground", emptyPadding === "sm" ? "py-2" : emptyPadding === "md" ? "py-4" : "py-12")}
                 >
                   {emptyMessage}
                 </td>

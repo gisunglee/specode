@@ -192,6 +192,15 @@ function AreasContent() {
   /* ─── 테이블 컬럼 정의 ───────────────────────────────────── */
   const columns: ColumnDef<AreaRow, unknown>[] = [
     { accessorKey: "areaCode", header: "영역코드", size: 110 },
+    {
+      id: "screen",
+      header: "소속 화면",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">
+          {row.original.screen?.name ?? "-"}
+        </span>
+      ),
+    },
     { accessorKey: "name", header: "영역명" },
     {
       accessorKey: "areaType",
@@ -205,15 +214,6 @@ function AreasContent() {
         );
       },
       size: 80,
-    },
-    {
-      id: "screen",
-      header: "소속 화면",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.screen?.name ?? "-"}
-        </span>
-      ),
     },
     {
       accessorKey: "status",

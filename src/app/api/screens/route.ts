@@ -11,8 +11,11 @@ export async function GET(request: NextRequest) {
   const requirementId = searchParams.get("requirementId");
   const search = searchParams.get("search") || "";
 
+  const unitWorkId = searchParams.get("unitWorkId");
+
   const where: Record<string, unknown> = {};
   if (requirementId) where.requirementId = parseInt(requirementId);
+  if (unitWorkId)    where.unitWorkId    = parseInt(unitWorkId);
   if (search) {
     where.OR = [
       { name: { contains: search } },
@@ -26,6 +29,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         requirement: { select: { name: true, systemId: true } },
+        unitWork:    { select: { unitWorkId: true, systemId: true, name: true } },
         _count: { select: { areas: true } },
         areas: { select: { functions: { select: { confirmed: true } } } },
       },
@@ -80,6 +84,7 @@ export async function POST(request: NextRequest) {
         displayCode: parsed.displayCode ?? null,
         screenType: parsed.screenType ?? null,
         requirementId: parsed.requirementId,
+        unitWorkId: body.unitWorkId ? parseInt(body.unitWorkId) : null,
       },
       include: {
         requirement: { select: { name: true, systemId: true } },

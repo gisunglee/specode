@@ -35,7 +35,11 @@ export async function GET(request: NextRequest) {
         screen: { select: { name: true, systemId: true } },
         _count: { select: { functions: true } },
       },
-      orderBy: [{ screenId: "asc" }, { sortOrder: "asc" }],
+      orderBy: [
+        { screen: { unitWork: { sortOrder: "asc" } } },
+        { screen: { sortOrder: "asc" } },
+        { sortOrder: "asc" },
+      ],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

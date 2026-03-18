@@ -9,6 +9,7 @@
  *   tb_standard_guide  → content
  *   tb_db_schema       → ddl_script
  *   tb_planning_draft  → result_content
+ *   tb_unit_work       → description
  */
 import prisma from "@/lib/prisma";
 
@@ -19,10 +20,11 @@ const VERSIONED_FIELDS: Record<string, string[]> = {
   tb_standard_guide: ["content"],
   tb_db_schema: ["ddl_script"],
   tb_planning_draft: ["result_content"],
+  tb_unit_work: ["description"],
 };
 
 export interface SaveVersionParams {
-  refTableName: "tb_function" | "tb_area" | "tb_standard_guide" | "tb_db_schema" | "tb_planning_draft";
+  refTableName: "tb_function" | "tb_area" | "tb_standard_guide" | "tb_db_schema" | "tb_planning_draft" | "tb_unit_work";
   refPkId: number;
   fieldName: string;
   /** 변경 직전의 현재 값 (이걸 이력으로 남긴다) */

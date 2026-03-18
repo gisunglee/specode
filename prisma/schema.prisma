@@ -91,11 +91,32 @@ model Requirement {
 
   task        Task?            @relation(fields: [taskId], references: [taskId])
   screens     Screen[]
+  unitWorks   UnitWork[]
   userStories UserStory[]
   planReqMaps PlanningReqMap[]
 
   @@index([taskId])
   @@map("tb_requirement")
+}
+
+/// 단위업무. 요구사항 하위, 화면 상위의 업무 단위. PRD 전송 기준 단위.
+model UnitWork {
+  unitWorkId    Int      @id @default(autoincrement()) @map("unit_work_id")
+  systemId      String   @unique @map("system_id")    // UW-00001
+  requirementId Int      @map("requirement_id")
+  name          String                                 // "게시판 관리"
+  description   String?
+  sortOrder     Int      @default(0) @map("sort_order")
+  useYn         String   @default("Y") @map("use_yn")
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  requirement Requirement @relation(fields: [requirementId], references: [requirementId])
+  screens     Screen[]
+
+  @@index([requirementId])
+  @@map("tb_unit_work")
 }
 
 model Screen {
@@ -105,19 +126,22 @@ model Screen {
   name          String   @map("name")
   screenType    String?  @map("screen_type")
   requirementId Int      @map("requirement_id")
+  unitWorkId    Int?     @map("unit_work_id")     // 단위업무 (nullable — 하위 호환)
   spec          String?  @map("spec")             // 화면 설명 (마크다운)
   layoutData    String?  @map("layout_data")      // 레이아웃 JSON 문자열
   categoryL     String?  @map("category_l")       // 대분류 (대메뉴)
   categoryM     String?  @map("category_m")       // 중분류 (중메뉴)
   categoryS     String?  @map("category_s")       // 소분류 (3depth 메뉴)
-  menuOrder     Int?     @map("menu_order")        // 메뉴 정렬 순서
+  sortOrder     Int?     @map("sort_order")         // 메뉴 정렬 순서
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   requirement Requirement      @relation(fields: [requirementId], references: [requirementId])
+  unitWork    UnitWork?        @relation(fields: [unitWorkId], references: [unitWorkId])
   areas       Area[]
   storyMaps   ScreenStoryMap[]
 
+  @@index([unitWorkId])
   @@map("tb_screen")
 }
 

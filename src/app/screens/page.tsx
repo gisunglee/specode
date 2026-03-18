@@ -57,12 +57,22 @@ interface ScreenRow {
   name: string;
   screenType: string | null;
   requirementId: number;
+  unitWorkId: number | null;
   requirement: { name: string; systemId: string };
+  unitWork: { unitWorkId: number; systemId: string; name: string } | null;
   _count: { areas: number };
   categoryL: string | null;
   categoryM: string | null;
   updatedAt: string;
   latestTask: { taskStatus: string; taskType: string; completedAt: string | null } | null;
+}
+
+interface UnitWorkOption {
+  unitWorkId: number;
+  systemId: string;
+  name: string;
+  requirementId: number;
+  requirement: { systemId: string; name: string };
 }
 
 export default function ScreensPage() {
@@ -83,16 +93,13 @@ export default function ScreensPage() {
       name: "",
       displayCode: "",
       screenType: "LIST",
-      requirementId: "",
+      unitWorkId: "",
     },
   });
 
-  const { data: reqData } = useQuery({
-    queryKey: ["requirements-all"],
-    queryFn: async () => {
-      const res = await fetch("/api/requirements?pageSize=100");
-      return res.json();
-    },
+  const { data: uwData } = useQuery({
+    queryKey: ["unit-works-all"],
+    queryFn: () => apiFetch<{ data: UnitWorkOption[] }>("/api/unit-works?pageSize=200"),
   });
 
   const { data, isLoading } = useQuery({
@@ -100,7 +107,7 @@ export default function ScreensPage() {
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "10" });
       if (search) params.set("search", search);
-      if (filterReqId) params.set("requirementId", filterReqId);
+      if (filterReqId) params.set("unitWorkId", filterReqId);
       const res = await fetch(`/api/screens?${params}`);
       return res.json();
     },
@@ -169,7 +176,7 @@ export default function ScreensPage() {
 
   const openCreate = () => {
     setEditItem(null);
-    reset({ name: "", displayCode: "", screenType: "LIST", requirementId: "" });
+    reset({ name: "", displayCode: "", screenType: "LIST", unitWorkId: "" });
     setDialogOpen(true);
   };
 
@@ -179,7 +186,7 @@ export default function ScreensPage() {
       name: row.name,
       displayCode: row.displayCode || "",
       screenType: row.screenType || "LIST",
-      requirementId: String(row.requirementId),
+      unitWorkId: row.unitWorkId ? String(row.unitWorkId) : "",
     });
     setDialogOpen(true);
   };
@@ -188,11 +195,15 @@ export default function ScreensPage() {
     name: string;
     displayCode: string;
     screenType: string;
-    requirementId: string;
+    unitWorkId: string;
   }) => {
+    const unitWork = unitWorks.find((u) => String(u.unitWorkId) === formData.unitWorkId);
     const payload = {
-      ...formData,
-      requirementId: parseInt(formData.requirementId),
+      name: formData.name,
+      displayCode: formData.displayCode,
+      screenType: formData.screenType,
+      unitWorkId: formData.unitWorkId ? parseInt(formData.unitWorkId) : null,
+      requirementId: unitWork?.requirementId ?? editItem?.requirementId ?? 0,
     };
     if (editItem) {
       updateMutation.mutate({ id: editItem.screenId, ...payload });
@@ -201,7 +212,7 @@ export default function ScreensPage() {
     }
   };
 
-  const requirements = reqData?.data ?? [];
+  const unitWorks = uwData?.data ?? [];
 
   const rows: ScreenRow[] = data?.data ?? [];
   const allPageSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.screenId));
@@ -285,10 +296,12 @@ export default function ScreensPage() {
       size: 70,
     },
     {
-      id: "requirement",
-      header: "소속 요구사항",
+      id: "unitWork",
+      header: "단위업무",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.requirement?.name}</span>
+        <span className="text-muted-foreground text-xs">
+          {row.original.unitWork ? `[${row.original.unitWork.systemId}] ${row.original.unitWork.name}` : "-"}
+        </span>
       ),
     },
     {
@@ -408,13 +421,13 @@ export default function ScreensPage() {
         </div>
         <Select value={filterReqId} onValueChange={(v) => { setFilterReqId(v === "ALL" ? "" : v); setPage(1); }}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="요구사항: 전체" />
+            <SelectValue placeholder="단위업무: 전체" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">전체</SelectItem>
-            {requirements.map((r: { requirementId: number; name: string }) => (
-              <SelectItem key={r.requirementId} value={String(r.requirementId)}>
-                {r.name}
+            {unitWorks.map((u) => (
+              <SelectItem key={u.unitWorkId} value={String(u.unitWorkId)}>
+                [{u.requirement.systemId}] {u.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -470,18 +483,18 @@ export default function ScreensPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>소속 요구사항 *</Label>
+              <Label>단위업무</Label>
               <Select
-                value={watch("requirementId")}
-                onValueChange={(v) => setValue("requirementId", v)}
+                value={watch("unitWorkId")}
+                onValueChange={(v) => setValue("unitWorkId", v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="요구사항 선택" />
+                  <SelectValue placeholder="단위업무 선택 (선택)" />
                 </SelectTrigger>
                 <SelectContent>
-                  {requirements.map((r: { requirementId: number; systemId: string; name: string }) => (
-                    <SelectItem key={r.requirementId} value={String(r.requirementId)}>
-                      {r.systemId} {r.name}
+                  {unitWorks.map((u) => (
+                    <SelectItem key={u.unitWorkId} value={String(u.unitWorkId)}>
+                      [{u.requirement.systemId}] {u.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -24,6 +24,7 @@ import {
   Layers,
   Network,
   BarChart2,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +47,7 @@ const icons = {
   Layers,
   Network,
   BarChart2,
+  Briefcase,
 } as const;
 
 const NAV_ITEMS = [
@@ -57,6 +59,7 @@ const NAV_ITEMS = [
   { href: "/requirements",    label: "요구사항",      icon: "ClipboardList" as const },
   { href: "/user-stories",    label: "사용자 스토리", icon: "BookMarked" as const },
   { href: "/planning",        label: "기획 보드",     icon: "Palette" as const },
+  { href: "/unit-works",      label: "단위업무",      icon: "Briefcase" as const },
   { href: "/screens",         label: "화면",          icon: "Monitor" as const },
   { href: "/areas",           label: "영역",          icon: "LayoutGrid" as const },
   { href: "/functions",       label: "기능",          icon: "Cog" as const },

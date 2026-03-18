@@ -1,14 +1,13 @@
 "use client";
 
-import { use, useState, useEffect, useCallback, useRef } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronDown, ChevronRight, Download, FileText, Layers, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ChevronRight, Download, FileText, Layers, Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { DataGrid } from "@/components/common/DataGrid";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
@@ -36,7 +35,7 @@ import { SpecExampleDialog } from "@/components/common/SpecExampleDialog";
 import { apiFetch, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { DEFAULT_SCREEN_SPEC } from "@/lib/templates/screenSpec";
-import type { ColumnDef } from "@tanstack/react-table";
+
 
 interface FunctionRow {
   functionId: number;
@@ -55,6 +54,19 @@ interface AreaRow {
   functions: FunctionRow[];
 }
 
+interface FlatRow {
+  areaId: number;
+  areaCode: string;
+  areaName: string;
+  areaType: string;
+  functionId: number | null;
+  functionSystemId: string | null;
+  functionDisplayCode: string | null;
+  functionName: string | null;
+  functionStatus: string | null;
+  functionUpdatedAt: string | null;
+}
+
 export default function ScreenDetailPage({
   params,
 }: {
@@ -70,7 +82,7 @@ export default function ScreenDetailPage({
   const [categoryL, setCategoryL] = useState("");
   const [categoryM, setCategoryM] = useState("");
   const [categoryS, setCategoryS] = useState("");
-  const [menuOrder, setMenuOrder] = useState<number | null>(null);
+  const [sortOrder, setMenuOrder] = useState<number | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [implDialogOpen, setImplDialogOpen] = useState(false);
@@ -79,7 +91,6 @@ export default function ScreenDetailPage({
   const [mockupViewOpen, setMockupViewOpen] = useState(false);
   const [mockupComment, setMockupComment] = useState("");
   const [storyMapOpen, setStoryMapOpen] = useState(false);
-  const [expandedAreas, setExpandedAreas] = useState<Set<number>>(new Set());
 
   const { data, isLoading, dataUpdatedAt } = useQuery({
     queryKey: ["screen", id],
@@ -119,11 +130,8 @@ export default function ScreenDetailPage({
       setCategoryL(screen.categoryL ?? "");
       setCategoryM(screen.categoryM ?? "");
       setCategoryS(screen.categoryS ?? "");
-      setMenuOrder(screen.menuOrder ?? null);
+      setMenuOrder(screen.sortOrder ?? null);
       if (!name) setName(screen.name);
-      if (screen.areas?.length) {
-        setExpandedAreas(new Set(screen.areas.map((a: AreaRow) => a.areaId)));
-      }
     }
   }, [dataUpdatedAt]);
 
@@ -211,38 +219,9 @@ export default function ScreenDetailPage({
       categoryL: categoryL || null,
       categoryM: categoryM || null,
       categoryS: categoryS || null,
-      menuOrder: menuOrder,
+      sortOrder: sortOrder,
     });
   };
-
-  const toggleArea = (areaId: number) => {
-    setExpandedAreas((prev) => {
-      const next = new Set(prev);
-      if (next.has(areaId)) next.delete(areaId);
-      else next.add(areaId);
-      return next;
-    });
-  };
-
-  const funcColumns: ColumnDef<FunctionRow, unknown>[] = [
-    { accessorKey: "systemId", header: "ID", size: 110 },
-    { accessorKey: "displayCode", header: "표시코드", size: 100 },
-    { accessorKey: "name", header: "기능명" },
-    {
-      accessorKey: "status",
-      header: "상태",
-      cell: ({ getValue }) => <StatusBadge status={getValue() as string} />,
-      size: 100,
-    },
-    {
-      accessorKey: "updatedAt",
-      header: "수정일",
-      cell: ({ getValue }) => (
-        <span className="text-muted-foreground">{formatDate(getValue() as string)}</span>
-      ),
-      size: 80,
-    },
-  ];
 
   if (isLoading) {
     return (
@@ -429,11 +408,11 @@ export default function ScreenDetailPage({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label htmlFor="menuOrder" className="text-xs text-muted-foreground">메뉴순서</label>
+                    <label htmlFor="sortOrder" className="text-xs text-muted-foreground">메뉴순서</label>
                     <Input
-                      id="menuOrder"
+                      id="sortOrder"
                       type="number"
-                      value={menuOrder ?? ""}
+                      value={sortOrder ?? ""}
                       onChange={(e) => setMenuOrder(e.target.value ? parseInt(e.target.value) : null)}
                       placeholder="0"
                     />
@@ -487,53 +466,86 @@ export default function ScreenDetailPage({
 
           {areas.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">등록된 영역이 없습니다.</p>
-          ) : (
-            <div className="space-y-3">
-              {areas.map((area: AreaRow) => {
-                const expanded = expandedAreas.has(area.areaId);
-                const areaTypeLabel =
-                  AREA_TYPES.find((t) => t.value === area.areaType)?.label ?? area.areaType;
-                return (
-                  <div key={area.areaId} className="rounded-lg border border-border bg-card overflow-hidden">
-                    <button
-                      onClick={() => toggleArea(area.areaId)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer text-left"
-                    >
-                      <div className="flex items-center gap-3">
-                        {expanded ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {area.areaCode}
-                        </span>
-                        <span className="font-medium">{area.name}</span>
-                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
-                          {areaTypeLabel}
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        기능 {area.functions?.length ?? 0}건
-                      </span>
-                    </button>
-                    {expanded && (
-                      <div className="px-4 pb-3">
-                        <DataGrid
-                          columns={funcColumns}
-                          data={area.functions ?? []}
-                          onRowClick={(row: FunctionRow) =>
-                            router.push(`/functions/${row.functionId}`)
-                          }
-                          emptyMessage="기능이 없습니다."
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          ) : (() => {
+            const flatRows: FlatRow[] = areas.flatMap((area): FlatRow[] => {
+              const areaTypeLabel = AREA_TYPES.find((t) => t.value === area.areaType)?.label ?? area.areaType;
+              if (!area.functions?.length) {
+                return [{ areaId: area.areaId, areaCode: area.areaCode, areaName: area.name, areaType: areaTypeLabel, functionId: null, functionSystemId: null, functionDisplayCode: null, functionName: null, functionStatus: null, functionUpdatedAt: null }];
+              }
+              return area.functions.map((fn) => ({
+                areaId: area.areaId, areaCode: area.areaCode, areaName: area.name, areaType: areaTypeLabel,
+                functionId: fn.functionId, functionSystemId: fn.systemId, functionDisplayCode: fn.displayCode,
+                functionName: fn.name, functionStatus: fn.status, functionUpdatedAt: fn.updatedAt,
+              }));
+            });
+            return (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground w-24">영역코드</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground w-64">영역명</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground w-28">유형</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground w-28">기능ID</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground">기능명</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground w-24">상태</th>
+                      <th className="px-4 py-2 text-left font-medium text-muted-foreground w-28">수정일</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {flatRows.map((row, idx) => {
+                      const isNewArea = idx === 0 || flatRows[idx - 1].areaId !== row.areaId;
+                      return (
+                        <tr key={`${row.areaId}-${row.functionId ?? "none"}-${idx}`}
+                          className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${isNewArea && idx > 0 ? "border-t border-border" : ""}`}
+                        >
+                          <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                            {isNewArea ? row.areaCode : ""}
+                          </td>
+                          <td className="px-4 py-2">
+                            {isNewArea ? (
+                              <button
+                                className="font-medium text-foreground hover:text-primary hover:underline cursor-pointer text-left"
+                                onClick={() => router.push(`/areas/${row.areaId}`)}
+                              >
+                                {row.areaName}
+                              </button>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-2">
+                            {isNewArea ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{row.areaType}</span>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                            {row.functionSystemId ?? ""}
+                          </td>
+                          <td className="px-4 py-2">
+                            {row.functionId ? (
+                              <button
+                                className="text-foreground hover:text-primary hover:underline cursor-pointer text-left"
+                                onClick={() => router.push(`/functions/${row.functionId}`)}
+                              >
+                                {row.functionName}
+                              </button>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            {row.functionStatus ? <StatusBadge status={row.functionStatus} /> : null}
+                          </td>
+                          <td className="px-4 py-2 text-xs text-muted-foreground">
+                            {row.functionUpdatedAt ? formatDate(row.functionUpdatedAt) : ""}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

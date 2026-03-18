@@ -25,6 +25,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     where: { screenId: numId },
     include: {
       requirement: true,
+      unitWork: { select: { unitWorkId: true, systemId: true, name: true } },
       areas: {
         orderBy: { sortOrder: "asc" },
         include: {
@@ -66,12 +67,15 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         displayCode: parsed.displayCode ?? null,
         screenType: parsed.screenType ?? null,
         requirementId: parsed.requirementId,
+        unitWorkId: body.unitWorkId !== undefined
+          ? (body.unitWorkId ? parseInt(body.unitWorkId) : null)
+          : undefined,
         spec: parsed.spec ?? null,
         layoutData: parsed.layoutData ?? null,
         categoryL: parsed.categoryL ?? null,
         categoryM: parsed.categoryM ?? null,
         categoryS: parsed.categoryS ?? null,
-        menuOrder: parsed.menuOrder ?? null,
+        sortOrder: parsed.sortOrder ?? null,
       },
     });
 

@@ -46,7 +46,7 @@ export const screenSchema = z.object({
   categoryL: z.string().optional().nullable(),
   categoryM: z.string().optional().nullable(),
   categoryS: z.string().optional().nullable(),
-  menuOrder: z.number().optional().nullable(),
+  sortOrder: z.number().optional().nullable(),
 });
 
 export const functionSchema = z.object({

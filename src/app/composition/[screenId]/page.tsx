@@ -77,7 +77,7 @@ interface ScreenDetail {
   categoryL: string | null;
   categoryM: string | null;
   categoryS: string | null;
-  menuOrder: number | null;
+  sortOrder: number | null;
   requirementId: number | null;
   requirement: { name: string; systemId: string } | null;
   areas: AreaRow[];
@@ -228,7 +228,7 @@ export default function CompositionDetailPage({
   const [categoryL, setCategoryL] = useState("");
   const [categoryM, setCategoryM] = useState("");
   const [categoryS, setCategoryS] = useState("");
-  const [menuOrder, setMenuOrder] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<number | null>(null);
 
   /* Area search */
   const [areaSearch, setAreaSearch] = useState("");
@@ -278,7 +278,7 @@ export default function CompositionDetailPage({
       setCategoryL(screen.categoryL ?? "");
       setCategoryM(screen.categoryM ?? "");
       setCategoryS(screen.categoryS ?? "");
-      setMenuOrder(screen.menuOrder ?? null);
+      setSortOrder(screen.sortOrder ?? null);
       if (screen.areas?.length) {
         setExpandedAreas(new Set(screen.areas.map((a) => a.areaId)));
       }
@@ -404,7 +404,7 @@ export default function CompositionDetailPage({
       categoryL: categoryL || null,
       categoryM: categoryM || null,
       categoryS: categoryS || null,
-      menuOrder,
+      sortOrder,
     });
   };
 
@@ -602,8 +602,8 @@ export default function CompositionDetailPage({
                 <label className="text-xs text-muted-foreground shrink-0 w-10">메뉴순서</label>
                 <Input
                   type="number"
-                  value={menuOrder ?? ""}
-                  onChange={(e) => setMenuOrder(e.target.value ? parseInt(e.target.value) : null)}
+                  value={sortOrder ?? ""}
+                  onChange={(e) => setSortOrder(e.target.value ? parseInt(e.target.value) : null)}
                   placeholder="0"
                   className="h-7 text-xs flex-1 min-w-0"
                 />

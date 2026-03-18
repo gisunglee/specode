@@ -20,6 +20,10 @@
 
 export type { ScreenForPrd, AreaForPrd, FunctionForPrd } from "./types";
 
+// ── 단위업무 PRD ──────────────────────────────────────────────────────────
+export { generateUnitWorkPrd } from "./unitwork/v1";    // ← 버전업 시 여기만 수정
+export type { UnitWorkForPrd, ScreenForUwPrd, AreaForUwPrd, FuncForUwPrd } from "./unitwork/v1";
+
 // ── 화면 PRD ─────────────────────────────────────────────────────────────
 export { generateScreenPrd } from "./screen/v1";    // ← 버전업 시 여기만 수정
 
@@ -34,4 +38,5 @@ export const PRD_VERSIONS = {
   screen:   "v1",
   area:     "v1",
   function: "v1",
+  unitWork: "v1",
 } as const;

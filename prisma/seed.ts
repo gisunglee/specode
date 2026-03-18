@@ -26,9 +26,10 @@ async function main() {
 
   /* ─── 시퀀스 초기화 ─────────────────────────────────────── */
   const sequences = [
-    { prefix: "RQ", lastValue: 0 },
+    { prefix: "RQ",  lastValue: 0 },
+    { prefix: "UW",  lastValue: 0 },
     { prefix: "PID", lastValue: 0 },
-    { prefix: "AR", lastValue: 0 },
+    { prefix: "AR",  lastValue: 0 },
     { prefix: "FID", lastValue: 0 },
     { prefix: "ATK", lastValue: 0 },
   ];

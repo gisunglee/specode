@@ -64,7 +64,7 @@ server.tool(
         requirement: { select: { systemId: true, name: true } },
         _count: { select: { areas: true } },
       },
-      orderBy: [{ menuOrder: "asc" }, { screenId: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { screenId: "asc" }],
       take: 50,
     });
     return ok(screens);
