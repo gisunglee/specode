@@ -131,9 +131,10 @@ model Area {
   spec           String?  @map("spec")
   layoutData     String?  @map("layout_data")              // 레이아웃 JSON 문자열
   designData     String?  @map("design_data")              // Excalidraw 설계 JSON 데이터
-  status         String   @default("NONE") @map("status") // NONE|DESIGN_REQ|DESIGN_DONE|CONFIRM_Y
+  phase          String   @default("DRAFT") @map("phase")         // DRAFT|DESIGN
+  phaseStatus    String   @default("IDLE") @map("phase_status")   // IDLE|REQUESTED|PROCESSING|DONE
+  confirmed      Boolean  @default(false) @map("confirmed")       // CONFIRM_Y 대체
   reqComment     String?  @map("req_comment")
-  aiFeedback     String?  @map("ai_feedback")
   useYn          String   @default("Y") @map("use_yn")
   createdBy      String?  @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
@@ -144,7 +145,7 @@ model Area {
   functions Function[]
 
   @@index([screenId])
-  @@index([status])
+  @@index([phase, phaseStatus])
   @@map("tb_area")
 }
 
@@ -159,21 +160,20 @@ model Function {
   spec         String?  @map("spec")
   changeReason String?  @map("change_reason")
 
-  status   String @default("DRAFT") @map("status")  // DRAFT | REVIEW_REQ | AI_REVIEWING | REVIEW_DONE | DESIGN_REQ | DESIGN_DONE | CONFIRM_Y | IMPL_REQ | AI_IMPLEMENTING | IMPL_DONE
-  priority String @default("MEDIUM") @map("priority")
+  phase       String  @default("DRAFT") @map("phase")        // DRAFT|REVIEW|DESIGN|IMPL
+  phaseStatus String  @default("IDLE") @map("phase_status")  // IDLE|REQUESTED|PROCESSING|DONE
+  confirmed   Boolean @default(false) @map("confirmed")      // 설계 컨펌 여부 (CONFIRM_Y 대체)
+  priority    String  @default("MEDIUM") @map("priority")
 
-  aiInspFeedback  String? @map("ai_insp_feedback")
-  aiDesignContent String? @map("ai_design_content") // AI가 작성한 상세 설계 내용 (마크다운)
-  aiImplFeedback  String? @map("ai_impl_feedback")
-  gitlabPrUrl     String? @map("gitlab_pr_url")
-  refContent      String? @map("ref_content")   // 참고 프로그램 내용 (마크다운)
+  gitlabPrUrl String? @map("gitlab_pr_url")
+  refContent  String? @map("ref_content")   // 참고 프로그램 내용 (마크다운)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   area Area? @relation(fields: [areaId], references: [areaId])
 
-  @@index([status])
+  @@index([phase, phaseStatus])
   @@index([areaId])
   @@map("tb_function")
 }
@@ -291,18 +291,17 @@ model ScreenStoryMap {
 }
 
 model StandardGuide {
-  guideId   Int      @id @default(autoincrement()) @map("guide_id")
-  systemId  String   @unique @db.VarChar(10) @map("system_id")
-  category  String   @map("category")  // UI | DATA | AUTH | API | COMMON | SECURITY | FILE | ERROR | BATCH | REPORT
-  title     String   @map("title")
-  content              String?   @map("content")                // 마크다운 가이드 내용
-  relatedFiles         String?   @map("related_files")           // 관련 파일 목록 (줄바꿈 구분)
-  isActive             String    @default("Y") @map("is_active") // Y | N
-  status               String    @default("") @map("status")     // REVIEW_REQ | REVIEW_DONE
-  aiFeedbackContent    String?   @map("ai_feedback_content")     // AI 피드백 내용 (마크다운)
-  aiFeedbackAt         DateTime? @map("ai_feedback_at")          // AI 피드백 수정 시각
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  guideId      Int      @id @default(autoincrement()) @map("guide_id")
+  systemId     String   @unique @db.VarChar(10) @map("system_id")
+  category     String   @map("category")  // UI | DATA | AUTH | API | COMMON | SECURITY | FILE | ERROR | BATCH | REPORT
+  title        String   @map("title")
+  content      String?  @map("content")       // 마크다운 가이드 내용
+  relatedFiles String?  @map("related_files") // 관련 파일 목록 (줄바꿈 구분)
+  isActive     String   @default("Y") @map("is_active") // Y | N
+  phase        String   @default("DRAFT") @map("phase")        // DRAFT|REVIEW
+  phaseStatus  String   @default("IDLE") @map("phase_status")  // IDLE|REQUESTED|DONE
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([category])
   @@map("tb_standard_guide")

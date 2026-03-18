@@ -11,6 +11,7 @@ import prisma from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/utils";
 import { generateSystemId } from "@/lib/sequence";
 import { saveContentVersion } from "@/lib/contentVersion";
+import { statusToPhase, phaseToStatus } from "@/lib/constants";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -35,7 +36,17 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     take: 5,
   });
 
-  return apiSuccess({ ...data, tasks });
+  /* 최신 성공 AI 피드백 */
+  const latestFeedback = tasks.find(
+    (t) => t.taskStatus === "SUCCESS" || t.taskStatus === "AUTO_FIXED"
+  )?.feedback ?? null;
+
+  return apiSuccess({
+    ...data,
+    status: phaseToStatus(data.phase, data.phaseStatus, false),
+    aiFeedbackContent: latestFeedback,
+    tasks,
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -43,7 +54,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     const numId = parseInt(id);
     const body = await request.json();
-    const { saveVersionLog, category, title, content, isActive, relatedFiles, aiFeedbackContent, status } = body;
+    const { saveVersionLog, category, title, content, isActive, relatedFiles, status } = body;
 
     if (!category || !VALID_CATEGORIES.includes(category)) {
       return apiError("VALIDATION_ERROR", "유효하지 않은 카테고리입니다.");
@@ -52,10 +63,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return apiError("VALIDATION_ERROR", "제목은 필수입니다.");
     }
 
-    /* 현재 상태 조회 — status 변경 여부 판단용 */
+    /* 현재 상태 조회 */
     const existing = await prisma.standardGuide.findUnique({
       where: { guideId: numId },
-      select: { status: true, content: true },
+      select: { phase: true, phaseStatus: true, content: true },
     });
 
     if (!existing) {
@@ -74,10 +85,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    const statusChanged = status === "REVIEW_REQ" && existing.status !== "REVIEW_REQ";
-    const now = new Date();
+    // status → REVIEW_REQ 변경 감지
+    const currentStatus = phaseToStatus(existing.phase, existing.phaseStatus, false);
+    const statusChanged = status === "REVIEW_REQ" && currentStatus !== "REVIEW_REQ";
 
-    const shouldUpdateFeedbackAt = statusChanged || aiFeedbackContent !== undefined;
+    // phase 업데이트 데이터
+    const phaseData = status !== undefined ? statusToPhase(status) : {};
 
     const updateData = {
       category,
@@ -85,9 +98,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       content: newContent,
       isActive: isActive === "N" ? "N" : "Y",
       relatedFiles: relatedFiles !== undefined ? (relatedFiles?.trim() || null) : undefined,
-      aiFeedbackContent: aiFeedbackContent !== undefined ? (aiFeedbackContent?.trim() || null) : undefined,
-      status: status !== undefined ? status : undefined,
-      aiFeedbackAt: shouldUpdateFeedbackAt ? now : undefined,
+      ...phaseData,
     };
 
     if (statusChanged) {
@@ -103,7 +114,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             systemId: taskSystemId,
             refTableName: "tb_standard_guide",
             refPkId: numId,
-            taskType: "INSPECT",
+            taskType: "REVIEW",
             taskStatus: "NONE",
             spec: newContent || existing.content,
           },
@@ -111,7 +122,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       ]);
 
       const data = await prisma.standardGuide.findUnique({ where: { guideId: numId } });
-      return apiSuccess(data);
+      if (!data) return apiError("NOT_FOUND", "가이드를 찾을 수 없습니다.", 404);
+      return apiSuccess({
+        ...data,
+        status: phaseToStatus(data.phase, data.phaseStatus, false),
+      });
     }
 
     const data = await prisma.standardGuide.update({
@@ -119,7 +134,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: updateData,
     });
 
-    return apiSuccess(data);
+    return apiSuccess({
+      ...data,
+      status: phaseToStatus(data.phase, data.phaseStatus, false),
+    });
   } catch (error) {
     console.error(error);
     return apiError("SERVER_ERROR", "수정에 실패했습니다.", 500);
@@ -141,7 +159,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: { isActive: body.isActive },
     });
 
-    return apiSuccess(data);
+    return apiSuccess({
+      ...data,
+      status: phaseToStatus(data.phase, data.phaseStatus, false),
+    });
   } catch (error) {
     console.error(error);
     return apiError("SERVER_ERROR", "수정에 실패했습니다.", 500);

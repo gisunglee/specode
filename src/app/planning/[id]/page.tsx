@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, isValidElement, Children } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -763,7 +763,7 @@ export default function PlanningCanvasPage() {
                 <TabsTrigger value="preview" className="text-xs h-6 px-3">미리보기</TabsTrigger>
                 <TabsTrigger value="raw" className="text-xs h-6 px-3">원문 편집</TabsTrigger>
               </TabsList>
-              {displayResultType === "MERMAID" && displayResultContent && (
+              {displayResultContent && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -810,7 +810,22 @@ export default function PlanningCanvasPage() {
                 <MermaidRenderer code={displayResultContent} />
               ) : (
                 <div className="prose prose-sm max-w-none text-sm">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      pre({ children }) {
+                        for (const child of Children.toArray(children)) {
+                          if (!isValidElement(child)) continue;
+                          const p = child.props as { className?: string; children?: unknown };
+                          const lang = /language-(\w+)/.exec(p.className || "")?.[1];
+                          if (lang === "mermaid") {
+                            return <MermaidRenderer code={String(p.children).trim()} />;
+                          }
+                        }
+                        return <pre>{children}</pre>;
+                      },
+                    }}
+                  >
                     {displayResultContent}
                   </ReactMarkdown>
                 </div>
@@ -880,10 +895,41 @@ export default function PlanningCanvasPage() {
       <Dialog open={mermaidDialogOpen} onOpenChange={setMermaidDialogOpen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] flex flex-col gap-0 p-0 overflow-hidden">
           <DialogHeader className="px-6 py-3 border-b border-border flex-shrink-0">
-            <DialogTitle className="text-sm">{draft?.planNm} — Mermaid 다이어그램</DialogTitle>
+            <DialogTitle className="text-sm">{draft?.planNm} — 전체보기</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto p-4">
-            <MermaidRenderer code={displayResultContent} />
+          <div className={`flex-1 overflow-auto ${displayResultType === "HTML" ? "p-0" : "p-4"}`}>
+            {displayResultType === "HTML" ? (
+              <iframe
+                srcDoc={displayResultContent}
+                sandbox="allow-scripts allow-same-origin"
+                className="w-full border-0"
+                style={{ height: "calc(95vh - 60px)" }}
+                title="HTML Preview"
+              />
+            ) : displayResultType === "MERMAID" ? (
+              <MermaidRenderer code={displayResultContent} />
+            ) : (
+              <div className="prose prose-sm max-w-none text-sm">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    pre({ children }) {
+                      for (const child of Children.toArray(children)) {
+                        if (!isValidElement(child)) continue;
+                        const p = child.props as { className?: string; children?: unknown };
+                        const lang = /language-(\w+)/.exec(p.className || "")?.[1];
+                        if (lang === "mermaid") {
+                          return <MermaidRenderer code={String(p.children).trim()} />;
+                        }
+                      }
+                      return <pre>{children}</pre>;
+                    },
+                  }}
+                >
+                  {displayResultContent}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

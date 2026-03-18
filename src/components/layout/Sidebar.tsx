@@ -60,6 +60,7 @@ const NAV_ITEMS = [
   { href: "/screens",         label: "화면",          icon: "Monitor" as const },
   { href: "/areas",           label: "영역",          icon: "LayoutGrid" as const },
   { href: "/functions",       label: "기능",          icon: "Cog" as const },
+  { href: "/design-contents", label: "설계마당",      icon: "FileCode2" as const },
   { divider: true },
   { href: "/req-hub",     label: "요구사항 허브", icon: "Network" as const },
   { href: "/composition", label: "화면 구성",    icon: "Layers" as const },

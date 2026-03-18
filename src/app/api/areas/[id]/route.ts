@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { generateSystemId } from "@/lib/sequence";
 import { apiSuccess, apiError } from "@/lib/utils";
 import { saveContentVersion } from "@/lib/contentVersion";
+import { statusToPhase, phaseToStatus } from "@/lib/constants";
+import { getFuncAiFeedback } from "@/lib/aiFeedback";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -34,7 +36,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }),
   ]);
 
-  return apiSuccess({ ...data, tasks, attachments });
+  return apiSuccess({
+    ...data,
+    status: phaseToStatus(data.phase, data.phaseStatus, data.confirmed ?? false),
+    tasks,
+    attachments,
+  });
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
@@ -75,7 +82,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    return apiSuccess(data);
+    return apiSuccess({
+      ...data,
+      status: phaseToStatus(data.phase, data.phaseStatus, data.confirmed ?? false),
+    });
   } catch (error) {
     console.error(error);
     return apiError("SERVER_ERROR", "수정에 실패했습니다.", 500);
@@ -96,21 +106,26 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         name: true,
         spec: true,
         functions: {
-          select: { functionId: true, displayCode: true, name: true, spec: true, aiDesignContent: true, aiImplFeedback: true },
+          select: { functionId: true, displayCode: true, name: true, spec: true },
           orderBy: { createdAt: "asc" },
         },
       },
     });
     if (!area) return apiError("NOT_FOUND", "영역을 찾을 수 없습니다.", 404);
 
+    // 기능별 AI 피드백 조회 (DESIGN, IMPLEMENT taskType)
+    const funcIds = area.functions.map((f) => f.functionId);
+    const aiFeedbackMap = await getFuncAiFeedback(funcIds, ["DESIGN", "IMPLEMENT"]);
+
     const specParts: string[] = [];
     if (area.spec) specParts.push(`# 영역: ${area.name} (${area.areaCode})\n\n## 영역 설계\n\n${area.spec}`);
     for (const f of area.functions) {
+      const ai = aiFeedbackMap.get(f.functionId) ?? {};
       const code = f.displayCode ? `[${f.displayCode}] ` : "";
       const fParts: string[] = [`## 기능: ${code}${f.name}`];
       if (f.spec) fParts.push(`\n### 기본 설계\n\n${f.spec}`);
-      if (f.aiDesignContent) fParts.push(`\n### 상세 설계\n\n${f.aiDesignContent}`);
-      if (f.aiImplFeedback) fParts.push(`\n### 구현 가이드\n\n${f.aiImplFeedback}`);
+      if (ai["DESIGN"]) fParts.push(`\n### 상세 설계\n\n${ai["DESIGN"]}`);
+      if (ai["IMPLEMENT"]) fParts.push(`\n### 구현 가이드\n\n${ai["IMPLEMENT"]}`);
       if (fParts.length > 1) specParts.push(fParts.join("\n"));
     }
 
@@ -126,14 +141,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         comment: body.comment?.trim() || null,
         contextSnapshot: JSON.stringify({
           area: { areaCode: area.areaCode, name: area.name, spec: area.spec || "" },
-          functions: area.functions.map((f) => ({
-            functionId: f.functionId,
-            displayCode: f.displayCode || "",
-            name: f.name,
-            spec: f.spec || "",
-            aiDesignContent: f.aiDesignContent || "",
-            aiImplFeedback: f.aiImplFeedback || "",
-          })),
+          functions: area.functions.map((f) => {
+            const ai = aiFeedbackMap.get(f.functionId) ?? {};
+            return {
+              functionId: f.functionId,
+              displayCode: f.displayCode || "",
+              name: f.name,
+              spec: f.spec || "",
+              aiDesignContent: ai["DESIGN"] || "",
+              aiImplFeedback: ai["IMPLEMENT"] || "",
+            };
+          }),
         }),
       },
     });
@@ -149,20 +167,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         name: true,
         spec: true,
         functions: {
-          select: { functionId: true, name: true, spec: true, aiDesignContent: true, refContent: true },
+          select: { functionId: true, name: true, spec: true, refContent: true },
           orderBy: { createdAt: "asc" },
         },
       },
     });
     if (!area) return apiError("NOT_FOUND", "영역을 찾을 수 없습니다.", 404);
 
+    // 기능별 AI 설계 피드백 조회
+    const funcIds = area.functions.map((f) => f.functionId);
+    const aiFeedbackMap = await getFuncAiFeedback(funcIds, ["DESIGN"]);
+
     // spec 조합: 영역 설명 + 각 기능
     const specParts: string[] = [];
     if (area.spec) specParts.push(`# 영역: ${area.name} (${area.areaCode})\n\n## 영역 설명\n\n${area.spec}`);
     for (const f of area.functions) {
+      const ai = aiFeedbackMap.get(f.functionId) ?? {};
       const fParts: string[] = [`## 기능: ${f.name}`];
       if (f.spec) fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
-      if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+      if (ai["DESIGN"]) fParts.push(`\n### 상세설계\n\n${ai["DESIGN"]}`);
       if (fParts.length > 1) specParts.push(fParts.join("\n"));
     }
 
@@ -177,13 +200,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         spec: specParts.join("\n\n---\n\n") || null,
         contextSnapshot: JSON.stringify({
           area: { spec: area.spec || "" },
-          functions: area.functions.map((f) => ({
-            functionId: f.functionId,
-            name: f.name,
-            spec: f.spec || "",
-            aiDesignContent: f.aiDesignContent || "",
-            refContent: f.refContent || "",
-          })),
+          functions: area.functions.map((f) => {
+            const ai = aiFeedbackMap.get(f.functionId) ?? {};
+            return {
+              functionId: f.functionId,
+              name: f.name,
+              spec: f.spec || "",
+              aiDesignContent: ai["DESIGN"] || "",
+              refContent: f.refContent || "",
+            };
+          }),
         }),
         changeNote: body.changeNote?.trim() || null,
       },
@@ -199,14 +225,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const area = await prisma.area.findUnique({
     where: { areaId: numId },
-    select: { spec: true, status: true },
+    select: { spec: true, phase: true, phaseStatus: true },
   });
 
   if (!area) return apiError("NOT_FOUND", "영역을 찾을 수 없습니다.", 404);
 
+  // 구 status → phase/phaseStatus/confirmed 변환
+  const newPhase = statusToPhase(body.status);
+
   const data = await prisma.area.update({
     where: { areaId: numId },
-    data: { status: body.status },
+    data: newPhase,
   });
 
   // DESIGN_REQ 전환 시 AiTask 자동 생성
@@ -225,7 +254,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   }
 
-  return apiSuccess(data);
+  return apiSuccess({
+    ...data,
+    status: phaseToStatus(data.phase, data.phaseStatus, data.confirmed ?? false),
+  });
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {

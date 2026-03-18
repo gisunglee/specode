@@ -9,6 +9,7 @@ import prisma from "@/lib/prisma";
 import { generateFunctionPrd } from "@/lib/prd/function/v1";
 import { PRD_VERSIONS } from "@/lib/prd";
 import { generateSystemId } from "@/lib/sequence";
+import { phaseToStatus } from "@/lib/constants";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -39,6 +40,27 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "기능을 찾을 수 없습니다." }, { status: 404 });
   }
 
+  // AiTask에서 AI 피드백 조회
+  const aiTasks = await prisma.aiTask.findMany({
+    where: {
+      refTableName: "tb_function",
+      refPkId: numId,
+      taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] },
+    },
+    orderBy: { completedAt: "desc" },
+    select: { taskType: true, feedback: true },
+  });
+
+  const getTaskFeedback = (...types: string[]) =>
+    types.reduce<string | null>((acc, t) => {
+      if (acc) return acc;
+      return aiTasks.find((task) => task.taskType === t)?.feedback ?? null;
+    }, null);
+
+  const aiDesignContent = getTaskFeedback("DESIGN");
+  const aiInspFeedback  = getTaskFeedback("REVIEW", "INSPECT");
+  const status          = phaseToStatus(fn.phase, fn.phaseStatus, fn.confirmed);
+
   // PRD 다운로드 이벤트를 이력으로 기록 (비동기, 실패해도 다운로드는 진행)
   generateSystemId("ATK").then((systemId) =>
     prisma.aiTask.create({
@@ -50,7 +72,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         taskStatus: "SUCCESS",
         contextSnapshot: JSON.stringify({
           spec: fn.spec || "",
-          aiDesignContent: fn.aiDesignContent || "",
+          aiDesignContent: aiDesignContent || "",
           refContent: fn.refContent || "",
         }),
         completedAt: new Date(),
@@ -63,11 +85,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       systemId: fn.systemId,
       displayCode: fn.displayCode,
       name: fn.name,
-      status: fn.status,
+      status,
       priority: fn.priority,
       spec: fn.spec,
-      aiDesignContent: fn.aiDesignContent,
-      aiInspFeedback: fn.aiInspFeedback,
+      aiDesignContent,
+      aiInspFeedback,
     },
     {
       areaCode: fn.area?.areaCode ?? null,

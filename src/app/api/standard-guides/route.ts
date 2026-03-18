@@ -7,6 +7,7 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { phaseToStatus } from "@/lib/constants";
 
 const VALID_CATEGORIES = ["UI", "DATA", "AUTH", "API", "COMMON", "SECURITY", "FILE", "ERROR", "BATCH", "REPORT"];
 
@@ -52,7 +53,11 @@ export async function GET(request: NextRequest) {
     if (!taskByGuideId.has(t.refPkId)) taskByGuideId.set(t.refPkId, t);
   }
 
-  const data = guides.map((g) => ({ ...g, latestTask: taskByGuideId.get(g.guideId) ?? null }));
+  const data = guides.map((g) => ({
+    ...g,
+    status: phaseToStatus(g.phase, g.phaseStatus, false),
+    latestTask: taskByGuideId.get(g.guideId) ?? null,
+  }));
 
   return apiSuccess(data, {
     page,

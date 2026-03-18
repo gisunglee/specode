@@ -2,14 +2,16 @@
  * onTaskComplete.ts — AI 태스크 완료 후 비즈니스 로직 훅
  *
  * POST /api/ai/tasks/[id]/complete 에서 AI 결과가 저장된 직후 호출됩니다.
- * taskType · refTableName 에 따라 대상 엔티티를 자동 업데이트합니다.
  *
- * 📌 향후 확장 포인트:
- *   - 알림 발송, 슬랙 웹훅, 이벤트 큐 등은 이 파일에 추가
- *   - taskType 별 분기는 switch 케이스에 추가
+ * 변경 이력:
+ *   - AI 결과물(aiInspFeedback, aiDesignContent 등) 컬럼 제거됨
+ *     → AiTask.feedback 이 단일 결과 저장소. 엔티티에는 phase/phaseStatus만 업데이트.
+ *   - taskType INSPECT → REVIEW 통일
+ *   - planType → resultType 매핑을 constants.ts 로 중앙화
  */
 import prisma from "@/lib/prisma";
 import { saveContentVersion } from "@/lib/contentVersion";
+import { getResultType } from "@/lib/constants";
 
 export interface TaskCompletePayload {
   aiTaskId: number;
@@ -22,118 +24,84 @@ export interface TaskCompletePayload {
 }
 
 /**
- * onTaskComplete
- *
- * SUCCESS / AUTO_FIXED 상태일 때만 대상 엔티티를 업데이트합니다.
- * FAILED / WARNING 등의 경우 AiTask 자체에만 결과가 기록됩니다.
+ * taskType → 완료 후 엔티티에 반영할 phase/phaseStatus
+ * REVIEW/DESIGN/IMPLEMENT 완료 시 DONE으로 전진
  */
+const TASK_TYPE_PHASE: Record<string, { phase: string; phaseStatus: string }> = {
+  REVIEW:    { phase: "REVIEW", phaseStatus: "DONE" },
+  INSPECT:   { phase: "REVIEW", phaseStatus: "DONE" }, // 구 taskType 호환
+  DESIGN:    { phase: "DESIGN", phaseStatus: "DONE" },
+  IMPLEMENT: { phase: "IMPL",   phaseStatus: "DONE" },
+};
+
 export async function onTaskComplete(payload: TaskCompletePayload): Promise<void> {
   const { aiTaskId, refTableName, refPkId, taskType, taskStatus, feedback, resultFiles } = payload;
 
-  // 성공 계열 상태일 때만 엔티티 반영
   const isSuccess = taskStatus === "SUCCESS" || taskStatus === "AUTO_FIXED";
   if (!isSuccess) return;
 
-  /* ─── tb_function 대상 ─────────────────────────────────────── */
+  /* ─── tb_function ──────────────────────────────────────────── */
   if (refTableName === "tb_function") {
-    const updateData: Record<string, unknown> = {};
-    let versionFieldName: string | null = null;
+    const phaseUpdate = TASK_TYPE_PHASE[taskType];
+    if (!phaseUpdate) return;
 
-    switch (taskType) {
-      case "INSPECT":
-        // AI 기능 점검 피드백 → aiInspFeedback, 상태 REVIEW_DONE
-        updateData.aiInspFeedback = feedback;
-        updateData.status = "REVIEW_DONE";
-        break;
+    await prisma.function.update({
+      where: { functionId: refPkId },
+      data: phaseUpdate,
+    });
 
-      case "DESIGN":
-        // AI 상세설계 결과 → aiDesignContent, 상태 DESIGN_DONE
-        updateData.aiDesignContent = feedback;
-        updateData.status = "DESIGN_DONE";
-        versionFieldName = "ai_design_content";
-        break;
-
-      case "IMPLEMENT":
-        // AI 구현 피드백 → aiImplFeedback, 상태 IMPL_DONE
-        updateData.aiImplFeedback = feedback;
-        updateData.status = "IMPL_DONE";
-        break;
-
-      // 📌 신규 taskType 추가 시 여기에 case 추가
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      // 버전 이력: 변경 직전 현재 값 저장
-      if (versionFieldName) {
-        const current = await prisma.function.findUnique({
-          where: { functionId: refPkId },
-          select: { aiDesignContent: true },
-        });
-        if (current) {
-          await saveContentVersion({
-            refTableName: "tb_function",
-            refPkId,
-            fieldName: versionFieldName,
-            currentContent: current.aiDesignContent,
-            changedBy: "ai",
-            aiTaskId,
-          });
-        }
-      }
-
-      await prisma.function.update({
-        where: { functionId: refPkId },
-        data: updateData,
-      });
-    }
-    return;
-  }
-
-  /* ─── tb_standard_guide 대상 ───────────────────────────────── */
-  if (refTableName === "tb_standard_guide") {
-    if (taskType === "INSPECT") {
-      // AI 점검 피드백 → aiFeedbackContent, 상태 REVIEW_DONE
-      await prisma.standardGuide.update({
-        where: { guideId: refPkId },
-        data: {
-          aiFeedbackContent: feedback,
-          aiFeedbackAt: new Date(),
-          status: "REVIEW_DONE",
-        },
-      });
-    }
-    return;
-  }
-
-  /* ─── tb_area 대상 ─────────────────────────────────────────── */
-  if (refTableName === "tb_area") {
+    // AI DESIGN 완료 시 ai_design_content 업데이트 (raw SQL — Prisma 클라이언트 미지원)
     if (taskType === "DESIGN") {
-      // AI 설계 결과 → aiFeedback, 상태 DESIGN_DONE
+      await prisma.$executeRaw`
+        UPDATE tb_function SET ai_design_content = ${feedback} WHERE function_id = ${refPkId}
+      `;
+    }
+    return;
+  }
+
+  /* ─── tb_area ──────────────────────────────────────────────── */
+  if (refTableName === "tb_area") {
+    // DESIGN만 phase 전진. MOCKUP / IMPLEMENT 은 상태 변경 없음
+    if (taskType === "DESIGN") {
       await prisma.area.update({
         where: { areaId: refPkId },
-        data: {
-          aiFeedback: feedback,
-          status: "DESIGN_DONE",
-        },
+        data: { phase: "DESIGN", phaseStatus: "DONE" },
       });
     }
     return;
   }
 
-  /* ─── tb_planning_draft 대상 ───────────────────────────────── */
+  /* ─── tb_standard_guide ────────────────────────────────────── */
+  if (refTableName === "tb_standard_guide") {
+    if (taskType === "REVIEW" || taskType === "INSPECT") {
+      await prisma.standardGuide.update({
+        where: { guideId: refPkId },
+        data: { phase: "REVIEW", phaseStatus: "DONE" },
+      });
+    }
+    return;
+  }
+
+  /* ─── tb_planning_draft ────────────────────────────────────── */
   if (refTableName === "tb_planning_draft") {
     if (taskType === "PLANNING") {
-      const resultTypeMap: Record<string, string> = {
-        IA: "MD", PROCESS: "MERMAID", MOCKUP: "HTML", ERD: "MERMAID",
-      };
+      // planType → resultType 결정 (constants.ts 에서 중앙 관리)
       let resultType = "MD";
       try {
-        const task = await prisma.aiTask.findUnique({ where: { aiTaskId }, select: { spec: true } });
-        resultType = resultTypeMap[JSON.parse(task?.spec || "{}").planType] ?? "MD";
-      } catch { /* spec 파싱 실패 시 MD 기본값 */ }
+        const task = await prisma.aiTask.findUnique({
+          where: { aiTaskId },
+          select: { spec: true },
+        });
+        const parsed = JSON.parse(task?.spec || "{}");
+        resultType = getResultType(parsed.planType);
+      } catch {
+        // spec 파싱 실패 시 MD 기본값
+      }
 
+      // 변경 전 내용 이력 저장
       const current = await prisma.planningDraft.findUnique({
-        where: { planSn: refPkId }, select: { resultContent: true },
+        where: { planSn: refPkId },
+        select: { resultContent: true },
       });
       await saveContentVersion({
         refTableName: "tb_planning_draft",
@@ -143,6 +111,7 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
         changedBy: "ai",
         aiTaskId,
       });
+
       await prisma.planningDraft.update({
         where: { planSn: refPkId },
         data: { resultContent: feedback, resultType },
@@ -150,8 +119,6 @@ export async function onTaskComplete(payload: TaskCompletePayload): Promise<void
     }
     return;
   }
-
-  // 📌 신규 refTableName 추가 시 if 블록 추가
 
   void resultFiles; // unused
 }

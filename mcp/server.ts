@@ -17,6 +17,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import express from "express";
+import { statusToPhase, phaseToStatus } from "../src/lib/constants.js";
 
 const prisma = new PrismaClient();
 
@@ -101,7 +102,12 @@ server.tool(
   async ({ screenId, status, search }) => {
     const where: Record<string, unknown> = {};
     if (screenId) where.screenId = screenId;
-    if (status)   where.status = status;
+    if (status) {
+      const phaseFilter = statusToPhase(status);
+      where.phase = phaseFilter.phase;
+      where.phaseStatus = phaseFilter.phaseStatus;
+      if (phaseFilter.confirmed) where.confirmed = true;
+    }
     if (search)   where.OR = [{ name: { contains: search } }, { areaCode: { contains: search } }];
 
     const areas = await prisma.area.findMany({
@@ -113,7 +119,7 @@ server.tool(
       orderBy: [{ screenId: "asc" }, { sortOrder: "asc" }],
       take: 50,
     });
-    return ok(areas);
+    return ok(areas.map((a) => ({ ...a, status: phaseToStatus(a.phase, a.phaseStatus, a.confirmed ?? false) })));
   }
 );
 
@@ -145,7 +151,12 @@ server.tool(
   async ({ areaId, status, search }) => {
     const where: Record<string, unknown> = {};
     if (areaId)  where.areaId = areaId;
-    if (status)  where.status = status;
+    if (status) {
+      const phaseFilter = statusToPhase(status);
+      where.phase = phaseFilter.phase;
+      where.phaseStatus = phaseFilter.phaseStatus;
+      if (phaseFilter.confirmed) where.confirmed = true;
+    }
     if (search)  where.OR = [{ name: { contains: search } }, { systemId: { contains: search } }];
 
     const functions = await prisma.function.findMany({
@@ -154,7 +165,7 @@ server.tool(
       orderBy: { createdAt: "asc" },
       take: 50,
     });
-    return ok(functions);
+    return ok(functions.map((f) => ({ ...f, status: phaseToStatus(f.phase, f.phaseStatus, f.confirmed) })));
   }
 );
 
@@ -293,20 +304,18 @@ server.tool(
   "update_function",
   "기능 설계 내용 수정 (지정한 필드만 변경)",
   {
-    functionId:      z.number().describe("기능 ID"),
-    name:            z.string().optional().describe("기능명"),
-    spec:            z.string().optional().describe("기본 설계 내용 (마크다운)"),
-    aiDesignContent: z.string().optional().describe("상세설계 내용 (마크다운)"),
+    functionId: z.number().describe("기능 ID"),
+    name:       z.string().optional().describe("기능명"),
+    spec:       z.string().optional().describe("기본 설계 내용 (마크다운)"),
   },
-  async ({ functionId, name, spec, aiDesignContent }) => {
+  async ({ functionId, name, spec }) => {
     const data: Record<string, unknown> = {};
-    if (name !== undefined)            data.name = name;
-    if (spec !== undefined)            data.spec = spec;
-    if (aiDesignContent !== undefined) data.aiDesignContent = aiDesignContent;
+    if (name !== undefined) data.name = name;
+    if (spec !== undefined) data.spec = spec;
 
     if (Object.keys(data).length === 0) return ok({ error: "변경할 필드가 없습니다." });
     const func = await prisma.function.update({ where: { functionId }, data });
-    return ok({ updated: true, function: func });
+    return ok({ updated: true, function: { ...func, status: phaseToStatus(func.phase, func.phaseStatus, func.confirmed) } });
   }
 );
 
@@ -327,7 +336,7 @@ server.tool(
 
     const taskSystemId = await generateSystemId("ATK");
     await prisma.$transaction([
-      prisma.area.update({ where: { areaId }, data: { status: "DESIGN_REQ" } }),
+      prisma.area.update({ where: { areaId }, data: statusToPhase("DESIGN_REQ") }),
       prisma.aiTask.create({
         data: {
           systemId: taskSystemId,
@@ -355,9 +364,17 @@ server.tool(
     const func = await prisma.function.findUnique({ where: { functionId } });
     if (!func) return ok({ error: "기능을 찾을 수 없습니다." });
 
+    // 최신 AI 설계 피드백 조회
+    const latestDesign = await prisma.aiTask.findFirst({
+      where: { refTableName: "tb_function", refPkId: functionId, taskType: "DESIGN", taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
+      orderBy: { completedAt: "desc" },
+      select: { feedback: true },
+    });
+    const aiDesignContent = latestDesign?.feedback || "";
+
     const specParts: string[] = [];
-    if (func.spec)            specParts.push(`## 기본 설계 내용\n\n${func.spec}`);
-    if (func.aiDesignContent) specParts.push(`## 상세설계\n\n${func.aiDesignContent}`);
+    if (func.spec)      specParts.push(`## 기본 설계 내용\n\n${func.spec}`);
+    if (aiDesignContent) specParts.push(`## 상세설계\n\n${aiDesignContent}`);
 
     const taskSystemId = await generateSystemId("ATK");
     await prisma.aiTask.create({
@@ -370,7 +387,7 @@ server.tool(
         spec: specParts.join("\n\n---\n\n") || null,
         contextSnapshot: JSON.stringify({
           spec: func.spec || "",
-          aiDesignContent: func.aiDesignContent || "",
+          aiDesignContent,
           refContent: func.refContent || "",
         }),
         changeNote: changeNote?.trim() || null,
@@ -393,19 +410,30 @@ server.tool(
       select: {
         areaCode: true, name: true, spec: true,
         functions: {
-          select: { functionId: true, name: true, spec: true, aiDesignContent: true, refContent: true },
+          select: { functionId: true, name: true, spec: true, refContent: true },
           orderBy: { createdAt: "asc" },
         },
       },
     });
     if (!area) return ok({ error: "영역을 찾을 수 없습니다." });
 
+    // 기능별 AI 설계 피드백 조회
+    const funcIds = area.functions.map((f) => f.functionId);
+    const aiTasks = funcIds.length ? await prisma.aiTask.findMany({
+      where: { refTableName: "tb_function", refPkId: { in: funcIds }, taskType: "DESIGN", taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
+      orderBy: { completedAt: "desc" },
+      select: { refPkId: true, feedback: true },
+    }) : [];
+    const aiByFunc = new Map<number, string>();
+    for (const t of aiTasks) { if (!aiByFunc.has(t.refPkId) && t.feedback) aiByFunc.set(t.refPkId, t.feedback); }
+
     const specParts: string[] = [];
     if (area.spec) specParts.push(`# 영역: ${area.name} (${area.areaCode})\n\n## 영역 설명\n\n${area.spec}`);
     for (const f of area.functions) {
+      const aiDesign = aiByFunc.get(f.functionId) || "";
       const fParts = [`## 기능: ${f.name}`];
-      if (f.spec)            fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
-      if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+      if (f.spec)   fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
+      if (aiDesign) fParts.push(`\n### 상세설계\n\n${aiDesign}`);
       if (fParts.length > 1) specParts.push(fParts.join("\n"));
     }
 
@@ -422,7 +450,7 @@ server.tool(
           area: { spec: area.spec || "" },
           functions: area.functions.map((f) => ({
             functionId: f.functionId, name: f.name,
-            spec: f.spec || "", aiDesignContent: f.aiDesignContent || "", refContent: f.refContent || "",
+            spec: f.spec || "", aiDesignContent: aiByFunc.get(f.functionId) || "", refContent: f.refContent || "",
           })),
         }),
         changeNote: changeNote?.trim() || null,
@@ -449,7 +477,7 @@ server.tool(
           select: {
             areaId: true, name: true, spec: true,
             functions: {
-              select: { functionId: true, name: true, spec: true, aiDesignContent: true, refContent: true },
+              select: { functionId: true, name: true, spec: true, refContent: true },
               orderBy: { createdAt: "asc" },
             },
           },
@@ -458,15 +486,26 @@ server.tool(
     });
     if (!screen) return ok({ error: "화면을 찾을 수 없습니다." });
 
+    // 전체 기능 AI 설계 피드백 조회
+    const funcIds = screen.areas.flatMap((a) => a.functions.map((f) => f.functionId));
+    const aiTasks = funcIds.length ? await prisma.aiTask.findMany({
+      where: { refTableName: "tb_function", refPkId: { in: funcIds }, taskType: "DESIGN", taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
+      orderBy: { completedAt: "desc" },
+      select: { refPkId: true, feedback: true },
+    }) : [];
+    const aiByFunc = new Map<number, string>();
+    for (const t of aiTasks) { if (!aiByFunc.has(t.refPkId) && t.feedback) aiByFunc.set(t.refPkId, t.feedback); }
+
     const specParts: string[] = [];
     if (screen.spec) specParts.push(`# 화면: ${screen.name} (${screen.systemId})\n\n## 화면 설명\n\n${screen.spec}`);
     for (const area of screen.areas) {
       const areaParts = [`# 영역: ${area.name}`];
       if (area.spec) areaParts.push(`\n## 영역 설명\n\n${area.spec}`);
       for (const f of area.functions) {
+        const aiDesign = aiByFunc.get(f.functionId) || "";
         const fParts = [`\n## 기능: ${f.name}`];
-        if (f.spec)            fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
-        if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+        if (f.spec)   fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
+        if (aiDesign) fParts.push(`\n### 상세설계\n\n${aiDesign}`);
         if (fParts.length > 1) areaParts.push(fParts.join("\n"));
       }
       specParts.push(areaParts.join("\n"));
@@ -487,7 +526,7 @@ server.tool(
             areaId: a.areaId, name: a.name, spec: a.spec || "",
             functions: a.functions.map((f) => ({
               functionId: f.functionId, name: f.name,
-              spec: f.spec || "", aiDesignContent: f.aiDesignContent || "", refContent: f.refContent || "",
+              spec: f.spec || "", aiDesignContent: aiByFunc.get(f.functionId) || "", refContent: f.refContent || "",
             })),
           })),
         }),

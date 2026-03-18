@@ -569,7 +569,7 @@ export default function ScreenDetailPage({
               functionId: f.functionId,
               name: f.name,
               spec: (f as { spec?: string }).spec || "",
-              aiDesignContent: (f as { aiDesignContent?: string }).aiDesignContent || "",
+              aiDesignContent: (f as { aiDesignContent?: string | null }).aiDesignContent || "",
               refContent: (f as { refContent?: string }).refContent || "",
             })),
           })),

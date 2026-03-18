@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       include: {
         requirement: { select: { name: true, systemId: true } },
         _count: { select: { areas: true } },
-        areas: { select: { functions: { select: { status: true } } } },
+        areas: { select: { functions: { select: { confirmed: true } } } },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   const processed = data.map((screen) => {
     const funcCount = screen.areas.reduce((acc, a) => acc + a.functions.length, 0);
     const confirmedCount = screen.areas.reduce(
-      (acc, a) => acc + a.functions.filter((f) => f.status === "CONFIRM_Y").length,
+      (acc, a) => acc + a.functions.filter((f) => f.confirmed).length,
       0
     );
     const { areas, ...rest } = screen;

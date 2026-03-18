@@ -622,10 +622,10 @@ export default function StandardGuidesPage() {
                   placeholder="AI가 점검 후 자동으로 작성하거나, 직접 입력할 수 있습니다..."
                 />
 
-                {/* 최종 응답일 시 (ai_feedback_at) */}
-                {editItem?.aiFeedbackAt && (
+                {/* 최종 응답일 시: 최근 AiTask의 완료 시각으로 대체 */}
+                {editItem?.tasks?.[0]?.completedAt && (
                   <p className="text-xs text-muted-foreground">
-                    최종 응답: {formatDateTime(editItem.aiFeedbackAt)}
+                    최종 응답: {formatDateTime(editItem.tasks[0].completedAt)}
                   </p>
                 )}
 

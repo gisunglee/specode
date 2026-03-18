@@ -13,6 +13,7 @@ import prisma from "@/lib/prisma";
 import { screenSchema } from "@/lib/validators";
 import { apiSuccess, apiError } from "@/lib/utils";
 import { generateSystemId } from "@/lib/sequence";
+import { getFuncAiFeedback } from "@/lib/aiFeedback";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -103,7 +104,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           name: true,
           spec: true,
           functions: {
-            select: { functionId: true, displayCode: true, name: true, spec: true, aiDesignContent: true, aiImplFeedback: true, refContent: true },
+            select: { functionId: true, displayCode: true, name: true, spec: true, refContent: true },
             orderBy: { createdAt: "asc" },
           },
         },
@@ -111,6 +112,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     },
   });
   if (!screen) return apiError("NOT_FOUND", "화면을 찾을 수 없습니다.", 404);
+
+  // 전체 기능 ID 수집 후 AiTask 피드백 일괄 조회
+  const allFuncIds = screen.areas.flatMap((a) => a.functions.map((f) => f.functionId));
+  const aiFeedbackMap = await getFuncAiFeedback(allFuncIds, ["DESIGN", "IMPLEMENT"]);
 
   if (body.action === "IMPL_REQ") {
     // spec 조합: 화면 설명 + 영역 + 기능
@@ -120,9 +125,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const areaParts: string[] = [`# 영역: ${area.name}`];
       if (area.spec) areaParts.push(`\n## 영역 설명\n\n${area.spec}`);
       for (const f of area.functions) {
+        const ai = aiFeedbackMap.get(f.functionId) ?? {};
         const fParts: string[] = [`\n## 기능: ${f.name}`];
         if (f.spec) fParts.push(`\n### 기본 설계 내용\n\n${f.spec}`);
-        if (f.aiDesignContent) fParts.push(`\n### 상세설계\n\n${f.aiDesignContent}`);
+        if (ai["DESIGN"]) fParts.push(`\n### 상세설계\n\n${ai["DESIGN"]}`);
         if (fParts.length > 1) areaParts.push(fParts.join("\n"));
       }
       specParts.push(areaParts.join("\n"));
@@ -143,13 +149,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             areaId: a.areaId,
             name: a.name,
             spec: a.spec || "",
-            functions: a.functions.map((f) => ({
-              functionId: f.functionId,
-              name: f.name,
-              spec: f.spec || "",
-              aiDesignContent: f.aiDesignContent || "",
-              refContent: f.refContent || "",
-            })),
+            functions: a.functions.map((f) => {
+              const ai = aiFeedbackMap.get(f.functionId) ?? {};
+              return {
+                functionId: f.functionId,
+                name: f.name,
+                spec: f.spec || "",
+                aiDesignContent: ai["DESIGN"] || "",
+                refContent: f.refContent || "",
+              };
+            }),
           })),
         }),
         changeNote: body.changeNote?.trim() || null,
@@ -165,11 +174,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const areaParts: string[] = [`# 영역: ${area.areaCode} ${area.name}`];
     if (area.spec) areaParts.push(`\n## 영역 설계\n\n${area.spec}`);
     for (const f of area.functions) {
+      const ai = aiFeedbackMap.get(f.functionId) ?? {};
       const code = f.displayCode ? `[${f.displayCode}] ` : "";
       const fParts: string[] = [`\n## 기능: ${code}${f.name}`];
       if (f.spec) fParts.push(`\n### 기본 설계\n\n${f.spec}`);
-      if (f.aiDesignContent) fParts.push(`\n### 상세 설계\n\n${f.aiDesignContent}`);
-      if (f.aiImplFeedback) fParts.push(`\n### 구현 가이드\n\n${f.aiImplFeedback}`);
+      if (ai["DESIGN"])    fParts.push(`\n### 상세 설계\n\n${ai["DESIGN"]}`);
+      if (ai["IMPLEMENT"]) fParts.push(`\n### 구현 가이드\n\n${ai["IMPLEMENT"]}`);
       if (fParts.length > 1) areaParts.push(fParts.join("\n"));
     }
     specParts.push(areaParts.join("\n"));

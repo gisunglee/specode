@@ -40,9 +40,12 @@ export interface Area {
   sortOrder: number;
   areaType: string;
   spec: string | null;
+  /** phase 기반 상태 (API 응답에서 phaseToStatus로 계산) */
   status: string;
+  phase: string;
+  phaseStatus: string;
+  confirmed: boolean;
   reqComment: string | null;
-  aiFeedback: string | null;
   useYn: string;
   createdBy: string | null;
   createdAt: string;
@@ -65,8 +68,13 @@ export interface FunctionItem {
   sortOrder: number | null;
   spec: string | null;
   changeReason: string | null;
+  /** phase 기반 상태 (API 응답에서 phaseToStatus로 계산) */
   status: string;
+  phase: string;
+  phaseStatus: string;
+  confirmed: boolean;
   priority: string;
+  /** API 응답 backward compat — AiTask.feedback에서 계산 */
   aiInspFeedback: string | null;
   aiDesignContent: string | null;
   aiImplFeedback: string | null;
@@ -88,8 +96,8 @@ export interface AiTask {
   taskType: string;
   taskStatus: string;
   spec: string | null;
-  contextSnapshot: string | null;  // JSON: {spec, aiDesignContent, refContent}
-  changeNote: string | null;       // 이전 구현 대비 변경사항 메모
+  contextSnapshot: string | null;
+  changeNote: string | null;
   comment: string | null;
   feedback: string | null;
   resultFiles: string | null;
@@ -128,9 +136,12 @@ export interface StandardGuide {
   content: string | null;
   relatedFiles: string | null;
   isActive: string;
+  /** phase 기반 상태 (API 응답에서 phaseToStatus로 계산) */
   status: string;
+  phase: string;
+  phaseStatus: string;
+  /** API 응답 backward compat — 최신 성공 AiTask.feedback에서 계산 */
   aiFeedbackContent: string | null;
-  aiFeedbackAt: string | null;
   createdAt: string;
   updatedAt: string;
   latestTask?: AiTask | null;

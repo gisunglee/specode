@@ -3,16 +3,18 @@
  *
  * 특정 필드가 UPDATE 되기 직전, 현재(이전) 값을 tb_content_version 에 저장한다.
  *
- * 허용 조합 (이 5개 외에는 무시):
- *   tb_function        → spec, ai_design_content, ref_content
+ * 허용 조합:
+ *   tb_function        → spec, ref_content  (AI 결과는 AiTask.feedback으로 조회)
  *   tb_area            → spec
  *   tb_standard_guide  → content
+ *   tb_db_schema       → ddl_script
+ *   tb_planning_draft  → result_content
  */
 import prisma from "@/lib/prisma";
 
 /** 버전 이력을 남기는 테이블·필드 조합 */
 const VERSIONED_FIELDS: Record<string, string[]> = {
-  tb_function: ["spec", "ai_design_content", "ref_content"],
+  tb_function: ["spec", "ref_content"],
   tb_area: ["spec"],
   tb_standard_guide: ["content"],
   tb_db_schema: ["ddl_script"],

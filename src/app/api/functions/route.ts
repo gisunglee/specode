@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateSystemId } from "@/lib/sequence";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { phaseToStatus } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -108,7 +109,11 @@ export async function GET(request: NextRequest) {
     if (!taskByFuncId.has(t.refPkId)) taskByFuncId.set(t.refPkId, t);
   }
 
-  const data = functions.map((f) => ({ ...f, latestTask: taskByFuncId.get(f.functionId) ?? null }));
+  const data = functions.map((f) => ({
+    ...f,
+    status: phaseToStatus(f.phase, f.phaseStatus, f.confirmed),
+    latestTask: taskByFuncId.get(f.functionId) ?? null,
+  }));
 
   return apiSuccess(data, {
     page,

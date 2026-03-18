@@ -1,21 +1,22 @@
 import prisma from "@/lib/prisma";
 import { apiSuccess } from "@/lib/utils";
-import { FUNC_STATUS } from "@/lib/constants";
+import { phaseToStatus, FUNC_STATUS_LABEL } from "@/lib/constants";
 
 export async function GET() {
-  const allStatuses = Object.values(FUNC_STATUS);
-
-  const counts = await prisma.function.groupBy({
-    by: ["status"],
+  // phase/phaseStatus/confirmed 조합으로 groupBy 후 status 문자열로 변환
+  const phaseCounts = await prisma.function.groupBy({
+    by: ["phase", "phaseStatus", "confirmed"],
     _count: true,
   });
 
   const byStatus: Record<string, number> = {};
-  for (const s of allStatuses) {
-    byStatus[s] = 0;
+  // 전체 status 레이블 초기화
+  for (const key of Object.keys(FUNC_STATUS_LABEL)) {
+    byStatus[key] = 0;
   }
-  for (const c of counts) {
-    byStatus[c.status] = c._count;
+  for (const c of phaseCounts) {
+    const status = phaseToStatus(c.phase, c.phaseStatus, c.confirmed);
+    byStatus[status] = (byStatus[status] ?? 0) + c._count;
   }
 
   const totalFunctions = Object.values(byStatus).reduce((a, b) => a + b, 0);

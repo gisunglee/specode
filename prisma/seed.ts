@@ -47,7 +47,6 @@ async function main() {
     data: {
       systemId: "RQ-00001",
       name: "예산서 작성 기능",
-      description: "예산서 작성 및 관리에 필요한 기능 일체. 세부사업 관리, 상세 조회, 예산 배정 등 포함.",
       priority: "HIGH",
     },
   });
@@ -92,7 +91,6 @@ async function main() {
     data: {
       systemId: "RQ-00002",
       name: "인사관리 기능",
-      description: "직원 인사정보 관리, 부서 관리, 발령 처리 등",
       priority: "HIGH",
     },
   });
@@ -126,7 +124,6 @@ async function main() {
     data: {
       systemId: "RQ-00003",
       name: "공통코드 관리",
-      description: "시스템 전반에서 사용하는 공통코드 CRUD 및 캐싱",
       priority: "MEDIUM",
     },
   });
@@ -191,8 +188,8 @@ async function main() {
       name: "세부사업 조회",
       areaId: area1.areaId,
       spec: "## 목록 조회\n\n**화면유형**: 그리드\n\n### 검색 조건\n| 항목 | 타입 | 비고 |\n|------|------|------|\n| 회계연도 | SELECT | 기본값: 당해연도 |\n| 회계상세구분 | SELECT | 코드: ACC_DTL |\n| 예산구분 | SELECT | 코드: BGT_TYPE |\n| 차수 | INPUT | 숫자만 |\n\n### 그리드 항목\n출처구분, 회계연도, 예산구분, 차수, 예산부처명, 소관부처명, 세부사업명, 예산액\n\n### 정렬\n회계연도 DESC, 차수 DESC",
-      dataFlow: "READ: TB_BG_BGT_DSCTN_BIZ, TB_BG_BGTS_CYCL",
-      status: "REVIEW_DONE",
+      phase: "REVIEW",
+      phaseStatus: "DONE",
       priority: "HIGH",
     },
   });
@@ -205,8 +202,8 @@ async function main() {
       name: "세부사업 저장",
       areaId: area1.areaId,
       spec: "## 저장 기능\n\n그리드에서 수정된 데이터를 일괄 저장합니다.\n\n### 처리 로직\n1. 변경된 행만 추출 (INSERT/UPDATE/DELETE 구분)\n2. 유효성 검증\n3. 트랜잭션 처리\n4. 결과 메시지 표시\n\n### 유효성 검증\n- 예산부처명: 필수\n- 예산액: 0 이상 숫자\n- 회계연도 + 차수: 중복 불가",
-      dataFlow: "WRITE: TB_BG_BGT_DSCTN_BIZ",
-      status: "DRAFT",
+      phase: "DRAFT",
+      phaseStatus: "IDLE",
       priority: "MEDIUM",
     },
   });
@@ -219,10 +216,9 @@ async function main() {
       name: "세부사업 삭제",
       areaId: area1.areaId,
       spec: "## 삭제 기능\n\n선택된 세부사업을 삭제합니다.\n\n### 삭제 조건\n- 예산 배정 데이터가 있는 경우 삭제 불가\n- 확인 메시지 표시 후 처리\n\n### Soft Delete\n`use_yn = 'N'` 으로 업데이트 (물리 삭제 아님)",
-      dataFlow: "WRITE: TB_BG_BGT_DSCTN_BIZ",
-      status: "IMPL_DONE",
+      phase: "IMPL",
+      phaseStatus: "DONE",
       priority: "MEDIUM",
-      aiImplFeedback: "## 구현 완료\n\n### 생성 파일\n- `BgtDsctnBizController.java` — REST API 엔드포인트\n- `BgtDsctnBizService.java` — 비즈니스 로직\n- `BgtDsctnBizMapper.xml` — MyBatis SQL 매퍼\n\n### 구현 사항\n- Soft delete 적용 (use_yn 컬럼)\n- 예산 배정 데이터 존재 시 삭제 차단 로직 추가\n- 트랜잭션 처리 완료",
     },
   });
 
@@ -234,8 +230,9 @@ async function main() {
       name: "세부사업 상세 조회",
       areaId: area2.areaId,
       spec: "## 상세 조회\n\n세부사업의 상세 정보를 조회합니다.\n\n### 표시 항목\n- 기본정보: 사업명, 부처, 소관, 회계연도\n- 예산정보: 예산액, 집행액, 잔액\n- 이력정보: 변경 이력 목록\n\n### 탭 구성\n1. 기본정보 탭\n2. 예산내역 탭\n3. 변경이력 탭",
-      dataFlow: "READ: TB_BG_BGT_DSCTN_BIZ, TB_BG_BGT_EXEC, TB_BG_BGT_HIST",
-      status: "CONFIRM_Y",
+      phase: "DESIGN",
+      phaseStatus: "DONE",
+      confirmed: true,
       priority: "HIGH",
     },
   });
@@ -248,8 +245,8 @@ async function main() {
       name: "세부사업 수정",
       areaId: area2.areaId,
       spec: "## 수정 기능\n\n상세 화면에서 세부사업 정보를 수정합니다.\n\n### 수정 가능 항목\n- 사업명, 예산액, 비고\n- 부처/소관 변경 불가 (읽기전용)\n\n### 변경이력\n수정 시 자동으로 TB_BG_BGT_HIST에 이력 INSERT",
-      dataFlow: "WRITE: TB_BG_BGT_DSCTN_BIZ, TB_BG_BGT_HIST",
-      status: "REVIEW_REQ",
+      phase: "REVIEW",
+      phaseStatus: "REQUESTED",
       priority: "MEDIUM",
     },
   });
@@ -262,8 +259,8 @@ async function main() {
       name: "예산 배정 처리",
       areaId: area3.areaId,
       spec: "## 예산 배정\n\n팝업에서 예산 배정을 처리합니다.\n\n### 입력 항목\n- 배정 대상: 세부사업 선택\n- 배정액: 숫자 입력\n- 배정일자: 날짜 선택\n\n### 검증\n- 배정액 <= 잔여예산액\n- 동일 일자 중복 배정 불가",
-      dataFlow: "WRITE: TB_BG_BGT_ALLOC",
-      status: "IMPL_REQ",
+      phase: "IMPL",
+      phaseStatus: "REQUESTED",
       priority: "HIGH",
     },
   });
@@ -280,8 +277,8 @@ async function main() {
       name: "직원 목록 조회",
       areaId: area4.areaId,
       spec: "## 직원 목록 조회\n\n### 검색 조건\n- 부서: 트리 선택\n- 직급: 다중 선택\n- 재직상태: 재직/퇴직/휴직\n- 사번/이름: 텍스트 검색\n\n### 그리드\n사번, 이름, 부서, 직급, 입사일, 재직상태",
-      dataFlow: "READ: TB_HR_EMP, TB_HR_DEPT",
-      status: "REVIEW_DONE",
+      phase: "REVIEW",
+      phaseStatus: "DONE",
       priority: "HIGH",
     },
   });
@@ -294,7 +291,8 @@ async function main() {
       name: "직원 등록",
       areaId: area4.areaId,
       spec: "## 직원 등록\n\n신규 직원 정보를 등록합니다.\n\n### 필수 입력\n- 이름, 부서, 직급, 입사일\n\n### 선택 입력\n- 연락처, 이메일, 주소\n\n### 사번 규칙\n`EMP-{입사연도}-{순번4자리}` 자동 생성",
-      status: "DRAFT",
+      phase: "DRAFT",
+      phaseStatus: "IDLE",
       priority: "MEDIUM",
     },
   });
@@ -307,10 +305,9 @@ async function main() {
       name: "직원 상세 조회",
       areaId: area5.areaId,
       spec: "## 직원 상세\n\n### 탭 구성\n1. 인적사항\n2. 발령이력\n3. 급여정보\n4. 교육이력",
-      dataFlow: "READ: TB_HR_EMP, TB_HR_APPOINT, TB_HR_SALARY, TB_HR_EDU",
-      status: "IMPL_DONE",
+      phase: "IMPL",
+      phaseStatus: "DONE",
       priority: "HIGH",
-      aiImplFeedback: "## 구현 완료\n\n4개 탭 모두 구현. 발령이력은 시간순 정렬, 급여정보는 권한 체크 적용.",
     },
   });
 
@@ -322,8 +319,8 @@ async function main() {
       name: "발령 처리",
       areaId: area5.areaId,
       spec: "## 발령 처리\n\n### 발령 유형\n- 승진, 전보, 파견, 복직, 퇴직\n\n### 처리 로직\n1. 발령 정보 입력\n2. 결재 요청 (워크플로우)\n3. 승인 후 자동 반영\n\n### 변경사항 (v2)\n- 겸직 발령 추가\n- 발령일 소급 적용 허용 (최대 30일)",
-      dataFlow: "WRITE: TB_HR_APPOINT, TB_HR_EMP",
-      status: "CHANGE_REQ",
+      phase: "DRAFT",
+      phaseStatus: "IDLE",
       priority: "HIGH",
       changeReason: "겸직 발령 및 소급 적용 요건 추가",
     },
@@ -337,7 +334,8 @@ async function main() {
       name: "직원 검색 팝업",
       areaId: area4.areaId,
       spec: "## 직원 검색 팝업\n\n다른 화면에서 직원을 선택할 때 사용하는 공통 팝업.\n\n### 검색\n사번 또는 이름으로 검색\n\n### 반환값\n선택한 직원의 사번, 이름, 부서명",
-      status: "DRAFT",
+      phase: "DRAFT",
+      phaseStatus: "IDLE",
       priority: "LOW",
     },
   });
@@ -354,10 +352,9 @@ async function main() {
       name: "공통코드 조회",
       areaId: area6.areaId,
       spec: "## 공통코드 조회\n\n### 좌측 트리\n그룹코드 트리 (2레벨)\n\n### 우측 그리드\n선택된 그룹의 상세 코드 목록\n\n### 검색\n코드명, 코드값으로 검색",
-      dataFlow: "READ: TB_CM_CODE_GRP, TB_CM_CODE_DTL",
-      status: "IMPL_DONE",
+      phase: "IMPL",
+      phaseStatus: "DONE",
       priority: "MEDIUM",
-      aiImplFeedback: "## 구현 완료\n\n트리 + 그리드 구조 구현. Redis 캐싱 적용.",
     },
   });
 
@@ -369,8 +366,9 @@ async function main() {
       name: "공통코드 저장",
       areaId: area6.areaId,
       spec: "## 공통코드 저장\n\n그리드에서 수정/추가된 코드를 일괄 저장.\n\n### 검증\n- 코드값 중복 불가 (그룹 내)\n- 코드명 필수\n- 정렬순서 숫자만\n\n### 캐시 갱신\n저장 후 Redis 캐시 자동 갱신",
-      dataFlow: "WRITE: TB_CM_CODE_DTL",
-      status: "CONFIRM_Y",
+      phase: "DESIGN",
+      phaseStatus: "DONE",
+      confirmed: true,
       priority: "MEDIUM",
     },
   });
@@ -383,7 +381,8 @@ async function main() {
       name: "공통코드 상세 조회",
       areaId: area7.areaId,
       spec: "## 공통코드 상세\n\n코드 그룹의 상세 정보와 사용처 조회.\n\n### 탭 구성\n1. 코드 정보\n2. 사용처 조회 (어떤 화면/기능에서 사용하는지)",
-      status: "DRAFT",
+      phase: "DRAFT",
+      phaseStatus: "IDLE",
       priority: "LOW",
     },
   });
@@ -396,7 +395,8 @@ async function main() {
       name: "코드 캐시 갱신",
       areaId: area7.areaId,
       spec: "## 캐시 갱신\n\n### 현상\n코드 수정 후 캐시가 즉시 갱신되지 않는 버그.\n\n### 원인 분석\nRedis pub/sub 구독 누락으로 다른 서버 인스턴스에 전파 안 됨.\n\n### 수정 방안\n1. Redis pub/sub 채널 구독 추가\n2. 캐시 TTL 단축 (24h → 1h)\n3. 수동 캐시 초기화 버튼 추가",
-      status: "REVIEW_REQ",
+      phase: "REVIEW",
+      phaseStatus: "REQUESTED",
       priority: "HIGH",
     },
   });

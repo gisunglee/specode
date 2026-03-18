@@ -2,8 +2,8 @@
  * POST /api/standard-guides/[id]/inspect
  *
  * 표준 가이드 AI 점검 요청
- *   - tb_ai_task에 INSPECT 태스크 등록 (refTableName="tb_standard_guide")
- *   - tb_standard_guide.ai_feedback_status = "NONE" (대기 중)으로 업데이트
+ *   - tb_ai_task에 REVIEW 태스크 등록 (refTableName="tb_standard_guide")
+ *   - tb_standard_guide phase → REVIEW/REQUESTED 로 업데이트
  *   - AI가 폴링으로 가져가서 가이드 내용을 점검하고 feedback을 채움
  */
 import { NextRequest } from "next/server";
@@ -30,24 +30,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const taskSystemId = await generateSystemId("ATK");
 
-    /* 트랜잭션: 태스크 생성 + 가이드 상태 갱신 */
+    /* 트랜잭션: 태스크 생성 + 가이드 phase 갱신 */
     const [task] = await prisma.$transaction([
       prisma.aiTask.create({
         data: {
           systemId: taskSystemId,
           refTableName: "tb_standard_guide",
           refPkId: numId,
-          taskType: "INSPECT",
+          taskType: "REVIEW",
           taskStatus: "NONE",
-          spec: guide.content,               // 점검 시점 내용 스냅샷
+          spec: guide.content,
           comment: body.comment?.trim() || null,
         },
       }),
       prisma.standardGuide.update({
         where: { guideId: numId },
         data: {
-          status: "REVIEW_REQ",              // 검토 요청 상태로 표시
-          aiFeedbackAt: new Date(),
+          phase: "REVIEW",
+          phaseStatus: "REQUESTED",
         },
       }),
     ]);

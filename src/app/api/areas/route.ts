@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateSystemId } from "@/lib/sequence";
 import { apiSuccess, apiError } from "@/lib/utils";
+import { statusToPhase, phaseToStatus } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,7 +14,13 @@ export async function GET(request: NextRequest) {
 
   const where: Record<string, unknown> = {};
   if (screenId) where.screenId = parseInt(screenId);
-  if (status) where.status = status;
+  if (status) {
+    // 구 status 문자열을 phase/phaseStatus로 변환하여 필터
+    const phaseFilter = statusToPhase(status);
+    where.phase = phaseFilter.phase;
+    where.phaseStatus = phaseFilter.phaseStatus;
+    if (phaseFilter.confirmed) where.confirmed = true;
+  }
   if (search) {
     where.OR = [
       { name: { contains: search } },
@@ -49,6 +56,7 @@ export async function GET(request: NextRequest) {
 
   const enriched = areas.map((a) => ({
     ...a,
+    status: phaseToStatus(a.phase, a.phaseStatus, a.confirmed ?? false),
     latestTask: taskByAreaId.get(a.areaId) ?? null,
   }));
 

@@ -105,7 +105,7 @@ export default function FunctionDetailPage({
 
   const handleStatusChange = (status: string) => {
     setStatusOpen(false);
-    if (AI_REQUEST_STATUSES.includes(status)) {
+    if ((AI_REQUEST_STATUSES as readonly string[]).includes(status)) {
       setStatusDialog(status);
     } else {
       statusMutation.mutate({ status });
@@ -472,7 +472,7 @@ function StatusSelector({
                 className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 transition-colors text-sm cursor-pointer"
               >
                 <StatusBadge status={status} />
-                {AI_REQUEST_STATUSES.includes(status) && (
+                {(AI_REQUEST_STATUSES as readonly string[]).includes(status) && (
                   <span className="text-[11px] text-amber-600 font-medium">
                     AI요청
                   </span>

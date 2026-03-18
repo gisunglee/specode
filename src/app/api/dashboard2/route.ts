@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { apiSuccess } from "@/lib/utils";
+import { phaseToStatus } from "@/lib/constants";
 
 export async function GET() {
   const now = new Date();
@@ -33,12 +34,13 @@ export async function GET() {
 
   // ─── 3. 기능 상태별 ────────────────────────────────────────────
   const funcByStatusRaw = await prisma.function.groupBy({
-    by: ["status"],
+    by: ["phase", "phaseStatus", "confirmed"],
     _count: true,
   });
   const funcByStatus: Record<string, number> = {};
   for (const f of funcByStatusRaw) {
-    funcByStatus[f.status] = f._count;
+    const status = phaseToStatus(f.phase, f.phaseStatus, f.confirmed);
+    funcByStatus[status] = (funcByStatus[status] ?? 0) + f._count;
   }
 
   // ─── 4. AI 태스크 통계 ─────────────────────────────────────────

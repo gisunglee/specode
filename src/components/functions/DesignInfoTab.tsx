@@ -24,7 +24,7 @@ import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { AttachmentManager } from "@/components/common/AttachmentManager";
 import { apiFetch } from "@/lib/utils";
 import { FileText } from "lucide-react";
-import { FUNCTION_BASIC_TEMPLATE, FUNCTION_DETAIL_TEMPLATE, FUNCTION_BASIC_EXAMPLE, FUNCTION_DETAIL_EXAMPLE } from "@/lib/specTemplates";
+import { FUNCTION_BASIC_TEMPLATE, FUNCTION_BASIC_EXAMPLE, FUNCTION_DETAIL_TEMPLATE, FUNCTION_DETAIL_EXAMPLE } from "@/lib/specTemplates";
 import { SpecExampleDialog } from "@/components/common/SpecExampleDialog";
 import { toast } from "sonner";
 import type { FunctionItem } from "@/types";
@@ -170,7 +170,7 @@ export function DesignInfoTab({
               onChange={setAiDesignContent}
               label="상세설계 (마크다운)"
               rows={25}
-              placeholder="AI가 설계요청 후 자동으로 작성하거나, 직접 작성할 수 있습니다..."
+              placeholder="AI 설계요청 후 자동으로 작성됩니다..."
               refTableName="tb_function"
               refPkId={func.functionId}
               fieldName="ai_design_content"

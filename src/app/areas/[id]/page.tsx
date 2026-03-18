@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Bot, ChevronDown, ChevronRight, Download, FileText, History, Layers, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Bot, ChevronDown, ChevronRight, Copy, Download, FileText, History, Layers, Loader2, Trash2 } from "lucide-react";
 import { ExcalidrawDialog } from "@/components/common/ExcalidrawDialog";
 
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,11 @@ export default function AreaDetailPage({
   });
 
   const area = data?.data;
+  const aiFeedback = (area?.tasks ?? []).find(
+    (t: { taskType: string; taskStatus: string; feedback?: string | null }) =>
+      (t.taskStatus === "SUCCESS" || t.taskStatus === "AUTO_FIXED") &&
+      (t.taskType === "DESIGN" || t.taskType === "REVIEW" || t.taskType === "INSPECT")
+  )?.feedback ?? null;
   const latestMockupTask = (area?.tasks ?? []).find((t: { taskType: string }) => t.taskType === "MOCKUP") ?? null;
   const isMockupRunning = latestMockupTask?.taskStatus === "RUNNING" || latestMockupTask?.taskStatus === "NONE";
   const hasMockupResult = latestMockupTask?.taskStatus === "SUCCESS" || latestMockupTask?.taskStatus === "AUTO_FIXED";
@@ -617,9 +622,9 @@ export default function AreaDetailPage({
         <section className="space-y-4">
           <h2 className="text-lg font-semibold">AI 피드백</h2>
           <div className="rounded-lg border border-border bg-card p-6">
-            {area.aiFeedback ? (
+            {aiFeedback ? (
               <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm">
-                {area.aiFeedback}
+                {aiFeedback}
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">AI 피드백이 없습니다.</p>
@@ -684,7 +689,7 @@ export default function AreaDetailPage({
           <DialogHeader className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
             <div className="flex items-center justify-between pr-8">
               <DialogTitle>AI 피드백</DialogTitle>
-              <div className="flex gap-1 text-xs">
+              <div className="flex gap-1 text-xs items-center">
                 <button
                   onClick={() => setFeedbackViewMode("preview")}
                   className={`px-3 py-1 rounded-md transition-colors ${feedbackViewMode === "preview" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
@@ -697,20 +702,29 @@ export default function AreaDetailPage({
                 >
                   마크다운
                 </button>
+                {aiFeedback && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(aiFeedback)}
+                    className="ml-1 p-1.5 rounded-md bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="내용 복사"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           </DialogHeader>
           <div className="overflow-y-auto flex-1 px-6 py-4">
-            {area.aiFeedback ? (
+            {aiFeedback ? (
               feedbackViewMode === "preview" ? (
                 <div className="markdown-body text-sm">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {area.aiFeedback}
+                    {aiFeedback}
                   </ReactMarkdown>
                 </div>
               ) : (
                 <pre className="text-sm font-mono whitespace-pre-wrap bg-muted/30 rounded-md p-4 border border-border leading-relaxed">
-                  {area.aiFeedback}
+                  {aiFeedback}
                 </pre>
               )
             ) : (

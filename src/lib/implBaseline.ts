@@ -178,7 +178,7 @@ export interface AreaFunctionSnapshot {
   functionId: number;
   name: string;
   spec: string;
-  aiDesignContent: string;
+  aiDesignContent?: string;
   refContent: string;
 }
 
@@ -233,8 +233,8 @@ export function diffFromAreaBaseline(
     const base = baselineIds.get(cur.functionId);
     if (!base) continue;
     const diffs = diffFromBaseline(
-      { spec: base.spec, aiDesignContent: base.aiDesignContent, refContent: base.refContent },
-      { spec: cur.spec, aiDesignContent: cur.aiDesignContent, refContent: cur.refContent }
+      { spec: base.spec, aiDesignContent: "", refContent: base.refContent },
+      { spec: cur.spec, aiDesignContent: "", refContent: cur.refContent }
     );
     if (diffs.length > 0) {
       modifiedFunctions.push({ functionId: cur.functionId, name: cur.name, diffs });
@@ -336,8 +336,8 @@ export function diffFromScreenBaseline(
     const base = flatBaseline.get(cur.functionId);
     if (!base) continue;
     const diffs = diffFromBaseline(
-      { spec: base.func.spec, aiDesignContent: base.func.aiDesignContent, refContent: base.func.refContent },
-      { spec: cur.spec, aiDesignContent: cur.aiDesignContent, refContent: cur.refContent }
+      { spec: base.func.spec, aiDesignContent: "", refContent: base.func.refContent },
+      { spec: cur.spec, aiDesignContent: "", refContent: cur.refContent }
     );
     if (diffs.length > 0) {
       modifiedFunctions.push({ functionId: cur.functionId, name: cur.name, diffs });

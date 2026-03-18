@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { apiSuccess } from "@/lib/utils";
+import { phaseToStatus } from "@/lib/constants";
 
 export async function GET() {
   const requirements = await prisma.requirement.findMany({
@@ -14,7 +15,9 @@ export async function GET() {
                   systemId: true,
                   displayCode: true,
                   name: true,
-                  status: true,
+                  phase: true,
+                  phaseStatus: true,
+                  confirmed: true,
                 },
                 orderBy: { systemId: "asc" },
               },
@@ -53,7 +56,7 @@ export async function GET() {
           displayCode: fn.displayCode,
           name: fn.name,
           type: "function" as const,
-          status: fn.status,
+          status: phaseToStatus(fn.phase, fn.phaseStatus, fn.confirmed),
         })),
       })),
     })),
