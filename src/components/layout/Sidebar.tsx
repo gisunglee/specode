@@ -26,6 +26,7 @@ import {
   BarChart2,
   Briefcase,
   LayoutTemplate,
+  Wand2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +51,7 @@ const icons = {
   BarChart2,
   Briefcase,
   LayoutTemplate,
+  Wand2,
 } as const;
 
 const NAV_ITEMS = [
@@ -69,6 +71,7 @@ const NAV_ITEMS = [
   { divider: true },
   { href: "/req-hub",      label: "요구사항 허브",   icon: "Network"         as const },
   { href: "/bulk-design",  label: "시스템 일괄 설계", icon: "LayoutTemplate"  as const },
+  { href: "/ai-import",    label: "AI 설계 가져오기", icon: "Wand2"           as const },
   { href: "/composition",  label: "화면 구성",       icon: "Layers"          as const },
   { divider: true },
   { href: "/ai-tasks",         label: "AI 현황",  icon: "Bot" as const },

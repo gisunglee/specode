@@ -89,8 +89,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const currentStatus = phaseToStatus(existing.phase, existing.phaseStatus, false);
     const statusChanged = status === "REVIEW_REQ" && currentStatus !== "REVIEW_REQ";
 
-    // phase 업데이트 데이터
-    const phaseData = status !== undefined ? statusToPhase(status) : {};
+    // phase 업데이트 데이터 (StandardGuide에는 confirmed 컬럼 없음 → 제외)
+    const { confirmed: _confirmed, ...phaseData } = status !== undefined ? statusToPhase(status) : { confirmed: false };
 
     const updateData = {
       category,

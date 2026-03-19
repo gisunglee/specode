@@ -179,6 +179,14 @@ export default function StandardGuidesPage() {
   });
   const latestTask: AiTask | undefined = editDetailData?.data?.tasks?.[0];
 
+  /* editDetailData 로드 시 AI 피드백 내용 폼에 반영 (tb_ai_task에서 조회) */
+  useEffect(() => {
+    const feedback = editDetailData?.data?.aiFeedbackContent;
+    if (feedback !== undefined) {
+      setForm((f) => ({ ...f, aiFeedbackContent: feedback ?? "" }));
+    }
+  }, [editDetailData?.data?.aiFeedbackContent]);
+
   /* ─── 뮤테이션 ─────────────────────────────────────────────── */
 
   const invalidate = () =>

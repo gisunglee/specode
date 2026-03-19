@@ -35,6 +35,8 @@ interface MarkdownEditorProps {
   fieldName?: string;
   /** 헤더 우측에 추가로 렌더링할 요소 (예: 템플릿 삽입 버튼) */
   headerExtra?: React.ReactNode;
+  /** 미리보기를 고정 높이+스크롤로 만들 때 사용. 지정 시 height = previewRows * 24px */
+  previewRows?: number;
 }
 
 export function MarkdownEditor({
@@ -50,6 +52,7 @@ export function MarkdownEditor({
   refPkId,
   fieldName,
   headerExtra,
+  previewRows,
 }: MarkdownEditorProps) {
   const [previewMode, setPreviewMode] = useState(readOnly);
 
@@ -119,9 +122,13 @@ export function MarkdownEditor({
         <div
           className={cn(
             "rounded-md border border-border bg-muted/10 p-4 markdown-body text-sm",
-            fillHeight ? "flex-1 overflow-y-auto min-h-0" : ""
+            fillHeight ? "flex-1 overflow-y-auto min-h-0" : "overflow-y-auto"
           )}
-          style={!fillHeight ? { minHeight } : undefined}
+          style={!fillHeight
+            ? previewRows
+              ? { height: `${previewRows * 24}px` }
+              : { minHeight }
+            : undefined}
         >
           {value ? (
             <ReactMarkdown remarkPlugins={[remarkGfm]}>

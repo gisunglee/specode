@@ -8,10 +8,67 @@ export async function GET(request: NextRequest) {
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
   const taskStatus = searchParams.get("taskStatus");
   const taskType = searchParams.get("taskType");
+  const refTableName = searchParams.get("refTableName");
+  const search = searchParams.get("search")?.trim() || "";
 
   const where: Record<string, unknown> = {};
   if (taskStatus) where.taskStatus = taskStatus;
   if (taskType) where.taskType = taskType;
+  if (refTableName) where.refTableName = refTableName;
+
+  /* ── 대상 이름 검색: 각 엔티티 테이블에서 매칭 ID 조회 ─────── */
+  if (search) {
+    const tables = refTableName
+      ? [refTableName]
+      : ["tb_function", "tb_standard_guide", "tb_area", "tb_screen", "tb_planning_draft"];
+
+    const [fnMatches, gMatches, areaMatches, screenMatches, planMatches] = await Promise.all([
+      tables.includes("tb_function")
+        ? prisma.function.findMany({
+            where: { OR: [{ name: { contains: search } }, { systemId: { contains: search } }] },
+            select: { functionId: true },
+          })
+        : Promise.resolve([]),
+      tables.includes("tb_standard_guide")
+        ? prisma.standardGuide.findMany({
+            where: { OR: [{ title: { contains: search } }, { systemId: { contains: search } }] },
+            select: { guideId: true },
+          })
+        : Promise.resolve([]),
+      tables.includes("tb_area")
+        ? prisma.area.findMany({
+            where: { OR: [{ name: { contains: search } }, { areaCode: { contains: search } }] },
+            select: { areaId: true },
+          })
+        : Promise.resolve([]),
+      tables.includes("tb_screen")
+        ? prisma.screen.findMany({
+            where: { OR: [{ name: { contains: search } }, { systemId: { contains: search } }] },
+            select: { screenId: true },
+          })
+        : Promise.resolve([]),
+      tables.includes("tb_planning_draft")
+        ? prisma.planningDraft.findMany({
+            where: { planNm: { contains: search } },
+            select: { planSn: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const orConditions: unknown[] = [
+      ...(fnMatches.length     ? [{ refTableName: "tb_function",       refPkId: { in: fnMatches.map(m => m.functionId) } }] : []),
+      ...(gMatches.length      ? [{ refTableName: "tb_standard_guide", refPkId: { in: gMatches.map(m => m.guideId) } }] : []),
+      ...(areaMatches.length   ? [{ refTableName: "tb_area",           refPkId: { in: areaMatches.map(m => m.areaId) } }] : []),
+      ...(screenMatches.length ? [{ refTableName: "tb_screen",         refPkId: { in: screenMatches.map(m => m.screenId) } }] : []),
+      ...(planMatches.length   ? [{ refTableName: "tb_planning_draft", refPkId: { in: planMatches.map(m => m.planSn) } }] : []),
+    ];
+
+    if (orConditions.length === 0) {
+      return apiSuccess([], { page, pageSize, total: 0, totalPages: 0 });
+    }
+    where.OR = orConditions;
+    // refTableName이 이미 where에 있으면 중복 조건이 되지만 결과는 동일
+  }
 
   const [tasks, total] = await Promise.all([
     prisma.aiTask.findMany({

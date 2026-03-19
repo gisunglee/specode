@@ -3,12 +3,20 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Monitor, LayoutGrid, Cog, Plus, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { Monitor, LayoutGrid, Cog, Plus, Save, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
+import { RichTextEditor } from "@/components/common/RichTextEditor";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -25,7 +33,19 @@ import { apiFetch, cn } from "@/lib/utils";
 interface UnitWorkItem {
   unitWorkId: number;
   systemId: string;
+  requirementId: number | null;
   name: string;
+  requirement: { systemId: string; name: string } | null;
+}
+
+interface RequirementDetail {
+  requirementId: number;
+  systemId: string;
+  name: string;
+  originalContent: string | null;
+  currentContent: string | null;
+  detailSpec: string | null;
+  discussionMd: string | null;
 }
 
 interface ScreenListItem {
@@ -123,7 +143,7 @@ function ScreenSection({ screenId, allAreas, isTarget }: { screenId: number; all
       <div className="grid grid-cols-10 gap-0">
         <div className="col-span-6 p-4 border-r border-border">
           <MarkdownEditor key={`md-screen-${dataUpdatedAt}`} value={spec} onChange={setSpec}
-            label="화면 설명 (마크다운)" rows={14} placeholder="화면 설명을 마크다운으로 작성하세요..."
+            label="화면 설명 (마크다운)" rows={21} previewRows={42} placeholder="화면 설명을 마크다운으로 작성하세요..."
             refTableName="tb_screen" refPkId={screenId} fieldName="spec" />
         </div>
         <div className="col-span-4 p-4 space-y-3">
@@ -229,7 +249,7 @@ function AreaSection({ areaId, allScreens, isTarget }: { areaId: number; allScre
       <div className="grid grid-cols-10 gap-0">
         <div className="col-span-6 p-4 border-r border-border">
           <MarkdownEditor key={`md-area-${dataUpdatedAt}`} value={spec} onChange={setSpec}
-            label="영역 설명 (마크다운)" rows={12} placeholder="영역 설명을 마크다운으로 작성하세요..."
+            label="영역 설명 (마크다운)" rows={18} previewRows={36} placeholder="영역 설명을 마크다운으로 작성하세요..."
             refTableName="tb_area" refPkId={areaId} fieldName="spec" />
         </div>
         <div className="col-span-4 p-4 space-y-3">
@@ -323,7 +343,7 @@ function FunctionSection({ funcId, allAreas, isTarget }: { funcId: number; allAr
       <div className="grid grid-cols-10 gap-0">
         <div className="col-span-6 p-4 border-r border-border">
           <MarkdownEditor key={`md-func-${dataUpdatedAt}`} value={spec} onChange={setSpec}
-            label="기능 상세 설명 (마크다운)" rows={12} placeholder="기능 상세 설명을 마크다운으로 작성하세요..."
+            label="기능 상세 설명 (마크다운)" rows={18} previewRows={36} placeholder="기능 상세 설명을 마크다운으로 작성하세요..."
             refTableName="tb_function" refPkId={funcId} fieldName="spec" />
         </div>
         <div className="col-span-4 p-4 space-y-3">
@@ -384,6 +404,149 @@ function ListPanel({ title, icon, count, onNew, children }: {
   );
 }
 
+// ─── RequirementDialog ────────────────────────────────────────────────────────
+
+function RequirementDialog({ requirementId, open, onOpenChange }: {
+  requirementId: number;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const { data: raw } = useQuery({
+    queryKey: ["requirement-detail", requirementId],
+    queryFn: () => apiFetch<{ data: RequirementDetail }>(`/api/requirements/${requirementId}`),
+    enabled: open && !!requirementId,
+  });
+  const req = raw?.data;
+
+  const [detailSpec, setDetailSpec]     = useState("");
+  const [discussionMd, setDiscussionMd] = useState("");
+  const initializedRef = useRef(false);
+
+  useEffect(() => {
+    if (req && !initializedRef.current) {
+      setDetailSpec(req.detailSpec ?? "");
+      setDiscussionMd(req.discussionMd ?? "");
+      initializedRef.current = true;
+    }
+  }, [req]);
+
+  // reset when dialog closes/reopens
+  useEffect(() => {
+    if (!open) { initializedRef.current = false; }
+  }, [open]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiFetch(`/api/requirements/${requirementId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: req?.name,
+        originalContent: req?.originalContent ?? "",
+        currentContent: req?.currentContent ?? "",
+        detailSpec,
+        discussionMd,
+      }),
+    }),
+    onSuccess: () => {
+      toast.success("요구사항이 저장되었습니다.");
+      queryClient.invalidateQueries({ queryKey: ["requirement-detail", requirementId] });
+    },
+    onError: () => toast.error("저장 실패"),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-sm">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="font-mono text-xs text-muted-foreground">{req?.systemId}</span>
+            <span>{req?.name ?? "요구사항"}</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs defaultValue="original" className="flex flex-col flex-1 min-h-0">
+          <TabsList className="mx-6 mt-3 mb-0 shrink-0 w-fit">
+            <TabsTrigger value="original">요구사항 원본</TabsTrigger>
+            <TabsTrigger value="current">요구사항 최종본</TabsTrigger>
+            <TabsTrigger value="spec">요구사항 명세서</TabsTrigger>
+            <TabsTrigger value="discussion">상세 협의 내용</TabsTrigger>
+          </TabsList>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            {/* 원본 — 웹에디터 읽기 전용 */}
+            <TabsContent value="original" className="mt-0">
+              {req ? (
+                <RichTextEditor
+                  label="요구사항 원본"
+                  value={req.originalContent ?? ""}
+                  onChange={() => {}}
+                  readOnly
+                  heightClass="min-h-[450px]"
+                />
+              ) : (
+                <div className="h-[450px] animate-pulse bg-muted rounded-md" />
+              )}
+            </TabsContent>
+
+            {/* 최종본 — 웹에디터 읽기 전용 */}
+            <TabsContent value="current" className="mt-0">
+              {req ? (
+                <RichTextEditor
+                  label="요구사항 최종본"
+                  value={req.currentContent ?? ""}
+                  onChange={() => {}}
+                  readOnly
+                  heightClass="min-h-[450px]"
+                />
+              ) : (
+                <div className="h-[450px] animate-pulse bg-muted rounded-md" />
+              )}
+            </TabsContent>
+
+            {/* 명세서 — RichTextEditor */}
+            <TabsContent value="spec" className="mt-0">
+              {req ? (
+                <RichTextEditor
+                  label="요구사항 명세서"
+                  value={detailSpec}
+                  onChange={setDetailSpec}
+                  heightClass="min-h-[450px]"
+                />
+              ) : (
+                <div className="h-[450px] animate-pulse bg-muted rounded-md" />
+              )}
+            </TabsContent>
+
+            {/* 상세 협의 내용 — MarkdownEditor */}
+            <TabsContent value="discussion" className="mt-0">
+              {req ? (
+                <MarkdownEditor
+                  label="상세 협의 내용 (마크다운)"
+                  value={discussionMd}
+                  onChange={setDiscussionMd}
+                  rows={24}
+                  placeholder="상세 협의 내용을 마크다운으로 작성하세요..."
+                />
+              ) : (
+                <div className="h-[450px] animate-pulse bg-muted rounded-md" />
+              )}
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        <div className="px-6 py-3 border-t border-border shrink-0 flex justify-end">
+          <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !req}>
+            {saveMutation.isPending ? "저장 중..." : <><Save className="h-3.5 w-3.5 mr-1" />저장</>}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BulkDesignPage() {
@@ -391,6 +554,7 @@ export default function BulkDesignPage() {
 
   // ── 단위업무 선택 ──────────────────────────────────────────
   const [unitWorkId, setUnitWorkId] = useState<string>("");
+  const [reqDialogOpen, setReqDialogOpen] = useState(false);
 
   const { data: uwListData } = useQuery({
     queryKey: ["unit-works-list"],
@@ -398,6 +562,7 @@ export default function BulkDesignPage() {
   });
   const unitWorks: UnitWorkItem[] = uwListData?.data ?? [];
   const selectedUW = unitWorks.find(u => String(u.unitWorkId) === unitWorkId) ?? null;
+  const selectedReqId = selectedUW?.requirementId ?? null;
 
   // ── 스크롤 방향 감지 → 패널 접기/펼치기 ──────────────────
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -497,13 +662,28 @@ export default function BulkDesignPage() {
     <div className="-mx-6 -mt-6 flex flex-col h-[calc(100vh-48px)]">
 
       {/* ── 페이지 헤더 ─────────────────────────────────────── */}
-      <div className="px-6 py-3 border-b border-border bg-background shrink-0 flex items-center justify-between gap-4">
-        <div>
+      <div className="px-6 py-3 border-b border-border bg-background shrink-0 flex items-center gap-4">
+        <div className="shrink-0">
           <h1 className="text-base font-semibold">시스템 일괄 설계</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             단위업무를 선택하면 소속 화면·영역·기능을 일괄 편집할 수 있습니다.
           </p>
         </div>
+
+        {/* 요구사항 제목 (중앙) */}
+        <div className="flex-1 flex justify-center">
+          {selectedUW?.requirement && selectedReqId && (
+            <button
+              onClick={() => setReqDialogOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-foreground hover:bg-muted transition-colors border border-transparent hover:border-border"
+            >
+              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="font-mono text-xs text-muted-foreground mr-1">{selectedUW.requirement.systemId}</span>
+              <span className="truncate max-w-[300px]">{selectedUW.requirement.name}</span>
+            </button>
+          )}
+        </div>
+
         {/* 단위업무 선택기 */}
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">단위업무</span>
@@ -527,6 +707,15 @@ export default function BulkDesignPage() {
           )}
         </div>
       </div>
+
+      {/* ── 요구사항 팝업 ───────────────────────────────────── */}
+      {selectedReqId && (
+        <RequirementDialog
+          requirementId={selectedReqId}
+          open={reqDialogOpen}
+          onOpenChange={setReqDialogOpen}
+        />
+      )}
 
       {/* ── 단위업무 미선택 상태 ────────────────────────────── */}
       {!unitWorkId ? (

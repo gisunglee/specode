@@ -3,10 +3,18 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { X, RotateCcw } from "lucide-react";
+import { X, RotateCcw, Search } from "lucide-react";
 import { DataGrid } from "@/components/common/DataGrid";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -137,16 +145,21 @@ export default function AiTasksPage() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [specRawView, setSpecRawView] = useState(false);
 
   useEffect(() => { setSpecRawView(false); }, [selectedTaskId]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ai-tasks", page, statusFilter],
+    queryKey: ["ai-tasks", page, statusFilter, typeFilter, search],
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), pageSize: "10" });
       if (statusFilter) params.set("taskStatus", statusFilter);
+      if (typeFilter)   params.set("refTableName", typeFilter);
+      if (search)       params.set("search", search);
       const res = await fetch(`/api/ai-tasks?${params}`);
       return res.json();
     },
@@ -404,6 +417,64 @@ export default function AiTasksPage() {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      {/* ── 검색 필터 ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* 유형 선택 */}
+        <Select
+          value={typeFilter || "ALL"}
+          onValueChange={(v) => { setTypeFilter(v === "ALL" ? "" : v); setPage(1); }}
+        >
+          <SelectTrigger className="w-36 h-8 text-sm">
+            <SelectValue placeholder="유형 전체" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">유형 전체</SelectItem>
+            {Object.entries(REF_TABLE_LABEL).map(([key, label]) => (
+              <SelectItem key={key} value={key}>{label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {/* 대상 검색 */}
+        <form
+          className="flex items-center gap-1"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setSearch(searchInput.trim());
+            setPage(1);
+          }}
+        >
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="대상 검색..."
+              className="pl-8 h-8 w-56 text-sm"
+            />
+          </div>
+          <Button type="submit" size="sm" variant="secondary" className="h-8 px-3 text-sm">
+            검색
+          </Button>
+          {(typeFilter || search) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-muted-foreground"
+              onClick={() => {
+                setTypeFilter("");
+                setSearchInput("");
+                setSearch("");
+                setPage(1);
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </form>
       </div>
 
       <DataGrid

@@ -65,6 +65,8 @@ interface RichTextEditorProps {
   heightClass?: string;
   /** true → flex flex-col h-full 로 부모 컨테이너를 꽉 채움 */
   fillHeight?: boolean;
+  /** true → 읽기 전용 (툴바 숨김, 편집 불가) */
+  readOnly?: boolean;
 }
 
 export function RichTextEditor({
@@ -74,9 +76,11 @@ export function RichTextEditor({
   placeholder = "내용을 입력하세요...",
   heightClass = "min-h-48",
   fillHeight = false,
+  readOnly = false,
 }: RichTextEditorProps) {
   const editor = useEditor({
     immediatelyRender: false, // SSR hydration 불일치 방지 (Next.js App Router 필수)
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({
         // 줄바꿈: 기본 하드브레이크 사용
@@ -142,8 +146,8 @@ export function RichTextEditor({
       {/* ── 툴바 + 에디터를 하나의 border로 묶음 ────────────── */}
       <div className={cn("rounded-md border border-border overflow-hidden flex flex-col", fillHeight && "flex-1 min-h-0")}>
 
-      {/* ── 툴바 ──────────────────────────────────────────── */}
-      <div className="flex items-center gap-0.5 flex-wrap border-b border-border bg-muted/40 px-2 py-1">
+      {/* ── 툴바 (readOnly 시 숨김) ──────────────────────── */}
+      {!readOnly && <div className="flex items-center gap-0.5 flex-wrap border-b border-border bg-muted/40 px-2 py-1">
         {/* 텍스트 서식 */}
         <ToolbarButton
           title="굵게 (Ctrl+B)"
@@ -225,12 +229,12 @@ export function RichTextEditor({
         >
           ↪
         </ToolbarButton>
-      </div>
+      </div>}
 
       {/* ── 에디터 본문 ──────────────────────────────────── */}
       <div
-        className="relative bg-white cursor-text overflow-auto flex-1"
-        onClick={() => editor.chain().focus().run()}
+        className={cn("relative overflow-auto flex-1", readOnly ? "bg-muted/10 cursor-default" : "bg-white cursor-text")}
+        onClick={() => !readOnly && editor.chain().focus().run()}
       >
         {/* placeholder */}
         {editor.isEmpty && (
