@@ -5,6 +5,11 @@ import { apiSuccess, apiError } from "@/lib/utils";
 import { saveContentVersion } from "@/lib/contentVersion";
 import { statusToPhase, phaseToStatus } from "@/lib/constants";
 import { getFuncAiFeedback } from "@/lib/aiFeedback";
+import {
+  diffFromAreaBaseline,
+  buildAreaChangeNoteDraft,
+} from "@/lib/implBaseline";
+import type { AreaSnapshot } from "@/lib/implBaseline";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -160,6 +165,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // ── 구현 요청 (상태 변경 없음, AiTask만 생성) ─────────────
   if (body.action === "IMPL_REQ") {
+    const lastImpl = await prisma.aiTask.findFirst({
+      where: { refTableName: "tb_area", refPkId: numId, taskType: "IMPLEMENT", taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
+      orderBy: { completedAt: "desc" },
+      select: { contextSnapshot: true },
+    });
+
     const area = await prisma.area.findUnique({
       where: { areaId: numId },
       select: {
@@ -178,6 +189,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const funcIds = area.functions.map((f) => f.functionId);
     const aiFeedbackMap = await getFuncAiFeedback(funcIds, ["DESIGN"]);
 
+    // 마지막 성공 구현 요청과 diff 계산
+    const currentAreaSnap: AreaSnapshot = {
+      area: { spec: area.spec || "" },
+      functions: area.functions.map((f) => {
+        const ai = aiFeedbackMap.get(f.functionId) ?? {};
+        return { functionId: f.functionId, name: f.name, spec: f.spec || "", aiDesignContent: ai["DESIGN"] || "", refContent: f.refContent || "" };
+      }),
+    };
+    let implChangeNote = "";
+    if (lastImpl?.contextSnapshot) {
+      try {
+        const baseline = JSON.parse(lastImpl.contextSnapshot) as AreaSnapshot;
+        implChangeNote = buildAreaChangeNoteDraft(diffFromAreaBaseline(baseline, currentAreaSnap));
+      } catch { /* 파싱 실패 무시 */ }
+    }
+
     // spec 조합: 영역 설명 + 각 기능
     const specParts: string[] = [];
     if (area.spec) specParts.push(`# 영역: ${area.name} (${area.areaCode})\n\n## 영역 설명\n\n${area.spec}`);
@@ -190,6 +217,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const taskSystemId = await generateSystemId("ATK");
+    const areaImplSpec = specParts.join("\n\n---\n\n") || null;
     await prisma.aiTask.create({
       data: {
         systemId: taskSystemId,
@@ -197,7 +225,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         refPkId: numId,
         taskType: "IMPLEMENT",
         taskStatus: "NONE",
-        spec: specParts.join("\n\n---\n\n") || null,
+        spec: implChangeNote && areaImplSpec ? implChangeNote + "\n\n---\n\n" + areaImplSpec : areaImplSpec,
         contextSnapshot: JSON.stringify({
           area: { spec: area.spec || "" },
           functions: area.functions.map((f) => {

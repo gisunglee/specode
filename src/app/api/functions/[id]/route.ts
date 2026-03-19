@@ -4,6 +4,8 @@ import { apiSuccess, apiError } from "@/lib/utils";
 import { generateSystemId } from "@/lib/sequence";
 import { saveContentVersion } from "@/lib/contentVersion";
 import { statusToPhase, phaseToStatus, ALL_STATUSES } from "@/lib/constants";
+import { diffFromBaseline, buildChangeNoteDraft } from "@/lib/implBaseline";
+import type { ContextSnapshot } from "@/lib/implBaseline";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -212,6 +214,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
     const designFeedback = latestTasks.find((t: { taskType: string; feedback: string | null }) => t.taskType === "DESIGN")?.feedback ?? "";
 
+    // 마지막 성공 구현/설계 요청과 diff 계산
+    const lastSameType = await prisma.aiTask.findFirst({
+      where: { refTableName: "tb_function", refPkId: numId, taskType, taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
+      orderBy: { completedAt: "desc" },
+      select: { contextSnapshot: true },
+    });
+    const currentFuncSnap: ContextSnapshot = {
+      spec: func.spec || "",
+      aiDesignContent: designFeedback,
+      refContent: func.refContent || "",
+    };
+    let funcChangeNote = "";
+    if (lastSameType?.contextSnapshot) {
+      try {
+        const baseline = JSON.parse(lastSameType.contextSnapshot) as ContextSnapshot;
+        funcChangeNote = buildChangeNoteDraft(diffFromBaseline(baseline, currentFuncSnap));
+      } catch { /* 파싱 실패 무시 */ }
+    }
+
     const specParts = [
       func.spec        ? `## 기본 설계 내용\n\n${func.spec}` : "",
       designFeedback   ? `## 상세설계\n\n${designFeedback}` : "",
@@ -224,12 +245,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         refPkId:         numId,
         taskType,
         taskStatus:      "NONE",
-        spec:            specParts || null,
-        contextSnapshot: JSON.stringify({
-          spec:           func.spec || "",
-          aiDesignContent: designFeedback,
-          refContent:     func.refContent || "",
-        }),
+        spec:            funcChangeNote && specParts ? funcChangeNote + "\n\n---\n\n" + specParts : specParts || null,
+        contextSnapshot: JSON.stringify(currentFuncSnap),
         changeNote:      body.changeNote?.trim() || null,
         comment:         body.comment?.trim()    || null,
       },

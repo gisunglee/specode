@@ -1,32 +1,15 @@
 /**
  * prd/function/v1.ts — 기능 단위 PRD 생성기 v1
  *
- * 변경 이력:
- *   v1 (2026-03-16) 최초 작성
- *     - 기능 개요 + 기술 컨텍스트 + 기능 명세 + AI 설계/검토 내용 + 체크리스트
- *     - aiDesignContent 는 본문 노출, aiInspFeedback 는 <details> 접기 처리
+ * 단위업무 PRD와 동일한 형식으로 단일 기능을 출력한다.
+ * 기술 컨텍스트 테이블, 구현 체크리스트 없음.
  */
 import type { FunctionForPrd } from "../types";
-import { type PrdConfig, DEFAULT_PRD_CONFIG } from "../config";
 
 export const VERSION = "v1" as const;
 
-const PRIORITY_EMOJI: Record<string, string> = {
-  HIGH:   "🔴",
-  MEDIUM: "🟡",
-  LOW:    "🟢",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  DRAFT:        "작성중",
-  REVIEW_REQ:   "검토요청",
-  AI_REVIEWING: "AI검토중",
-  REVIEW_DONE:  "검토완료",
-  DESIGN_REQ:   "설계요청",
-  DESIGN_DONE:  "설계완료",
-  CONFIRM_Y:    "확정",
-  IMPL_REQ:     "구현요청",
-  IMPL_DONE:    "구현완료",
+const PRIORITY_LABEL: Record<string, string> = {
+  HIGH: "높음", MEDIUM: "중간", LOW: "낮음",
 };
 
 /** 기능 PRD 생성 시 추가로 전달할 수 있는 상위 컨텍스트 */
@@ -40,93 +23,62 @@ export interface FunctionPrdContext {
 export function generateFunctionPrd(
   fn: FunctionForPrd,
   context: FunctionPrdContext = {},
-  config: PrdConfig = DEFAULT_PRD_CONFIG,
 ): string {
-  const now = new Date().toLocaleDateString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
-  const idLabel = fn.displayCode
-    ? `${fn.systemId} (${fn.displayCode})`
-    : fn.systemId;
-  const priorityEmoji = PRIORITY_EMOJI[fn.priority] ?? "⚪";
-  const statusLabel = STATUS_LABEL[fn.status] ?? fn.status;
   const lines: string[] = [];
+  const push = (...items: string[]) => lines.push(...items);
 
-  // ── 문서 헤더 ──────────────────────────────────────────────────────────
-  lines.push(`# ${idLabel}: ${fn.name} — 개발 PRD`);
-  lines.push("");
-  lines.push(`> 생성일: ${now} | **PRD 버전: 기능 v1**`);
-  lines.push("");
+  const fnMeta: string[] = [`[${fn.systemId}]`, fn.name];
+  if (fn.displayCode) fnMeta.push(`(${fn.displayCode})`);
+  fnMeta.push(`/ 우선순위: ${PRIORITY_LABEL[fn.priority] ?? fn.priority}`);
+  push(`기능: ${fnMeta.join(" ")}`);
 
-  // ── 기능 개요 ──────────────────────────────────────────────────────────
-  lines.push("## 기능 개요");
-  lines.push("");
-  lines.push(`- **기능 ID:** \`${fn.systemId}\`${fn.displayCode ? ` (${fn.displayCode})` : ""}`);
-  lines.push(`- **상태:** \`${fn.status}\` (${statusLabel})`);
-  lines.push(`- **우선순위:** ${priorityEmoji} ${fn.priority}`);
-  if (context.areaCode && context.areaName) lines.push(`- **소속 영역:** ${context.areaCode} ${context.areaName}`);
-  if (context.screenSystemId && context.screenName) lines.push(`- **상위 화면:** ${context.screenSystemId} ${context.screenName}`);
-  lines.push("");
-
-  // ── 기술 컨텍스트 ──────────────────────────────────────────────────────
-  lines.push("## 기술 컨텍스트 (Claude Code 참고)");
-  lines.push("");
-  lines.push("| 항목 | 내용 |");
-  lines.push("|------|------|");
-  for (const row of config.techContext) {
-    lines.push(`| ${row.label} | ${row.value} |`);
+  if (context.areaCode && context.areaName) {
+    push(`소속 영역: ${context.areaCode} ${context.areaName}`);
   }
-  lines.push("");
-
-  // ── 기능 명세 ──────────────────────────────────────────────────────────
-  lines.push("---");
-  lines.push("");
-  lines.push("## 기능 명세");
-  lines.push("");
+  if (context.screenSystemId && context.screenName) {
+    push(`상위 화면: ${context.screenSystemId} ${context.screenName}`);
+  }
 
   if (fn.spec?.trim()) {
-    lines.push(fn.spec.trim());
-    lines.push("");
-  } else {
-    lines.push("> 기능 명세가 작성되지 않았습니다.");
-    lines.push("");
+    push("", fn.spec.trim());
   }
 
-  // ── AI 상세 설계 내용 ────────────────────────────────────────────────────
+  if (fn.refContent?.trim()) {
+    push(
+      "",
+      "<details>",
+      "<summary>참고 프로그램</summary>",
+      "",
+      fn.refContent.trim(),
+      "",
+      "</details>"
+    );
+  }
+
   if (fn.aiDesignContent?.trim()) {
-    lines.push("---");
-    lines.push("");
-    lines.push("## AI 상세 설계 내용");
-    lines.push("");
-    lines.push(fn.aiDesignContent.trim());
-    lines.push("");
+    push(
+      "",
+      "<details>",
+      "<summary>AI 상세 설계</summary>",
+      "",
+      fn.aiDesignContent.trim(),
+      "",
+      "</details>"
+    );
   }
 
-  // ── AI 검토 피드백 ──────────────────────────────────────────────────────
   if (fn.aiInspFeedback?.trim()) {
-    lines.push("<details>");
-    lines.push("<summary>🔍 AI 검토 피드백 (펼치기)</summary>");
-    lines.push("");
-    lines.push(fn.aiInspFeedback.trim());
-    lines.push("");
-    lines.push("</details>");
-    lines.push("");
+    push(
+      "",
+      "<details>",
+      "<summary>AI 검토 결과</summary>",
+      "",
+      fn.aiInspFeedback.trim(),
+      "",
+      "</details>"
+    );
   }
 
-  // ── 구현 체크리스트 ────────────────────────────────────────────────────
-  lines.push("---");
-  lines.push("");
-  lines.push("## 구현 체크리스트");
-  lines.push("");
-  lines.push("- [ ] API 엔드포인트 구현");
-  lines.push("- [ ] 컴포넌트 구현 (UI + 상태 관리)");
-  lines.push("- [ ] 유효성 검사 (Zod)");
-  lines.push("- [ ] 에러 처리 및 Toast 알림");
-  lines.push("- [ ] 로딩 상태 처리 (isLoading / isPending)");
-  lines.push("");
-
+  push("");
   return lines.join("\n");
 }

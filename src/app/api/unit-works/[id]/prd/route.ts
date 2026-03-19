@@ -10,6 +10,9 @@ import prisma from "@/lib/prisma";
 import { generateUnitWorkPrd, PRD_VERSIONS } from "@/lib/prd";
 import type { ScreenForUwPrd, AreaForUwPrd, FuncForUwPrd } from "@/lib/prd";
 import { phaseToStatus } from "@/lib/constants";
+import { generateSystemId } from "@/lib/sequence";
+import { diffFromUwBaseline, buildUwChangeNoteDraft } from "@/lib/implBaseline";
+import type { UnitWorkSnapshot, UwScreenSnapshot } from "@/lib/implBaseline";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -185,6 +188,83 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     areas:       areasByScreen.get(Number(s.screen_id)) ?? [],
   }));
 
+  // ── PRD_SNAPSHOT diff 계산 ────────────────────────────────────────────
+  // 마지막 PRD_SNAPSHOT 조회
+  interface SnapshotRow { ai_task_id: number; context_snapshot: string | null; requested_at: Date }
+  const snapshotRows = await prisma.$queryRaw<SnapshotRow[]>`
+    SELECT ai_task_id, context_snapshot, requested_at
+    FROM tb_ai_task
+    WHERE task_type = 'PRD_SNAPSHOT'
+      AND ref_table_name = 'tb_unit_work'
+      AND ref_pk_id = ${numId}
+    ORDER BY requested_at DESC
+    LIMIT 1
+  `;
+
+  // 현재 상태 스냅샷 구성 (raw rows 기반으로 직접 조립)
+  const funcsByAreaForSnapshot = new Map<number, FuncRow[]>();
+  for (const fn of funcRows) {
+    const areaId = Number(fn.area_id);
+    const list = funcsByAreaForSnapshot.get(areaId) ?? [];
+    list.push(fn);
+    funcsByAreaForSnapshot.set(areaId, list);
+  }
+  const areasByScreenForSnapshot = new Map<number, AreaRow[]>();
+  for (const area of areaRows) {
+    const screenId = Number(area.screen_id);
+    const list = areasByScreenForSnapshot.get(screenId) ?? [];
+    list.push(area);
+    areasByScreenForSnapshot.set(screenId, list);
+  }
+
+  const currentSnapshot: UnitWorkSnapshot = {
+    unitWork: { description: uw.description ?? "" },
+    screens: screenRows.map((s): UwScreenSnapshot => ({
+      screenId: Number(s.screen_id),
+      systemId: s.system_id,
+      name: s.name,
+      spec: s.spec ?? "",
+      areas: (areasByScreenForSnapshot.get(Number(s.screen_id)) ?? []).map((area) => ({
+        areaId: Number(area.area_id),
+        areaCode: area.area_code,
+        name: area.name,
+        spec: area.spec ?? "",
+        functions: (funcsByAreaForSnapshot.get(Number(area.area_id)) ?? []).map((fn) => ({
+          functionId: Number(fn.function_id),
+          systemId: fn.system_id,
+          name: fn.name,
+          spec: fn.spec ?? "",
+          refContent: fn.ref_content ?? "",
+        })),
+      })),
+    })),
+  };
+
+  let changeNote = "";
+  if (snapshotRows.length > 0 && snapshotRows[0].context_snapshot) {
+    try {
+      const baseline = JSON.parse(snapshotRows[0].context_snapshot) as UnitWorkSnapshot;
+      const sinceDate = snapshotRows[0].requested_at.toISOString().slice(0, 10);
+      const diff = diffFromUwBaseline(baseline, currentSnapshot);
+      changeNote = buildUwChangeNoteDraft(diff, sinceDate);
+    } catch {
+      // 파싱 실패 시 diff 없이 계속
+    }
+  }
+
+  // 새 PRD_SNAPSHOT 저장 (PRD 생성 성공 시점 기록)
+  const snapshotSystemId = await generateSystemId("ATK");
+  await prisma.aiTask.create({
+    data: {
+      systemId:        snapshotSystemId,
+      refTableName:    "tb_unit_work",
+      refPkId:         numId,
+      taskType:        "PRD_SNAPSHOT",
+      taskStatus:      "SUCCESS",
+      contextSnapshot: JSON.stringify(currentSnapshot),
+    },
+  });
+
   let markdown = generateUnitWorkPrd({
     systemId:    uw.system_id,
     name:        uw.name,
@@ -192,6 +272,10 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     requirement: { systemId: uw.req_system_id, name: uw.req_name },
     screens,
   });
+
+  if (changeNote) {
+    markdown = changeNote + "\n\n---\n\n" + markdown;
+  }
 
   // <TABLE_SCRIPT: tablename> 플레이스홀더 치환
   const TABLE_SCRIPT_RE = /<TABLE_SCRIPT:\s*([^\s>]+)\s*>/gi;

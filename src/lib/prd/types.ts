@@ -13,6 +13,7 @@ export interface FunctionForPrd {
   status: string;
   priority: string;
   spec: string | null;
+  refContent: string | null;
   aiDesignContent: string | null;
   aiInspFeedback: string | null;
 }

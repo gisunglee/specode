@@ -6,6 +6,7 @@
  * 허용 조합:
  *   tb_function        → spec, ref_content  (AI 결과는 AiTask.feedback으로 조회)
  *   tb_area            → spec
+ *   tb_screen          → spec
  *   tb_standard_guide  → content
  *   tb_db_schema       → ddl_script
  *   tb_planning_draft  → result_content
@@ -17,6 +18,7 @@ import prisma from "@/lib/prisma";
 const VERSIONED_FIELDS: Record<string, string[]> = {
   tb_function: ["spec", "ref_content"],
   tb_area: ["spec"],
+  tb_screen: ["spec"],
   tb_standard_guide: ["content"],
   tb_db_schema: ["ddl_script"],
   tb_planning_draft: ["result_content"],
@@ -24,7 +26,7 @@ const VERSIONED_FIELDS: Record<string, string[]> = {
 };
 
 export interface SaveVersionParams {
-  refTableName: "tb_function" | "tb_area" | "tb_standard_guide" | "tb_db_schema" | "tb_planning_draft" | "tb_unit_work";
+  refTableName: "tb_function" | "tb_area" | "tb_screen" | "tb_standard_guide" | "tb_db_schema" | "tb_planning_draft" | "tb_unit_work";
   refPkId: number;
   fieldName: string;
   /** 변경 직전의 현재 값 (이걸 이력으로 남긴다) */

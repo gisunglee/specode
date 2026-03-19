@@ -3,12 +3,19 @@
  *
  * 영역 + 소속 기능 전체 데이터를 조합해 개발 PRD.md 마크다운을 반환한다.
  * Content-Disposition 헤더로 파일 다운로드를 유도한다.
+ * 직전 PRD 다운로드 이후 변경사항을 자동으로 PRD 상단에 추가한다.
  */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateAreaPrd } from "@/lib/prd/area/v1";
 import { PRD_VERSIONS } from "@/lib/prd";
 import { phaseToStatus } from "@/lib/constants";
+import { generateSystemId } from "@/lib/sequence";
+import {
+  diffFromAreaBaseline,
+  buildAreaChangeNoteDraft,
+} from "@/lib/implBaseline";
+import type { AreaSnapshot } from "@/lib/implBaseline";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -38,6 +45,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           priority: true,
           sortOrder: true,
           spec: true,
+          refContent: true,
         },
         orderBy: { sortOrder: "asc" },
       },
@@ -72,7 +80,47 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     aiByFunc.set(t.refPkId, existing);
   }
 
-  const markdown = generateAreaPrd(
+  // ── PRD_SNAPSHOT diff 계산 ────────────────────────────────────────────
+  const lastSnapshot = await prisma.aiTask.findFirst({
+    where: { taskType: "PRD_SNAPSHOT", refTableName: "tb_area", refPkId: numId },
+    orderBy: { requestedAt: "desc" },
+    select: { contextSnapshot: true },
+  });
+
+  // 현재 상태 스냅샷 구성 (aiDesignContent는 aiByFunc에서)
+  const currentSnapshot: AreaSnapshot = {
+    area: { spec: area.spec ?? "" },
+    functions: area.functions.map((f) => ({
+      functionId: f.functionId,
+      name: f.name,
+      spec: f.spec ?? "",
+      aiDesignContent: (aiByFunc.get(f.functionId) ?? {})["DESIGN"] ?? "",
+      refContent: f.refContent ?? "",
+    })),
+  };
+
+  let changeNote = "";
+  if (lastSnapshot?.contextSnapshot) {
+    try {
+      const baseline = JSON.parse(lastSnapshot.contextSnapshot) as AreaSnapshot;
+      changeNote = buildAreaChangeNoteDraft(diffFromAreaBaseline(baseline, currentSnapshot));
+    } catch { /* 파싱 실패 시 diff 없이 계속 */ }
+  }
+
+  // 새 PRD_SNAPSHOT 저장
+  const snapshotSystemId = await generateSystemId("ATK");
+  await prisma.aiTask.create({
+    data: {
+      systemId:        snapshotSystemId,
+      refTableName:    "tb_area",
+      refPkId:         numId,
+      taskType:        "PRD_SNAPSHOT",
+      taskStatus:      "SUCCESS",
+      contextSnapshot: JSON.stringify(currentSnapshot),
+    },
+  });
+
+  let markdown = generateAreaPrd(
     {
       areaCode: area.areaCode,
       name: area.name,
@@ -88,6 +136,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           status: phaseToStatus(fn.phase, fn.phaseStatus, fn.confirmed),
           priority: fn.priority,
           spec: fn.spec,
+          refContent: fn.refContent ?? null,
           aiDesignContent: ai["DESIGN"] ?? null,
           aiInspFeedback:  ai["REVIEW"] ?? ai["INSPECT"] ?? null,
         };
@@ -98,6 +147,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       screenName: area.screen?.name ?? null,
     },
   );
+
+  if (changeNote) {
+    markdown = changeNote + "\n\n---\n\n" + markdown;
+  }
 
   const filename = `PRD_area-${PRD_VERSIONS.area}_${area.areaCode}_${area.name}.md`;
   const encodedFilename = encodeURIComponent(filename);

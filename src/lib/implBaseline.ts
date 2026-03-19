@@ -380,3 +380,151 @@ export function buildScreenChangeNoteDraft(diff: ScreenBaselineDiff): string {
 
   return lines.join("\n");
 }
+
+/* ─────────────────────────────────────────────────────────
+ * 단위업무(UnitWork) 단위 Baseline
+ * ───────────────────────────────────────────────────────── */
+
+export interface UwFuncSnapshot {
+  functionId: number;
+  systemId: string;
+  name: string;
+  spec: string;
+  refContent: string;
+}
+
+export interface UwAreaSnapshot {
+  areaId: number;
+  areaCode: string;
+  name: string;
+  spec: string;
+  functions: UwFuncSnapshot[];
+}
+
+export interface UwScreenSnapshot {
+  screenId: number;
+  systemId: string;
+  name: string;
+  spec: string;
+  areas: UwAreaSnapshot[];
+}
+
+export interface UnitWorkSnapshot {
+  unitWork: { description: string };
+  screens: UwScreenSnapshot[];
+}
+
+export interface UwScreenDiff {
+  screenId: number;
+  systemId: string;
+  name: string;
+  diff: ScreenBaselineDiff;
+}
+
+export interface UwBaselineDiff {
+  addedScreens:    { screenId: number; systemId: string; name: string }[];
+  removedScreens:  { screenId: number; systemId: string; name: string }[];
+  modifiedScreens: UwScreenDiff[];
+  uwDescDiffs:     SectionDiff[];
+}
+
+/**
+ * 단위업무 단위 baseline diff.
+ * 화면 추가/삭제/수정을 감지하고, 수정된 화면은 diffFromScreenBaseline() 재활용.
+ */
+export function diffFromUwBaseline(
+  baseline: UnitWorkSnapshot,
+  current: UnitWorkSnapshot
+): UwBaselineDiff {
+  // 단위업무 description diff
+  const uwDescDiffs = diffFromBaseline(
+    { spec: baseline.unitWork.description, aiDesignContent: "", refContent: "" },
+    { spec: current.unitWork.description, aiDesignContent: null, refContent: null }
+  ).filter((d) => d.field === "spec");
+
+  const baselineScreens = new Map(baseline.screens.map((s) => [s.screenId, s]));
+  const currentScreens  = new Map(current.screens.map((s) => [s.screenId, s]));
+
+  const addedScreens = current.screens
+    .filter((s) => !baselineScreens.has(s.screenId))
+    .map((s) => ({ screenId: s.screenId, systemId: s.systemId, name: s.name }));
+
+  const removedScreens = baseline.screens
+    .filter((s) => !currentScreens.has(s.screenId))
+    .map((s) => ({ screenId: s.screenId, systemId: s.systemId, name: s.name }));
+
+  const modifiedScreens: UwScreenDiff[] = [];
+  for (const cur of current.screens) {
+    const base = baselineScreens.get(cur.screenId);
+    if (!base) continue;
+
+    // UwAreaSnapshot → ScreenAreaSnapshot 변환
+    const toScreenSnapshot = (s: UwScreenSnapshot): ScreenSnapshot => ({
+      screen: { spec: s.spec },
+      areas: s.areas.map((a) => ({
+        areaId: a.areaId,
+        name: a.name,
+        spec: a.spec,
+        functions: a.functions.map((f) => ({
+          functionId: f.functionId,
+          name: f.name,
+          spec: f.spec,
+          refContent: f.refContent,
+        })),
+      })),
+    });
+
+    const diff = diffFromScreenBaseline(toScreenSnapshot(base), toScreenSnapshot(cur));
+    const hasChanges =
+      diff.screenSpecDiffs.length > 0 ||
+      diff.addedFunctions.length > 0 ||
+      diff.removedFunctions.length > 0 ||
+      diff.modifiedFunctions.length > 0;
+
+    if (hasChanges) {
+      modifiedScreens.push({ screenId: cur.screenId, systemId: cur.systemId, name: cur.name, diff });
+    }
+  }
+
+  return { addedScreens, removedScreens, modifiedScreens, uwDescDiffs };
+}
+
+/**
+ * UW diff로부터 PRD 상단에 붙을 변경사항 섹션 텍스트를 생성한다.
+ */
+export function buildUwChangeNoteDraft(diff: UwBaselineDiff, sinceDate?: string): string {
+  const hasChanges =
+    diff.uwDescDiffs.length > 0 ||
+    diff.addedScreens.length > 0 ||
+    diff.removedScreens.length > 0 ||
+    diff.modifiedScreens.length > 0;
+
+  if (!hasChanges) return "";
+
+  const dateLabel = sinceDate ? ` (${sinceDate} 이후)` : "";
+  const lines: string[] = [`## ⚠️ 변경사항${dateLabel}`];
+
+  if (diff.uwDescDiffs.length > 0) {
+    lines.push("\n### 단위업무 설명 변경");
+    lines.push(buildChangeNoteDraft(diff.uwDescDiffs).replace("## 이전 구현 이후 변경사항\n", ""));
+  }
+
+  if (diff.addedScreens.length > 0) {
+    lines.push("\n### [추가] 화면");
+    diff.addedScreens.forEach((s) => lines.push(`- ${s.systemId} ${s.name}`));
+  }
+
+  if (diff.removedScreens.length > 0) {
+    lines.push("\n### [삭제] 화면");
+    diff.removedScreens.forEach((s) => lines.push(`- ${s.systemId} ${s.name}`));
+  }
+
+  for (const ms of diff.modifiedScreens) {
+    lines.push(`\n### [수정] ${ms.systemId} ${ms.name}`);
+    const screenNote = buildScreenChangeNoteDraft(ms.diff)
+      .replace("## 이전 구현 이후 변경사항\n", "");
+    if (screenNote) lines.push(screenNote);
+  }
+
+  return lines.join("\n");
+}
