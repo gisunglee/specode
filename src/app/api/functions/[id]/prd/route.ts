@@ -11,7 +11,6 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { generateFunctionPrd } from "@/lib/prd/function/v1";
 import { PRD_VERSIONS } from "@/lib/prd";
-import { generateSystemId } from "@/lib/sequence";
 import { phaseToStatus } from "@/lib/constants";
 import { diffFromBaseline, buildChangeNoteDraft } from "@/lib/implBaseline";
 import type { ContextSnapshot } from "@/lib/implBaseline";
@@ -88,10 +87,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const aiDesignContent = fn.ai_design_content || null;
   const status = phaseToStatus(fn.phase, fn.phase_status, fn.confirmed);
 
-  // ── PRD_EXPORT diff 계산 ────────────────────────────────────────────
-  const lastExport = await prisma.aiTask.findFirst({
-    where: { taskType: "PRD_EXPORT", refTableName: "tb_function", refPkId: numId },
-    orderBy: { requestedAt: "desc" },
+  // ── PRD baseline diff 계산 ────────────────────────────────────────────
+  const lastExport = await prisma.prdBaseline.findFirst({
+    where: { refTableName: "tb_function", refPkId: numId, baselineType: "PRD" },
+    orderBy: { createdAt: "desc" },
     select: { contextSnapshot: true },
   });
 
@@ -109,19 +108,15 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     } catch { /* 파싱 실패 시 diff 없이 계속 */ }
   }
 
-  // PRD_EXPORT 이력 저장
-  const exportSystemId = await generateSystemId("ATK");
-  prisma.aiTask.create({
+  // PRD baseline 저장
+  await prisma.prdBaseline.create({
     data: {
-      systemId:        exportSystemId,
       refTableName:    "tb_function",
       refPkId:         numId,
-      taskType:        "PRD_EXPORT",
-      taskStatus:      "SUCCESS",
+      baselineType:    "PRD",
       contextSnapshot: JSON.stringify(currentSnapshot),
-      completedAt:     new Date(),
     },
-  }).catch(() => {/* 이력 기록 실패는 무시 */});
+  });
 
   let markdown = generateFunctionPrd(
     {

@@ -165,9 +165,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // ── 구현 요청 (상태 변경 없음, AiTask만 생성) ─────────────
   if (body.action === "IMPL_REQ") {
-    const lastImpl = await prisma.aiTask.findFirst({
-      where: { refTableName: "tb_area", refPkId: numId, taskType: "IMPLEMENT", taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
-      orderBy: { completedAt: "desc" },
+    const lastImpl = await prisma.prdBaseline.findFirst({
+      where: { refTableName: "tb_area", refPkId: numId, baselineType: "IMPL" },
+      orderBy: { createdAt: "desc" },
       select: { contextSnapshot: true },
     });
 
@@ -218,30 +218,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const taskSystemId = await generateSystemId("ATK");
     const areaImplSpec = specParts.join("\n\n---\n\n") || null;
-    await prisma.aiTask.create({
-      data: {
-        systemId: taskSystemId,
-        refTableName: "tb_area",
-        refPkId: numId,
-        taskType: "IMPLEMENT",
-        taskStatus: "NONE",
-        spec: implChangeNote && areaImplSpec ? implChangeNote + "\n\n---\n\n" + areaImplSpec : areaImplSpec,
-        contextSnapshot: JSON.stringify({
-          area: { spec: area.spec || "" },
-          functions: area.functions.map((f) => {
-            const ai = aiFeedbackMap.get(f.functionId) ?? {};
-            return {
-              functionId: f.functionId,
-              name: f.name,
-              spec: f.spec || "",
-              aiDesignContent: ai["DESIGN"] || "",
-              refContent: f.refContent || "",
-            };
-          }),
-        }),
-        changeNote: body.changeNote?.trim() || null,
-      },
-    });
+    await Promise.all([
+      prisma.aiTask.create({
+        data: {
+          systemId: taskSystemId,
+          refTableName: "tb_area",
+          refPkId: numId,
+          taskType: "IMPLEMENT",
+          taskStatus: "NONE",
+          spec: implChangeNote && areaImplSpec ? implChangeNote + "\n\n---\n\n" + areaImplSpec : areaImplSpec,
+          changeNote: body.changeNote?.trim() || null,
+        },
+      }),
+      prisma.prdBaseline.create({
+        data: {
+          refTableName:    "tb_area",
+          refPkId:         numId,
+          baselineType:    "IMPL",
+          contextSnapshot: JSON.stringify(currentAreaSnap),
+        },
+      }),
+    ]);
 
     return apiSuccess({ requested: true });
   }

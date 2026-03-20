@@ -10,7 +10,6 @@ import prisma from "@/lib/prisma";
 import { generateUnitWorkPrd, PRD_VERSIONS } from "@/lib/prd";
 import type { ScreenForUwPrd, AreaForUwPrd, FuncForUwPrd } from "@/lib/prd";
 import { phaseToStatus } from "@/lib/constants";
-import { generateSystemId } from "@/lib/sequence";
 import { diffFromUwBaseline, buildUwChangeNoteDraft } from "@/lib/implBaseline";
 import type { UnitWorkSnapshot, UwScreenSnapshot } from "@/lib/implBaseline";
 
@@ -188,18 +187,12 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     areas:       areasByScreen.get(Number(s.screen_id)) ?? [],
   }));
 
-  // ── PRD_SNAPSHOT diff 계산 ────────────────────────────────────────────
-  // 마지막 PRD_SNAPSHOT 조회
-  interface SnapshotRow { ai_task_id: number; context_snapshot: string | null; requested_at: Date }
-  const snapshotRows = await prisma.$queryRaw<SnapshotRow[]>`
-    SELECT ai_task_id, context_snapshot, requested_at
-    FROM tb_ai_task
-    WHERE task_type = 'PRD_SNAPSHOT'
-      AND ref_table_name = 'tb_unit_work'
-      AND ref_pk_id = ${numId}
-    ORDER BY requested_at DESC
-    LIMIT 1
-  `;
+  // ── PRD baseline diff 계산 ────────────────────────────────────────────
+  const lastBaseline = await prisma.prdBaseline.findFirst({
+    where: { refTableName: "tb_unit_work", refPkId: numId, baselineType: "PRD" },
+    orderBy: { createdAt: "desc" },
+    select: { contextSnapshot: true, createdAt: true },
+  });
 
   // 현재 상태 스냅샷 구성 (raw rows 기반으로 직접 조립)
   const funcsByAreaForSnapshot = new Map<number, FuncRow[]>();
@@ -241,10 +234,10 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
   };
 
   let changeNote = "";
-  if (snapshotRows.length > 0 && snapshotRows[0].context_snapshot) {
+  if (lastBaseline?.contextSnapshot) {
     try {
-      const baseline = JSON.parse(snapshotRows[0].context_snapshot) as UnitWorkSnapshot;
-      const sinceDate = snapshotRows[0].requested_at.toISOString().slice(0, 10);
+      const baseline = JSON.parse(lastBaseline.contextSnapshot) as UnitWorkSnapshot;
+      const sinceDate = lastBaseline.createdAt.toISOString().slice(0, 10);
       const diff = diffFromUwBaseline(baseline, currentSnapshot);
       changeNote = buildUwChangeNoteDraft(diff, sinceDate);
     } catch {
@@ -252,15 +245,12 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // 새 PRD_SNAPSHOT 저장 (PRD 생성 성공 시점 기록)
-  const snapshotSystemId = await generateSystemId("ATK");
-  await prisma.aiTask.create({
+  // 새 PRD baseline 저장
+  await prisma.prdBaseline.create({
     data: {
-      systemId:        snapshotSystemId,
       refTableName:    "tb_unit_work",
       refPkId:         numId,
-      taskType:        "PRD_SNAPSHOT",
-      taskStatus:      "SUCCESS",
+      baselineType:    "PRD",
       contextSnapshot: JSON.stringify(currentSnapshot),
     },
   });

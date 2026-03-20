@@ -26,7 +26,7 @@
 import { Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, LayoutDashboard } from "lucide-react";
 
 /* ─── UI 컴포넌트 임포트 ─────────────────────────────────── */
 import { DataGrid } from "@/components/common/DataGrid";
@@ -72,9 +72,10 @@ interface FunctionRow {
   priority: string;
   updatedAt: string;
   area: {
+    areaId: number;
     name: string;
     areaCode: string;
-    screen?: { name: string; systemId: string; categoryL?: string | null };
+    screen?: { screenId: number; name: string; systemId: string; categoryL?: string | null };
   } | null;
   latestTask: {
     taskStatus: string;
@@ -295,20 +296,40 @@ function FunctionsContent() {
       id: "screenName",
       header: "화면명",
       size: 130,
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
-          {row.original.area?.screen?.name ?? "-"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const rows: FunctionRow[] = data?.data ?? [];
+        const screen = row.original.area?.screen;
+        const prevScreenId = rows[row.index - 1]?.area?.screen?.screenId;
+        if (!screen) return <span className="text-muted-foreground text-xs">-</span>;
+        if (prevScreenId === screen.screenId) return null;
+        return (
+          <button
+            className="text-xs text-left text-muted-foreground hover:underline hover:text-primary transition-colors"
+            onClick={(e) => { e.stopPropagation(); router.push(`/screens/${screen.screenId}`); }}
+          >
+            {screen.name}
+          </button>
+        );
+      },
     },
     {
       id: "area",
       header: "영역명",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.area?.name ?? "-"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const rows: FunctionRow[] = data?.data ?? [];
+        const area = row.original.area;
+        const prevAreaId = rows[row.index - 1]?.area?.areaId;
+        if (!area) return <span className="text-muted-foreground">-</span>;
+        if (prevAreaId === area.areaId) return null;
+        return (
+          <button
+            className="text-sm text-left text-muted-foreground hover:underline hover:text-primary transition-colors"
+            onClick={(e) => { e.stopPropagation(); router.push(`/areas/${area.areaId}`); }}
+          >
+            {area.name}
+          </button>
+        );
+      },
     },
     { accessorKey: "name", header: "기능명" },
     {
@@ -366,19 +387,26 @@ function FunctionsContent() {
       id: "actions",
       header: "",
       cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="icon"
-          title="삭제"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDeleteItem(row.original);
-          }}
-        >
-          <Trash2 className="h-4 w-4 text-muted-foreground" />
-        </Button>
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="시스템 일괄 설계"
+            onClick={() => router.push("/bulk-design")}
+          >
+            <LayoutDashboard className="h-4 w-4 text-violet-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="삭제"
+            onClick={() => setDeleteItem(row.original)}
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
       ),
-      size: 48,
+      size: 80,
       enableSorting: false,
     },
   ];

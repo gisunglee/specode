@@ -19,7 +19,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation"; // 페이지 이동용 라우터
-import { Plus, Search, Trash2, Pencil, List, Layers, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, List, Layers, Loader2, LayoutDashboard } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { DataGrid } from "@/components/common/DataGrid";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -261,6 +261,21 @@ export default function ScreensPage() {
       enableSorting: false,
     },
     { accessorKey: "systemId", header: "ID", size: 100 },
+    {
+      id: "unitWork",
+      header: "단위업무",
+      size: 150,
+      cell: ({ row }) => {
+        const uw = row.original.unitWork;
+        const prevUwId = rows[row.index - 1]?.unitWork?.unitWorkId;
+        if (!uw || prevUwId === uw.unitWorkId) return null;
+        return (
+          <span className="text-muted-foreground text-xs">
+            {`[${uw.systemId}] ${uw.name}`}
+          </span>
+        );
+      },
+    },
     { accessorKey: "displayCode", header: "표시코드", size: 100 },
     {
       accessorKey: "categoryL",
@@ -294,15 +309,6 @@ export default function ScreensPage() {
       header: "영역 수",
       cell: ({ row }) => row.original._count?.areas ?? 0,
       size: 70,
-    },
-    {
-      id: "unitWork",
-      header: "단위업무",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-xs">
-          {row.original.unitWork ? `[${row.original.unitWork.systemId}] ${row.original.unitWork.name}` : "-"}
-        </span>
-      ),
     },
     {
       accessorKey: "updatedAt",
@@ -355,6 +361,18 @@ export default function ScreensPage() {
             }}
           >
             <List className="h-4 w-4 text-muted-foreground" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="시스템 일괄 설계"
+            onClick={(e) => {
+              e.stopPropagation();
+              const uwId = row.original.unitWork?.unitWorkId;
+              router.push(uwId ? `/bulk-design?unitWorkId=${uwId}` : "/bulk-design");
+            }}
+          >
+            <LayoutDashboard className="h-4 w-4 text-violet-500" />
           </Button>
           <Button
             variant="ghost"

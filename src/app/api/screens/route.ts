@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
         _count: { select: { areas: true } },
         areas: { select: { functions: { select: { confirmed: true } } } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [
+        { unitWork: { sortOrder: "asc" } },
+        { sortOrder: "asc" },
+        { createdAt: "asc" },
+      ],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

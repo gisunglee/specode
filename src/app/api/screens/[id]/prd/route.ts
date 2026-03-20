@@ -6,10 +6,10 @@
  * 직전 PRD 다운로드 이후 변경사항을 자동으로 PRD 상단에 추가한다.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { generateScreenPrd, PRD_VERSIONS } from "@/lib/prd";
 import { phaseToStatus } from "@/lib/constants";
-import { generateSystemId } from "@/lib/sequence";
 import {
   diffFromScreenBaseline,
   buildScreenChangeNoteDraft,
@@ -60,22 +60,37 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "화면을 찾을 수 없습니다." }, { status: 404 });
   }
 
-  // 화면 내 전체 기능 ID 수집 후 AiTask 일괄 조회
+  // 화면 내 전체 기능 ID 수집 후 ai_design_content(raw) + AiTask 피드백 일괄 조회
   const funcIds = screen.areas.flatMap((a) => a.functions.map((f) => f.functionId));
-  const aiTasks = funcIds.length
-    ? await prisma.aiTask.findMany({
-        where: {
-          refTableName: "tb_function",
-          refPkId: { in: funcIds },
-          taskType: { in: ["DESIGN", "REVIEW", "INSPECT"] },
-          taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] },
-        },
-        orderBy: { completedAt: "desc" },
-        select: { refPkId: true, taskType: true, feedback: true },
-      })
-    : [];
 
-  // funcId → { DESIGN: feedback, REVIEW: feedback }
+  interface AiDesignRow { function_id: number; ai_design_content: string | null }
+  const [aiDesignRows, aiTasks] = await Promise.all([
+    funcIds.length
+      ? prisma.$queryRaw<AiDesignRow[]>`
+          SELECT function_id, ai_design_content FROM tb_function
+          WHERE function_id IN (${Prisma.join(funcIds)})
+        `
+      : Promise.resolve([] as AiDesignRow[]),
+    funcIds.length
+      ? prisma.aiTask.findMany({
+          where: {
+            refTableName: "tb_function",
+            refPkId: { in: funcIds },
+            taskType: { in: ["REVIEW", "INSPECT"] },
+            taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] },
+          },
+          orderBy: { completedAt: "desc" },
+          select: { refPkId: true, taskType: true, feedback: true },
+        })
+      : Promise.resolve([] as { refPkId: number; taskType: string; feedback: string | null }[]),
+  ]);
+
+  // funcId → ai_design_content
+  const aiDesignMap = new Map(
+    aiDesignRows.map((r) => [Number(r.function_id), r.ai_design_content ?? null])
+  );
+
+  // funcId → { REVIEW/INSPECT: feedback }
   const aiByFunc = new Map<number, Record<string, string>>();
   for (const t of aiTasks) {
     if (!t.feedback) continue;
@@ -84,10 +99,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     aiByFunc.set(t.refPkId, existing);
   }
 
-  // ── PRD_SNAPSHOT diff 계산 ────────────────────────────────────────────
-  const lastSnapshot = await prisma.aiTask.findFirst({
-    where: { taskType: "PRD_SNAPSHOT", refTableName: "tb_screen", refPkId: numId },
-    orderBy: { requestedAt: "desc" },
+  // ── PRD baseline diff 계산 ────────────────────────────────────────────
+  const lastSnapshot = await prisma.prdBaseline.findFirst({
+    where: { refTableName: "tb_screen", refPkId: numId, baselineType: "PRD" },
+    orderBy: { createdAt: "desc" },
     select: { contextSnapshot: true },
   });
 
@@ -102,7 +117,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         functionId: f.functionId,
         name: f.name,
         spec: f.spec ?? "",
-        aiDesignContent: (aiByFunc.get(f.functionId) ?? {})["DESIGN"] ?? "",
+        aiDesignContent: aiDesignMap.get(f.functionId) ?? "",
         refContent: f.refContent ?? "",
       })),
     })),
@@ -116,15 +131,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     } catch { /* 파싱 실패 시 diff 없이 계속 */ }
   }
 
-  // 새 PRD_SNAPSHOT 저장
-  const snapshotSystemId = await generateSystemId("ATK");
-  await prisma.aiTask.create({
+  // 새 PRD baseline 저장
+  await prisma.prdBaseline.create({
     data: {
-      systemId:        snapshotSystemId,
       refTableName:    "tb_screen",
       refPkId:         numId,
-      taskType:        "PRD_SNAPSHOT",
-      taskStatus:      "SUCCESS",
+      baselineType:    "PRD",
       contextSnapshot: JSON.stringify(currentSnapshot),
     },
   });
@@ -155,8 +167,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           priority: fn.priority,
           spec: fn.spec,
           refContent: fn.refContent ?? null,
-          aiDesignContent: ai["DESIGN"] ?? null,
-          aiInspFeedback:  ai["REVIEW"] ?? ai["INSPECT"] ?? null,
+          aiDesignContent: aiDesignMap.get(fn.functionId) ?? null,
+          aiInspFeedback:  (aiByFunc.get(fn.functionId) ?? {})["REVIEW"]
+                        ?? (aiByFunc.get(fn.functionId) ?? {})["INSPECT"]
+                        ?? null,
         };
       }),
     })),

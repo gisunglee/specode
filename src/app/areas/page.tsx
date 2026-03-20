@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Trash2, Wand2 } from "lucide-react";
+import { Plus, Search, Trash2, Wand2, LayoutDashboard } from "lucide-react";
 
 import { DataGrid } from "@/components/common/DataGrid";
 import { ExcalidrawDialog } from "@/components/common/ExcalidrawDialog";
@@ -41,7 +41,12 @@ interface AreaRow {
   status: string;
   updatedAt: string;
   designData: string | null;
-  screen: { screenId: number; name: string; systemId: string } | null;
+  screen: {
+    screenId: number;
+    name: string;
+    systemId: string;
+    unitWork: { unitWorkId: number; systemId: string; name: string } | null;
+  } | null;
   _count: { functions: number };
   latestTask: { taskStatus: string; taskType: string; completedAt: string | null } | null;
 }
@@ -193,13 +198,43 @@ function AreasContent() {
   const columns: ColumnDef<AreaRow, unknown>[] = [
     { accessorKey: "areaCode", header: "영역코드", size: 110 },
     {
+      id: "unitWork",
+      header: "단위업무",
+      size: 140,
+      cell: ({ row }) => {
+        const rows: AreaRow[] = data?.data ?? [];
+        const uw = row.original.screen?.unitWork;
+        const prevUwId = rows[row.index - 1]?.screen?.unitWork?.unitWorkId;
+        if (!uw || prevUwId === uw.unitWorkId) return null;
+        return (
+          <button
+            className="text-xs text-left hover:underline hover:text-primary transition-colors"
+            onClick={(e) => { e.stopPropagation(); router.push(`/unit-works/${uw.unitWorkId}`); }}
+          >
+            <span className="font-mono text-muted-foreground">{uw.systemId}</span>{" "}
+            <span className="text-foreground">{uw.name}</span>
+          </button>
+        );
+      },
+    },
+    {
       id: "screen",
       header: "소속 화면",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.screen?.name ?? "-"}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const rows: AreaRow[] = data?.data ?? [];
+        const screen = row.original.screen;
+        const prevScreenId = rows[row.index - 1]?.screen?.screenId;
+        if (screen && prevScreenId === screen.screenId) return null;
+        if (!screen) return <span className="text-muted-foreground">-</span>;
+        return (
+          <button
+            className="text-sm text-left hover:underline hover:text-primary transition-colors text-muted-foreground"
+            onClick={(e) => { e.stopPropagation(); router.push(`/screens/${screen.screenId}`); }}
+          >
+            {screen.name}
+          </button>
+        );
+      },
     },
     { accessorKey: "name", header: "영역명" },
     {
@@ -279,6 +314,18 @@ function AreasContent() {
           <Button
             variant="ghost"
             size="icon"
+            title="시스템 일괄 설계"
+            onClick={(e) => {
+              e.stopPropagation();
+              const uwId = row.original.screen?.unitWork?.unitWorkId;
+              router.push(uwId ? `/bulk-design?unitWorkId=${uwId}` : "/bulk-design");
+            }}
+          >
+            <LayoutDashboard className="h-4 w-4 text-violet-500" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             title="삭제"
             onClick={(e) => {
               e.stopPropagation();
@@ -289,7 +336,7 @@ function AreasContent() {
           </Button>
         </div>
       ),
-      size: 120,
+      size: 140,
       enableSorting: false,
     },
   ];

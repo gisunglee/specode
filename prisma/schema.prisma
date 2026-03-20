@@ -226,6 +226,19 @@ model AiTask {
   @@map("tb_ai_task")
 }
 
+/// PRD 다운로드 / 구현요청 기준점 스냅샷. tb_ai_task 와 무관한 순수 상태 기록.
+model PrdBaseline {
+  baselineId      BigInt   @id @default(autoincrement()) @map("baseline_id")
+  refTableName    String   @map("ref_table_name")   // "tb_unit_work" | "tb_screen" | "tb_area" | "tb_function"
+  refPkId         Int      @map("ref_pk_id")
+  baselineType    String   @map("baseline_type")    // "PRD" | "IMPL"
+  contextSnapshot String   @map("context_snapshot") // JSON
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([refTableName, refPkId, baselineType])
+  @@map("tb_prd_baseline")
+}
+
 model Sequence {
   sequenceId Int    @id @default(autoincrement()) @map("sequence_id")
   prefix     String @unique @map("prefix")

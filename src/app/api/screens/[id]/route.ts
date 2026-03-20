@@ -145,10 +145,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const aiFeedbackMap = await getFuncAiFeedback(allFuncIds, ["DESIGN", "IMPLEMENT"]);
 
   if (body.action === "IMPL_REQ") {
-    // 마지막 성공 구현 요청과 diff 계산
-    const lastImpl = await prisma.aiTask.findFirst({
-      where: { refTableName: "tb_screen", refPkId: numId, taskType: "IMPLEMENT", taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
-      orderBy: { completedAt: "desc" },
+    // 마지막 IMPL baseline과 diff 계산
+    const lastImpl = await prisma.prdBaseline.findFirst({
+      where: { refTableName: "tb_screen", refPkId: numId, baselineType: "IMPL" },
+      orderBy: { createdAt: "desc" },
       select: { contextSnapshot: true },
     });
     const currentSnap: ScreenSnapshot = {
@@ -187,37 +187,30 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       specParts.push(areaParts.join("\n"));
     }
 
+    const snapshotJson = JSON.stringify(currentSnap);
     const taskSystemId = await generateSystemId("ATK");
     const implSpec = specParts.join("\n\n---\n\n") || null;
-    await prisma.aiTask.create({
-      data: {
-        systemId: taskSystemId,
-        refTableName: "tb_screen",
-        refPkId: numId,
-        taskType: "IMPLEMENT",
-        taskStatus: "NONE",
-        spec: implChangeNote && implSpec ? implChangeNote + "\n\n---\n\n" + implSpec : implSpec,
-        contextSnapshot: JSON.stringify({
-          screen: { spec: screen.spec || "" },
-          areas: screen.areas.map((a) => ({
-            areaId: a.areaId,
-            name: a.name,
-            spec: a.spec || "",
-            functions: a.functions.map((f) => {
-              const ai = aiFeedbackMap.get(f.functionId) ?? {};
-              return {
-                functionId: f.functionId,
-                name: f.name,
-                spec: f.spec || "",
-                aiDesignContent: ai["DESIGN"] || "",
-                refContent: f.refContent || "",
-              };
-            }),
-          })),
-        }),
-        changeNote: body.changeNote?.trim() || null,
-      },
-    });
+    await Promise.all([
+      prisma.aiTask.create({
+        data: {
+          systemId: taskSystemId,
+          refTableName: "tb_screen",
+          refPkId: numId,
+          taskType: "IMPLEMENT",
+          taskStatus: "NONE",
+          spec: implChangeNote && implSpec ? implChangeNote + "\n\n---\n\n" + implSpec : implSpec,
+          changeNote: body.changeNote?.trim() || null,
+        },
+      }),
+      prisma.prdBaseline.create({
+        data: {
+          refTableName:    "tb_screen",
+          refPkId:         numId,
+          baselineType:    "IMPL",
+          contextSnapshot: snapshotJson,
+        },
+      }),
+    ]);
     return apiSuccess({ requested: true });
   }
 

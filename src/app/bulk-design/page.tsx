@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Monitor, LayoutGrid, Cog, Plus, Save, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { toast } from "sonner";
 
@@ -550,10 +550,21 @@ function RequirementDialog({ requirementId, open, onOpenChange }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BulkDesignPage() {
+  return (
+    <Suspense>
+      <BulkDesignContent />
+    </Suspense>
+  );
+}
+
+function BulkDesignContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ── 단위업무 선택 ──────────────────────────────────────────
-  const [unitWorkId, setUnitWorkId] = useState<string>("");
+  const [unitWorkId, setUnitWorkId] = useState<string>(
+    searchParams.get("unitWorkId") ?? ""
+  );
   const [reqDialogOpen, setReqDialogOpen] = useState(false);
 
   const { data: uwListData } = useQuery({

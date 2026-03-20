@@ -37,7 +37,14 @@ export async function GET(request: NextRequest) {
     prisma.area.findMany({
       where,
       include: {
-        screen: { select: { name: true, systemId: true } },
+        screen: {
+          select: {
+            screenId: true,
+            name: true,
+            systemId: true,
+            unitWork: { select: { unitWorkId: true, systemId: true, name: true } },
+          },
+        },
         _count: { select: { functions: true } },
       },
       orderBy: [

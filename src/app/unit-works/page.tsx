@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Monitor } from "lucide-react";
+import { Plus, Pencil, Trash2, Monitor, LayoutDashboard } from "lucide-react";
 import { DataGrid } from "@/components/common/DataGrid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -199,7 +199,7 @@ export default function UnitWorksPage() {
     {
       id: "actions",
       header: "",
-      size: 100,
+      size: 120,
       cell: ({ row }) => (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <Button
@@ -208,6 +208,13 @@ export default function UnitWorksPage() {
             onClick={() => router.push(`/screens?unitWorkId=${row.original.unitWorkId}`)}
           >
             <Monitor className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost" size="icon" className="h-7 w-7"
+            title="시스템 일괄 설계"
+            onClick={() => router.push(`/bulk-design?unitWorkId=${row.original.unitWorkId}`)}
+          >
+            <LayoutDashboard className="h-3.5 w-3.5 text-violet-500" />
           </Button>
           <Button
             variant="ghost" size="icon" className="h-7 w-7"

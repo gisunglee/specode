@@ -214,23 +214,37 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
     const designFeedback = latestTasks.find((t: { taskType: string; feedback: string | null }) => t.taskType === "DESIGN")?.feedback ?? "";
 
-    // 마지막 성공 구현/설계 요청과 diff 계산
-    const lastSameType = await prisma.aiTask.findFirst({
-      where: { refTableName: "tb_function", refPkId: numId, taskType, taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
-      orderBy: { completedAt: "desc" },
-      select: { contextSnapshot: true },
-    });
+    // diff 계산 — IMPLEMENT는 prdBaseline, DESIGN/REVIEW는 aiTask 이력
     const currentFuncSnap: ContextSnapshot = {
       spec: func.spec || "",
       aiDesignContent: designFeedback,
       refContent: func.refContent || "",
     };
     let funcChangeNote = "";
-    if (lastSameType?.contextSnapshot) {
-      try {
-        const baseline = JSON.parse(lastSameType.contextSnapshot) as ContextSnapshot;
-        funcChangeNote = buildChangeNoteDraft(diffFromBaseline(baseline, currentFuncSnap));
-      } catch { /* 파싱 실패 무시 */ }
+    if (taskType === "IMPLEMENT") {
+      const lastImpl = await prisma.prdBaseline.findFirst({
+        where: { refTableName: "tb_function", refPkId: numId, baselineType: "IMPL" },
+        orderBy: { createdAt: "desc" },
+        select: { contextSnapshot: true },
+      });
+      if (lastImpl?.contextSnapshot) {
+        try {
+          const baseline = JSON.parse(lastImpl.contextSnapshot) as ContextSnapshot;
+          funcChangeNote = buildChangeNoteDraft(diffFromBaseline(baseline, currentFuncSnap));
+        } catch { /* 파싱 실패 무시 */ }
+      }
+    } else {
+      const lastSameType = await prisma.aiTask.findFirst({
+        where: { refTableName: "tb_function", refPkId: numId, taskType, taskStatus: { in: ["SUCCESS", "AUTO_FIXED"] } },
+        orderBy: { completedAt: "desc" },
+        select: { contextSnapshot: true },
+      });
+      if (lastSameType?.contextSnapshot) {
+        try {
+          const baseline = JSON.parse(lastSameType.contextSnapshot) as ContextSnapshot;
+          funcChangeNote = buildChangeNoteDraft(diffFromBaseline(baseline, currentFuncSnap));
+        } catch { /* 파싱 실패 무시 */ }
+      }
     }
 
     const specParts = [
@@ -238,7 +252,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       designFeedback   ? `## 상세설계\n\n${designFeedback}` : "",
     ].filter(Boolean).join("\n\n---\n\n");
 
-    await prisma.aiTask.create({
+    const createAiTask = prisma.aiTask.create({
       data: {
         systemId:        await generateSystemId("ATK"),
         refTableName:    "tb_function",
@@ -251,6 +265,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         comment:         body.comment?.trim()    || null,
       },
     });
+
+    if (taskType === "IMPLEMENT") {
+      await Promise.all([
+        createAiTask,
+        prisma.prdBaseline.create({
+          data: {
+            refTableName:    "tb_function",
+            refPkId:         numId,
+            baselineType:    "IMPL",
+            contextSnapshot: JSON.stringify(currentFuncSnap),
+          },
+        }),
+      ]);
+    } else {
+      await createAiTask;
+    }
   }
 
   return apiSuccess({

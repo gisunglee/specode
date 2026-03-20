@@ -67,11 +67,13 @@ export async function GET(request: NextRequest) {
       include: {
         area: {
           select: {
+            areaId: true,
             name: true,
             areaCode: true,
             sortOrder: true,
             screen: {
               select: {
+                screenId: true,
                 name: true,
                 systemId: true,
                 categoryL: true,
