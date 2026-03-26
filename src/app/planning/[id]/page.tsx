@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, isValidElement, Children } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, isValidElement, Children } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -42,6 +42,37 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
+
+/** 마크다운이 섞인 콘텐츠에서 ```mermaid 블록을 파싱해 추출 */
+function extractMermaidBlocks(content: string): Array<{ label: string; code: string }> {
+  const blocks: Array<{ label: string; code: string }> = [];
+  const lines   = content.split("\n");
+  let inBlock   = false;
+  let blockLines: string[] = [];
+  let lastHeading = "";
+
+  for (const line of lines) {
+    if (!inBlock) {
+      const headingMatch = line.match(/^#{1,4}\s+(.+)/);
+      if (headingMatch) lastHeading = headingMatch[1].replace(/\s*\(.*?\)\s*$/, "").trim();
+      if (line.trimEnd() === "```mermaid") {
+        inBlock    = true;
+        blockLines = [];
+      }
+    } else {
+      if (line.trimEnd() === "```") {
+        inBlock = false;
+        blocks.push({
+          label: lastHeading || `다이어그램 ${blocks.length + 1}`,
+          code:  blockLines.join("\n"),
+        });
+      } else {
+        blockLines.push(line);
+      }
+    }
+  }
+  return blocks;
+}
 
 const PLAN_TYPES = ["IA", "PROCESS", "MOCKUP", "ERD"] as const;
 const PLAN_TYPE_COLORS: Record<string, string> = {
@@ -125,6 +156,12 @@ interface ReqSearchRow {
   name:          string;
 }
 
+interface TaskRow {
+  taskId:   number;
+  systemId: string;
+  name:     string;
+}
+
 interface PlanSearchRow {
   planSn:   number;
   planNm:   string;
@@ -152,6 +189,9 @@ export default function PlanningCanvasPage() {
   const [reqSearch,      setReqSearch]      = useState("");
   const [reqSearchFocus, setReqSearchFocus] = useState(false);
 
+  // 과업으로 일괄 추가
+  const [taskDropOpen,   setTaskDropOpen]   = useState(false);
+
   // 기획 참조 검색
   const [planRefSearch,      setPlanRefSearch]      = useState("");
   const [planRefSearchFocus, setPlanRefSearchFocus] = useState(false);
@@ -173,6 +213,12 @@ export default function PlanningCanvasPage() {
 
   // AI 결과 로컬 편집 (버전 복원 또는 직접 수정)
   const [localResultContent, setLocalResultContent] = useState<string | null>(null);
+
+  // 렌더 모드 수동 오버라이드 (auto = planType 기준)
+  const [viewAs, setViewAs] = useState<"auto" | "MD" | "MERMAID" | "HTML">("auto");
+
+  // 머메이드 블록 분할 (마크다운 혼합 시)
+  const [mermaidIdx, setMermaidIdx] = useState(0);
 
   const debounceRef       = useRef<ReturnType<typeof setTimeout>>(undefined);
   const resultDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -362,11 +408,41 @@ export default function PlanningCanvasPage() {
     setGroupEditOpen(false);
   };
 
+  // 과업 목록 (taskDropOpen 시 로드)
+  const { data: tasksData } = useQuery({
+    queryKey: ["tasks-for-planning"],
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks?pageSize=200`);
+      return res.json();
+    },
+    enabled: taskDropOpen,
+    staleTime: 60000,
+  });
+  const allTasks: TaskRow[] = tasksData?.data ?? [];
+
+  const handleAddByTask = async (taskId: number) => {
+    setTaskDropOpen(false);
+    const res  = await fetch(`/api/requirements?taskId=${taskId}&pageSize=500`);
+    const json = await res.json();
+    const reqs: ReqSearchRow[] = json.data ?? [];
+    const toAdd = reqs.filter((r) => !mappedReqIds.has(r.requirementId));
+    if (toAdd.length === 0) { toast.info("추가할 요구사항이 없습니다."); return; }
+    for (const r of toAdd) {
+      await apiFetch(`/api/planning/${id}/req-map`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requirementId: r.requirementId }),
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ["planning-detail", id] });
+    toast.success(`${toAdd.length}개 요구사항이 추가되었습니다.`);
+  };
+
   // 요구사항 검색 (포커스만 해도 최근 10건 표시, 입력 시 필터)
   const { data: reqSearchData } = useQuery({
     queryKey: ["req-search", reqSearch],
     queryFn: async () => {
-      const params = new URLSearchParams({ pageSize: "10" });
+      const params = new URLSearchParams({ pageSize: "500" });
       if (reqSearch.trim()) params.set("search", reqSearch.trim());
       const res = await fetch(`/api/requirements?${params}`);
       return res.json();
@@ -404,6 +480,15 @@ export default function PlanningCanvasPage() {
   // 현재 표시할 resultContent (직접 수정 또는 버전 복원 시 오버라이드)
   const displayResultContent = localResultContent ?? draft?.resultContent ?? "";
   const displayResultType    = draft?.resultType ?? "MD";
+  // 수동 오버라이드 반영
+  const effectiveResultType  = viewAs === "auto" ? displayResultType : viewAs;
+
+  // 머메이드 블록 파싱 (콘텐츠 바뀌면 인덱스 리셋)
+  const mermaidBlocks = useMemo(
+    () => extractMermaidBlocks(displayResultContent),
+    [displayResultContent]
+  );
+  useEffect(() => { setMermaidIdx(0); }, [displayResultContent]);
 
   if (isLoading) {
     return (
@@ -602,6 +687,36 @@ export default function PlanningCanvasPage() {
                   </div>
                 )}
               </div>
+
+              {/* 과업으로 일괄 추가 */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setTaskDropOpen((v) => !v)}
+                  onBlur={() => setTimeout(() => setTaskDropOpen(false), 200)}
+                  className="h-6 px-2 text-xs rounded border border-dashed border-border hover:bg-accent hover:border-primary transition-colors flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                >
+                  과업으로 추가 ▾
+                </button>
+                {taskDropOpen && (
+                  <div className="absolute top-full left-0 z-50 bg-popover border border-border rounded-md shadow-lg mt-1 w-72 max-h-60 overflow-y-auto">
+                    {allTasks.length === 0 ? (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">과업이 없습니다</div>
+                    ) : (
+                      allTasks.map((t) => (
+                        <button
+                          key={t.taskId}
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-accent transition-colors"
+                          onMouseDown={() => handleAddByTask(t.taskId)}
+                        >
+                          <span className="font-mono text-primary mr-1.5">{t.systemId}</span>
+                          <span>{t.name}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 요구사항 칩 목록 */}
@@ -763,6 +878,23 @@ export default function PlanningCanvasPage() {
                 <TabsTrigger value="preview" className="text-xs h-6 px-3">미리보기</TabsTrigger>
                 <TabsTrigger value="raw" className="text-xs h-6 px-3">원문 편집</TabsTrigger>
               </TabsList>
+              {/* 렌더 모드 토글 */}
+              <div className="flex items-center gap-0.5 ml-1 border border-border rounded-md overflow-hidden">
+                {(["MD", "MERMAID", "HTML"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setViewAs(effectiveResultType === t && viewAs !== "auto" ? "auto" : t)}
+                    className={`text-[10px] px-2 py-0.5 transition-colors ${
+                      effectiveResultType === t
+                        ? "bg-primary text-primary-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-muted"
+                    }`}
+                    title={t === "MD" ? "마크다운" : t === "MERMAID" ? "Mermaid 다이어그램" : "HTML 목업"}
+                  >
+                    {t === "MERMAID" ? "Mermaid" : t}
+                  </button>
+                ))}
+              </div>
               {displayResultContent && (
                 <Button
                   variant="ghost"
@@ -799,17 +931,45 @@ export default function PlanningCanvasPage() {
                     </p>
                   </div>
                 </div>
-              ) : displayResultType === "HTML" ? (
+              ) : effectiveResultType === "HTML" ? (
                 <iframe
                   srcDoc={displayResultContent}
                   sandbox="allow-scripts allow-same-origin"
                   className="w-full h-full border-0 rounded"
                   title="HTML Preview"
                 />
-              ) : displayResultType === "MERMAID" ? (
-                <MermaidRenderer code={displayResultContent} />
+              ) : effectiveResultType === "MERMAID" ? (
+                mermaidBlocks.length > 1 ? (
+                  /* 마크다운+머메이드 혼합: 블록 탭으로 분리 */
+                  <div className="flex flex-col h-full gap-3">
+                    <div className="flex flex-wrap gap-1.5 flex-shrink-0">
+                      {mermaidBlocks.map((block, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setMermaidIdx(i)}
+                          title={block.label}
+                          className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                            mermaidIdx === i
+                              ? "bg-primary text-primary-foreground border-primary"
+                              : "border-border hover:bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <span className="font-bold">{i + 1}</span>
+                          <span className="max-w-[180px] truncate">{block.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1 min-h-0">
+                      <MermaidRenderer code={mermaidBlocks[mermaidIdx]?.code ?? ""} />
+                    </div>
+                  </div>
+                ) : mermaidBlocks.length === 1 ? (
+                  <MermaidRenderer code={mermaidBlocks[0].code} />
+                ) : (
+                  <MermaidRenderer code={displayResultContent} />
+                )
               ) : (
-                <div className="prose prose-sm max-w-none text-sm">
+                <div className="markdown-body text-sm">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -863,7 +1023,7 @@ export default function PlanningCanvasPage() {
                 <p className="text-xs font-semibold text-muted-foreground">
                   {viewingReq.currentContent ? "최종본 (current_content)" : "원문 (original_content)"}
                 </p>
-                <div className="prose prose-sm max-w-none text-sm border border-border/50 rounded-md px-4 py-3 bg-muted/20 whitespace-pre-wrap">
+                <div className="markdown-body text-sm border border-border/50 rounded-md px-4 py-3 bg-muted/20 whitespace-pre-wrap">
                   {viewingReq.currentContent ?? viewingReq.originalContent}
                 </div>
               </div>
@@ -873,7 +1033,7 @@ export default function PlanningCanvasPage() {
             {viewingReq?.detailSpec ? (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground">명세서 (detail_spec)</p>
-                <div className="prose prose-sm max-w-none text-sm border border-border/50 rounded-md px-4 py-3 bg-muted/20 whitespace-pre-wrap">
+                <div className="markdown-body text-sm border border-border/50 rounded-md px-4 py-3 bg-muted/20 whitespace-pre-wrap">
                   {viewingReq.detailSpec}
                 </div>
               </div>
@@ -897,8 +1057,8 @@ export default function PlanningCanvasPage() {
           <DialogHeader className="px-6 py-3 border-b border-border flex-shrink-0">
             <DialogTitle className="text-sm">{draft?.planNm} — 전체보기</DialogTitle>
           </DialogHeader>
-          <div className={`flex-1 overflow-auto ${displayResultType === "HTML" ? "p-0" : "p-4"}`}>
-            {displayResultType === "HTML" ? (
+          <div className={`flex-1 overflow-auto ${effectiveResultType === "HTML" ? "p-0" : "p-4"}`}>
+            {effectiveResultType === "HTML" ? (
               <iframe
                 srcDoc={displayResultContent}
                 sandbox="allow-scripts allow-same-origin"
@@ -906,10 +1066,37 @@ export default function PlanningCanvasPage() {
                 style={{ height: "calc(95vh - 60px)" }}
                 title="HTML Preview"
               />
-            ) : displayResultType === "MERMAID" ? (
-              <MermaidRenderer code={displayResultContent} />
+            ) : effectiveResultType === "MERMAID" ? (
+              mermaidBlocks.length > 1 ? (
+                <div className="flex flex-col h-full gap-3">
+                  <div className="flex flex-wrap gap-1.5 flex-shrink-0">
+                    {mermaidBlocks.map((block, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setMermaidIdx(i)}
+                        title={block.label}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          mermaidIdx === i
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "border-border hover:bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        <span className="font-bold">{i + 1}</span>
+                        <span className="max-w-[220px] truncate">{block.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <MermaidRenderer code={mermaidBlocks[mermaidIdx]?.code ?? ""} />
+                  </div>
+                </div>
+              ) : mermaidBlocks.length === 1 ? (
+                <MermaidRenderer code={mermaidBlocks[0].code} />
+              ) : (
+                <MermaidRenderer code={displayResultContent} />
+              )
             ) : (
-              <div className="prose prose-sm max-w-none text-sm">
+              <div className="markdown-body text-sm">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{

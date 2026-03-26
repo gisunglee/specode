@@ -98,7 +98,7 @@ export default function PlanningPage() {
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
-      apiFetch("/api/planning", {
+      apiFetch<{ data: { planSn: number } }>("/api/planning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

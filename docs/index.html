@@ -1,1480 +1,694 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SPECODE — AI Dev Hub | AI 주도 개발 자동화 플랫폼</title>
-<style>
-  :root {
-    --bg: #0a0e1a;
-    --bg2: #0f1628;
-    --bg3: #141c35;
-    --card: #161e36;
-    --card2: #1c2540;
-    --border: #252f4a;
-    --border2: #2e3a58;
-    --primary: #4f8ef7;
-    --primary2: #6ba3ff;
-    --primary-glow: rgba(79,142,247,0.25);
-    --purple: #8b5cf6;
-    --purple2: #a78bfa;
-    --teal: #14b8a6;
-    --teal2: #2dd4bf;
-    --amber: #f59e0b;
-    --green: #10b981;
-    --red: #ef4444;
-    --text: #e8edf5;
-    --text2: #94a3b8;
-    --text3: #64748b;
-    --radius: 12px;
-    --radius-sm: 8px;
-    --radius-lg: 20px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: -apple-system, 'Segoe UI', 'Pretendard', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-
-  /* ── NOISE TEXTURE ── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0; z-index: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    pointer-events: none;
-  }
-
-  /* ── NAV ── */
-  nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 48px; height: 64px;
-    background: rgba(10,14,26,0.85);
-    backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-
-  .nav-logo {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 20px; font-weight: 800;
-    background: linear-gradient(135deg, var(--primary2), var(--purple2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: -0.5px;
-  }
-
-  .nav-logo svg { flex-shrink: 0; }
-
-  .nav-links {
-    display: flex; align-items: center; gap: 32px;
-    list-style: none;
-  }
-
-  .nav-links a {
-    color: var(--text2); text-decoration: none;
-    font-size: 14px; font-weight: 500;
-    transition: color 0.2s;
-  }
-  .nav-links a:hover { color: var(--text); }
-
-  .nav-cta {
-    padding: 8px 20px; border-radius: 8px;
-    background: linear-gradient(135deg, var(--primary), #3a6fd8);
-    color: white !important;
-    font-weight: 600 !important;
-    transition: opacity 0.2s, transform 0.2s !important;
-    box-shadow: 0 4px 16px rgba(79,142,247,0.3);
-  }
-  .nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
-
-  /* ── SECTIONS ── */
-  section { position: relative; z-index: 1; }
-
-  .container {
-    max-width: 1200px; margin: 0 auto;
-    padding: 0 32px;
-  }
-
-  /* ── HERO ── */
-  .hero {
-    min-height: 100vh;
-    display: flex; align-items: center; justify-content: center;
-    text-align: center;
-    padding: 120px 32px 80px;
-    position: relative; overflow: hidden;
-  }
-
-  .hero-bg {
-    position: absolute; inset: 0; z-index: 0;
-    background:
-      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,142,247,0.18) 0%, transparent 60%),
-      radial-gradient(ellipse 50% 40% at 20% 80%, rgba(139,92,246,0.12) 0%, transparent 50%),
-      radial-gradient(ellipse 50% 40% at 80% 80%, rgba(20,184,166,0.10) 0%, transparent 50%);
-  }
-
-  /* Grid lines */
-  .hero-bg::before {
-    content: '';
-    position: absolute; inset: 0;
-    background-image:
-      linear-gradient(rgba(79,142,247,0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(79,142,247,0.05) 1px, transparent 1px);
-    background-size: 60px 60px;
-    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 80%);
-  }
-
-  .hero-content { position: relative; z-index: 1; max-width: 860px; }
-
-  .hero-badge {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 6px 16px; border-radius: 99px;
-    background: rgba(79,142,247,0.12);
-    border: 1px solid rgba(79,142,247,0.3);
-    font-size: 13px; font-weight: 600;
-    color: var(--primary2);
-    margin-bottom: 28px;
-    animation: fadeDown 0.6s ease both;
-  }
-
-  .badge-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--primary2);
-    box-shadow: 0 0 8px var(--primary2);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%,100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(1.4); }
-  }
-
-  .hero h1 {
-    font-size: clamp(42px, 6vw, 76px);
-    font-weight: 900;
-    line-height: 1.1;
-    letter-spacing: -2px;
-    margin-bottom: 24px;
-    animation: fadeDown 0.6s 0.1s ease both;
-  }
-
-  .hero h1 .line1 { display: block; color: var(--text); }
-  .hero h1 .line2 {
-    display: block;
-    background: linear-gradient(135deg, var(--primary2) 0%, var(--purple2) 50%, var(--teal2) 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-size: 200% auto;
-    animation: shimmer 4s linear infinite, fadeDown 0.6s 0.1s ease both;
-  }
-
-  @keyframes shimmer {
-    0% { background-position: 0% center; }
-    100% { background-position: 200% center; }
-  }
-
-  .hero-desc {
-    font-size: clamp(16px, 2vw, 20px);
-    color: var(--text2);
-    max-width: 600px; margin: 0 auto 40px;
-    line-height: 1.7;
-    animation: fadeDown 0.6s 0.2s ease both;
-  }
-
-  .hero-actions {
-    display: flex; align-items: center; justify-content: center;
-    gap: 16px; flex-wrap: wrap;
-    animation: fadeDown 0.6s 0.3s ease both;
-  }
-
-  .btn-primary {
-    padding: 14px 32px; border-radius: 10px;
-    background: linear-gradient(135deg, var(--primary), #3a6fd8);
-    color: white; font-size: 15px; font-weight: 700;
-    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
-    box-shadow: 0 8px 32px rgba(79,142,247,0.35);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(79,142,247,0.45); }
-
-  .btn-secondary {
-    padding: 14px 32px; border-radius: 10px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.12);
-    color: var(--text); font-size: 15px; font-weight: 600;
-    text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
-    transition: background 0.2s, transform 0.2s;
-  }
-  .btn-secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
-
-  .hero-stats {
-    display: flex; align-items: center; justify-content: center;
-    gap: 48px; margin-top: 64px;
-    padding-top: 48px;
-    border-top: 1px solid rgba(255,255,255,0.06);
-    animation: fadeDown 0.6s 0.4s ease both;
-  }
-
-  .stat { text-align: center; }
-  .stat-num {
-    font-size: 32px; font-weight: 900;
-    background: linear-gradient(135deg, var(--primary2), var(--purple2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    letter-spacing: -1px;
-  }
-  .stat-label { font-size: 13px; color: var(--text3); margin-top: 4px; }
-
-  @keyframes fadeDown {
-    from { opacity: 0; transform: translateY(-20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  /* ── APP PREVIEW ── */
-  .preview-section {
-    padding: 0 0 120px;
-    position: relative;
-  }
-
-  .preview-wrapper {
-    max-width: 1100px; margin: 0 auto; padding: 0 32px;
-    position: relative;
-  }
-
-  .preview-glow {
-    position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
-    width: 800px; height: 400px;
-    background: radial-gradient(ellipse, rgba(79,142,247,0.15) 0%, transparent 70%);
-    pointer-events: none;
-  }
-
-  .app-mockup {
-    background: var(--card);
-    border: 1px solid var(--border2);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05);
-    position: relative;
-  }
-
-  .mockup-titlebar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 12px 20px;
-    background: rgba(0,0,0,0.3);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .titlebar-dot {
-    width: 12px; height: 12px; border-radius: 50%;
-  }
-  .dot-red { background: #ff5f57; }
-  .dot-yellow { background: #ffbd2e; }
-  .dot-green { background: #28ca41; }
-
-  .titlebar-url {
-    flex: 1; text-align: center;
-    background: rgba(255,255,255,0.06);
-    border-radius: 6px; padding: 4px 16px;
-    font-size: 12px; color: var(--text3);
-    max-width: 300px; margin: 0 auto;
-  }
-
-  .mockup-body {
-    display: flex; height: 480px;
-  }
-
-  /* Sidebar */
-  .mock-sidebar {
-    width: 180px; flex-shrink: 0;
-    background: #111827;
-    border-right: 1px solid var(--border);
-    padding: 16px 0;
-    display: flex; flex-direction: column; gap: 4px;
-  }
-
-  .mock-logo {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 16px 16px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 8px;
-  }
-
-  .mock-logo-icon {
-    width: 28px; height: 28px; border-radius: 8px;
-    background: linear-gradient(135deg, var(--primary), var(--purple));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px;
-  }
-
-  .mock-logo-text { font-size: 13px; font-weight: 700; color: var(--text); }
-
-  .mock-nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 16px; font-size: 13px; color: #94a3b8;
-    cursor: pointer; border-radius: 6px; margin: 0 8px;
-    transition: all 0.15s;
-  }
-
-  .mock-nav-item.active {
-    background: rgba(79,142,247,0.15);
-    color: var(--primary2);
-  }
-
-  .mock-nav-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: currentColor; flex-shrink: 0;
-  }
-
-  /* Main content */
-  .mock-main {
-    flex: 1; overflow: hidden;
-    background: #0f1628;
-    padding: 20px;
-    display: flex; flex-direction: column; gap: 16px;
-  }
-
-  .mock-header {
-    font-size: 16px; font-weight: 700; color: var(--text);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-
-  .mock-tag {
-    font-size: 11px; padding: 3px 10px; border-radius: 99px;
-    font-weight: 600;
-  }
-  .tag-blue { background: rgba(79,142,247,0.15); color: var(--primary2); }
-  .tag-purple { background: rgba(139,92,246,0.15); color: var(--purple2); }
-  .tag-green { background: rgba(16,185,129,0.15); color: var(--green); }
-  .tag-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
-  .tag-teal { background: rgba(20,184,166,0.15); color: var(--teal2); }
-
-  .mock-cards {
-    display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
-  }
-
-  .mock-card {
-    background: var(--card2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px;
-  }
-
-  .mock-card-num { font-size: 22px; font-weight: 800; color: var(--text); }
-  .mock-card-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
-  .mock-table {
-    flex: 1;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .mock-table-head {
-    display: grid; grid-template-columns: 90px 100px 1fr 90px 80px;
-    padding: 8px 14px;
-    background: rgba(0,0,0,0.2);
-    border-bottom: 1px solid var(--border);
-    font-size: 11px; color: var(--text3); font-weight: 600;
-    gap: 8px;
-  }
-
-  .mock-table-row {
-    display: grid; grid-template-columns: 90px 100px 1fr 90px 80px;
-    padding: 8px 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    font-size: 12px; color: var(--text2);
-    align-items: center; gap: 8px;
-    transition: background 0.1s;
-  }
-  .mock-table-row:hover { background: rgba(255,255,255,0.03); }
-
-  .mock-ai-badge {
-    display: flex; align-items: center; gap: 4px;
-    font-size: 11px;
-  }
-
-  .ai-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    animation: pulse 1.5s infinite;
-  }
-  .ai-dot-purple { background: var(--purple2); box-shadow: 0 0 6px var(--purple2); }
-  .ai-dot-green { background: var(--green); }
-
-  /* ── SECTION HEADERS ── */
-  .section-header { text-align: center; margin-bottom: 64px; }
-
-  .section-badge {
-    display: inline-block;
-    padding: 4px 14px; border-radius: 99px;
-    font-size: 12px; font-weight: 700; letter-spacing: 0.5px;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-  }
-
-  .badge-blue { background: rgba(79,142,247,0.12); border: 1px solid rgba(79,142,247,0.25); color: var(--primary2); }
-  .badge-purple { background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); color: var(--purple2); }
-  .badge-teal { background: rgba(20,184,166,0.12); border: 1px solid rgba(20,184,166,0.25); color: var(--teal2); }
-
-  .section-title {
-    font-size: clamp(28px, 4vw, 44px);
-    font-weight: 900; letter-spacing: -1.5px;
-    line-height: 1.15;
-    color: var(--text);
-  }
-
-  .section-title span {
-    background: linear-gradient(135deg, var(--primary2), var(--purple2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-
-  .section-desc {
-    font-size: 17px; color: var(--text2);
-    max-width: 560px; margin: 16px auto 0;
-    line-height: 1.7;
-  }
-
-  /* ── PROBLEM SECTION ── */
-  .problem-section {
-    padding: 120px 0;
-    background: linear-gradient(180deg, transparent, rgba(139,92,246,0.04) 50%, transparent);
-  }
-
-  .pain-points {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
-    margin-top: 0;
-  }
-
-  .pain-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 28px;
-    position: relative; overflow: hidden;
-  }
-
-  .pain-card::before {
-    content: '';
-    position: absolute; top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(239,68,68,0.5), transparent);
-  }
-
-  .pain-icon {
-    font-size: 32px; margin-bottom: 16px;
-    display: block;
-  }
-
-  .pain-title {
-    font-size: 17px; font-weight: 700; color: var(--text);
-    margin-bottom: 8px;
-  }
-
-  .pain-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
-
-  /* ── FEATURES ── */
-  .features-section { padding: 120px 0; }
-
-  .features-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
-  }
-
-  .feature-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 28px;
-    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-    position: relative; overflow: hidden;
-  }
-
-  .feature-card:hover {
-    border-color: var(--border2);
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-  }
-
-  .feature-card::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: radial-gradient(ellipse at top left, var(--card-glow, transparent), transparent 60%);
-    opacity: 0; transition: opacity 0.3s;
-    pointer-events: none;
-  }
-  .feature-card:hover::before { opacity: 1; }
-
-  .feat-blue { --card-glow: rgba(79,142,247,0.08); }
-  .feat-purple { --card-glow: rgba(139,92,246,0.08); }
-  .feat-teal { --card-glow: rgba(20,184,166,0.08); }
-  .feat-amber { --card-glow: rgba(245,158,11,0.08); }
-  .feat-green { --card-glow: rgba(16,185,129,0.08); }
-  .feat-red { --card-glow: rgba(239,68,68,0.08); }
-
-  .feature-icon {
-    width: 48px; height: 48px; border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; margin-bottom: 20px;
-  }
-
-  .icon-blue { background: rgba(79,142,247,0.15); }
-  .icon-purple { background: rgba(139,92,246,0.15); }
-  .icon-teal { background: rgba(20,184,166,0.15); }
-  .icon-amber { background: rgba(245,158,11,0.15); }
-  .icon-green { background: rgba(16,185,129,0.15); }
-  .icon-red { background: rgba(239,68,68,0.15); }
-
-  .feature-title {
-    font-size: 17px; font-weight: 700; color: var(--text);
-    margin-bottom: 8px;
-  }
-
-  .feature-desc { font-size: 14px; color: var(--text2); line-height: 1.65; }
-
-  /* ── WORKFLOW ── */
-  .workflow-section {
-    padding: 120px 0;
-    background: linear-gradient(180deg, transparent, rgba(79,142,247,0.04) 50%, transparent);
-  }
-
-  .workflow-steps {
-    display: flex; flex-direction: column; gap: 0;
-    max-width: 800px; margin: 0 auto;
-    position: relative;
-  }
-
-  .workflow-steps::before {
-    content: '';
-    position: absolute; left: 27px; top: 28px; bottom: 28px;
-    width: 2px;
-    background: linear-gradient(180deg, var(--primary), var(--purple), var(--teal));
-    opacity: 0.3;
-  }
-
-  .workflow-step {
-    display: flex; gap: 24px; align-items: flex-start;
-    padding: 24px 0;
-  }
-
-  .step-num {
-    width: 56px; height: 56px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 900;
-    flex-shrink: 0; position: relative; z-index: 1;
-    border: 2px solid;
-  }
-
-  .step-1 { background: rgba(79,142,247,0.15); border-color: rgba(79,142,247,0.4); color: var(--primary2); }
-  .step-2 { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: var(--purple2); }
-  .step-3 { background: rgba(20,184,166,0.15); border-color: rgba(20,184,166,0.4); color: var(--teal2); }
-  .step-4 { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); color: var(--amber); }
-  .step-5 { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: var(--green); }
-
-  .step-content { flex: 1; padding-top: 12px; }
-
-  .step-title {
-    font-size: 18px; font-weight: 700; color: var(--text);
-    margin-bottom: 6px;
-  }
-
-  .step-desc { font-size: 14px; color: var(--text2); line-height: 1.6; }
-
-  .step-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-
-  .step-tag {
-    font-size: 11px; padding: 3px 10px; border-radius: 99px;
-    background: rgba(255,255,255,0.06); color: var(--text3);
-    font-weight: 500;
-  }
-
-  /* ── STATUS FLOW ── */
-  .status-section { padding: 120px 0; }
-
-  .status-flow {
-    display: flex; align-items: center; justify-content: center;
-    flex-wrap: wrap; gap: 0;
-    position: relative;
-  }
-
-  .status-item {
-    display: flex; align-items: center;
-  }
-
-  .status-pill {
-    padding: 8px 18px; border-radius: 99px;
-    font-size: 13px; font-weight: 700;
-    white-space: nowrap; border: 1px solid;
-    position: relative;
-  }
-
-  .s-slate { background: rgba(100,116,139,0.15); border-color: rgba(100,116,139,0.3); color: #94a3b8; }
-  .s-blue  { background: rgba(79,142,247,0.15);  border-color: rgba(79,142,247,0.3);  color: var(--primary2); }
-  .s-purple { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.4); color: var(--purple2); animation: glow-p 2s infinite; }
-  .s-amber { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: var(--amber); }
-  .s-teal  { background: rgba(20,184,166,0.15); border-color: rgba(20,184,166,0.3); color: var(--teal2); }
-  .s-green { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: var(--green); }
-  .s-orange { background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.3); color: #fb923c; }
-  .s-emerald { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
-
-  @keyframes glow-p {
-    0%,100% { box-shadow: 0 0 6px rgba(139,92,246,0.3); }
-    50% { box-shadow: 0 0 18px rgba(139,92,246,0.6); }
-  }
-
-  .status-arrow {
-    padding: 0 6px; color: var(--text3); font-size: 16px;
-  }
-
-  .status-legend {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-    margin-top: 40px;
-  }
-
-  .legend-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 12px 16px;
-    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-    font-size: 13px;
-  }
-
-  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-
-  /* ── AI INTEGRATION ── */
-  .ai-section {
-    padding: 120px 0;
-    background: linear-gradient(180deg, transparent, rgba(139,92,246,0.05) 50%, transparent);
-  }
-
-  .ai-diagram {
-    display: grid; grid-template-columns: 1fr auto 1fr; gap: 40px;
-    align-items: center; max-width: 900px; margin: 0 auto;
-  }
-
-  .ai-box {
-    background: var(--card);
-    border: 1px solid var(--border2);
-    border-radius: var(--radius);
-    padding: 28px;
-  }
-
-  .ai-box-title {
-    font-size: 14px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    color: var(--text3); margin-bottom: 16px;
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  .ai-box-title::before {
-    content: '';
-    width: 8px; height: 8px; border-radius: 50%;
-    background: currentColor; flex-shrink: 0;
-  }
-
-  .gs-color { color: var(--primary2); }
-  .ai-color { color: var(--purple2); }
-
-  .ai-flow-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 8px;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    margin-bottom: 8px;
-    font-size: 13px; color: var(--text2);
-  }
-
-  .ai-flow-item:last-child { margin-bottom: 0; }
-
-  .flow-num {
-    width: 20px; height: 20px; border-radius: 50%;
-    background: rgba(79,142,247,0.2); color: var(--primary2);
-    font-size: 11px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .ai-arrow-center {
-    display: flex; flex-direction: column; align-items: center; gap: 16px;
-  }
-
-  .arrow-label {
-    font-size: 11px; color: var(--text3); text-align: center;
-    font-weight: 600;
-  }
-
-  .arrow-icon {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: rgba(139,92,246,0.15);
-    border: 2px solid rgba(139,92,246,0.3);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--purple2); font-size: 18px;
-  }
-
-  .poll-indicator {
-    display: flex; flex-direction: column; align-items: center; gap: 4px;
-  }
-
-  .poll-line {
-    width: 2px; height: 30px;
-    background: linear-gradient(180deg, transparent, rgba(139,92,246,0.5), transparent);
-    animation: flow 1.5s infinite;
-  }
-
-  @keyframes flow {
-    0% { opacity: 0.2; }
-    50% { opacity: 1; }
-    100% { opacity: 0.2; }
-  }
-
-  /* ── TECH STACK ── */
-  .tech-section { padding: 80px 0 120px; }
-
-  .tech-grid {
-    display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;
-  }
-
-  .tech-pill {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 18px; border-radius: 99px;
-    background: var(--card); border: 1px solid var(--border);
-    font-size: 14px; font-weight: 600; color: var(--text2);
-    transition: border-color 0.2s, color 0.2s, transform 0.2s;
-  }
-  .tech-pill:hover { border-color: var(--border2); color: var(--text); transform: translateY(-2px); }
-
-  .tech-dot { width: 8px; height: 8px; border-radius: 50%; }
-
-  /* ── CTA ── */
-  .cta-section {
-    padding: 120px 0;
-    position: relative; overflow: hidden;
-  }
-
-  .cta-section::before {
-    content: '';
-    position: absolute; inset: 0;
-    background:
-      radial-gradient(ellipse 80% 80% at 50% 100%, rgba(79,142,247,0.12) 0%, transparent 60%),
-      radial-gradient(ellipse 40% 60% at 20% 50%, rgba(139,92,246,0.08) 0%, transparent 50%);
-  }
-
-  .cta-inner {
-    position: relative; z-index: 1;
-    text-align: center; max-width: 700px; margin: 0 auto;
-    padding: 64px;
-    background: var(--card);
-    border: 1px solid var(--border2);
-    border-radius: 24px;
-    box-shadow: 0 40px 80px rgba(0,0,0,0.4);
-  }
-
-  .cta-title {
-    font-size: clamp(28px, 4vw, 44px);
-    font-weight: 900; letter-spacing: -1.5px;
-    line-height: 1.15; margin-bottom: 16px;
-  }
-
-  .cta-desc { font-size: 17px; color: var(--text2); margin-bottom: 40px; line-height: 1.6; }
-
-  /* ── FOOTER ── */
-  footer {
-    padding: 40px 0;
-    border-top: 1px solid rgba(255,255,255,0.06);
-    text-align: center;
-  }
-
-  .footer-inner {
-    display: flex; align-items: center; justify-content: space-between;
-  }
-
-  .footer-logo {
-    font-size: 16px; font-weight: 800;
-    background: linear-gradient(135deg, var(--primary2), var(--purple2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-
-  .footer-text { font-size: 13px; color: var(--text3); }
-
-  .footer-links {
-    display: flex; gap: 24px;
-    list-style: none;
-  }
-  .footer-links a { font-size: 13px; color: var(--text3); text-decoration: none; }
-  .footer-links a:hover { color: var(--text2); }
-
-  /* ── SCROLL ANIMATIONS ── */
-  .reveal {
-    opacity: 0; transform: translateY(30px);
-    transition: opacity 0.7s ease, transform 0.7s ease;
-  }
-  .reveal.visible {
-    opacity: 1; transform: translateY(0);
-  }
-  .reveal-delay-1 { transition-delay: 0.1s; }
-  .reveal-delay-2 { transition-delay: 0.2s; }
-  .reveal-delay-3 { transition-delay: 0.3s; }
-
-  /* ── RESPONSIVE ── */
-  @media (max-width: 768px) {
-    nav { padding: 0 20px; }
-    .nav-links { display: none; }
-    .hero { padding: 100px 20px 60px; }
-    .hero-stats { gap: 24px; flex-wrap: wrap; }
-    .mockup-body { flex-direction: column; height: auto; }
-    .mock-sidebar { width: 100%; height: 60px; flex-direction: row; padding: 0 16px; overflow: hidden; }
-    .pain-points, .features-grid { grid-template-columns: 1fr; }
-    .ai-diagram { grid-template-columns: 1fr; }
-    .status-flow { justify-content: flex-start; overflow-x: auto; padding-bottom: 12px; }
-    .status-legend { grid-template-columns: 1fr; }
-    .footer-inner { flex-direction: column; gap: 16px; }
-    .footer-links { display: none; }
-    .cta-inner { padding: 40px 24px; }
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPECODE — AI Dev Hub</title>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --bg-card: #111318;
+      --bg-card2: #161922;
+      --border: #1e2330;
+      --border-subtle: #161922;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --accent: #6366f1;
+      --accent-dim: #4f46e5;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { color: #818cf8; text-decoration: underline; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; height: 56px;
+      background: rgba(10,12,16,0.85); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; z-index: 100;
+    }
+    .nav-logo {
+      font-size: 17px; font-weight: 700; letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #6366f1, #a855f7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-links { display: flex; gap: 28px; list-style: none; }
+    .nav-links a { font-size: 13px; color: var(--text-dim); transition: color .2s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ── Layout ── */
+    main { padding-top: 56px; }
+    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    .container-wide { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 120px 0 100px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ""; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 10%, rgba(99,102,241,0.12), transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; border: 1px solid rgba(99,102,241,0.4); border-radius: 99px;
+      font-size: 12px; color: #818cf8; background: rgba(99,102,241,0.08); margin-bottom: 28px;
+    }
+    .hero-title {
+      font-size: clamp(40px, 7vw, 68px); font-weight: 800;
+      letter-spacing: -2px; line-height: 1.1; margin-bottom: 24px;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #06b6d4 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 18px; color: var(--text-dim);
+      max-width: 600px; margin: 0 auto 48px; line-height: 1.7;
+    }
+    .hero-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 28px; background: var(--accent); color: #fff;
+      border-radius: 10px; font-weight: 600; font-size: 15px;
+      transition: background .2s, transform .15s;
+      box-shadow: 0 0 32px rgba(99,102,241,0.4);
+    }
+    .hero-cta:hover { background: var(--accent-dim); color: #fff; text-decoration: none; transform: translateY(-1px); }
+    .stats {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 56px;
+    }
+    .stat {
+      display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; font-size: 13px;
+    }
+    .stat-icon { font-size: 18px; }
+    .stat-num { font-weight: 700; font-size: 16px; color: var(--text); }
+    .stat-label { color: var(--text-muted); }
+
+    /* ── Section ── */
+    section { padding: 80px 0; }
+    .section-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(26px, 4vw, 38px); font-weight: 800;
+      letter-spacing: -1px; margin-bottom: 16px; line-height: 1.2;
+    }
+    .section-desc { font-size: 16px; color: var(--text-dim); max-width: 640px; line-height: 1.7; }
+    .section-header { margin-bottom: 52px; }
+
+    /* ── Why ── */
+    .why-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 48px; }
+    .why-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+    .why-icon { font-size: 24px; margin-bottom: 12px; }
+    .why-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .why-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+    .quote-box {
+      border-left: 3px solid var(--accent); padding: 20px 24px;
+      background: rgba(99,102,241,0.06); border-radius: 0 12px 12px 0;
+      margin-top: 40px; font-size: 16px; line-height: 1.7; color: var(--text);
+    }
+
+    /* ── Hierarchy ── */
+    .hierarchy-section { background: linear-gradient(180deg, var(--bg) 0%, #0d0f15 100%); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .hierarchy-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .tree {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      font-family: "SF Mono","Fira Mono",monospace; font-size: 13.5px;
+    }
+    .tree-title { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 16px; font-family: inherit; }
+    .tree-line { display: flex; align-items: center; line-height: 2.1; }
+    .tree-indent { color: #2d3348; }
+    .tree-node { display: inline-flex; align-items: center; gap: 8px; padding: 1px 10px; border-radius: 6px; transition: background .15s; cursor: default; }
+    .tree-node:hover { background: rgba(99,102,241,0.08); }
+    .t-task   { color: #f59e0b; }
+    .t-req    { color: #818cf8; }
+    .t-story  { color: #8b5cf6; }
+    .t-uw     { color: #22d3ee; }
+    .t-screen { color: #60a5fa; }
+    .t-area   { color: #4ade80; }
+    .t-func   { color: #c084fc; font-weight: 700; }
+    .tree-ai-tag {
+      font-size: 10px; padding: 1px 7px;
+      background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3);
+      border-radius: 99px; color: #a855f7; margin-left: 4px;
+    }
+    .domain-cards { display: flex; flex-direction: column; gap: 10px; }
+    .domain-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-left: 3px solid; border-radius: 10px; padding: 14px 18px;
+      transition: background .15s;
+    }
+    .domain-card:hover { background: var(--bg-card2); }
+    .domain-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .domain-name { font-weight: 700; font-size: 14px; }
+    .domain-tag { font-size: 11px; padding: 1px 8px; border-radius: 99px; font-family: monospace; }
+    .domain-desc { font-size: 12.5px; color: var(--text-muted); }
+
+    /* ── State flow ── */
+    .states-flow {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; margin-top: 48px;
+    }
+    .states-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .state-badge { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600; font-family: monospace; }
+    .state-arrow { color: var(--text-muted); font-size: 16px; padding: 0 2px; }
+    .s-draft   { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+    .s-review  { background: rgba(245,158,11,0.12);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .s-design  { background: rgba(99,102,241,0.12);  color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+    .s-confirm { background: rgba(34,197,94,0.12);   color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+    .s-impl    { background: rgba(168,85,247,0.12);  color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+    .s-ai      { background: rgba(6,182,212,0.1);    color: #22d3ee; border: 1px solid rgba(6,182,212,0.25); font-size: 11px; }
+
+    /* ── Features ── */
+    .features-section { background: #0d0f15; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .feature-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      transition: border-color .2s, transform .15s;
+    }
+    .feature-card:hover { border-color: #2d3348; transform: translateY(-2px); }
+    .feature-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
+    .feature-name { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; }
+    .feature-tags { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .ftag { font-size: 11px; padding: 2px 9px; border-radius: 99px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); }
+
+    /* ── Pipeline ── */
+    .pipeline-section { border-top: 1px solid var(--border); }
+    .pipeline { display: flex; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-top: 40px; }
+    .pipe-step { flex: 1; padding: 24px 20px; border-right: 1px solid var(--border); }
+    .pipe-step:last-child { border-right: none; }
+    .pipe-num { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 1px; }
+    .pipe-icon { font-size: 22px; margin-bottom: 10px; }
+    .pipe-name { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .pipe-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .pipe-status { display: inline-flex; margin-top: 10px; font-size: 10px; padding: 2px 8px; border-radius: 99px; font-family: monospace; font-weight: 700; }
+    .code-block {
+      background: #0d0f15; border: 1px solid var(--border); border-radius: 12px;
+      padding: 24px; font-family: "SF Mono","Fira Mono",monospace; font-size: 13px;
+      line-height: 1.9; overflow-x: auto; margin-top: 32px;
+    }
+    .code-comment { color: #475569; }
+    .code-step { color: var(--text-dim); }
+    .code-arrow { color: var(--accent); }
+    .code-green { color: #22c55e; }
+    .code-amber { color: #f59e0b; }
+
+    /* ── Roadmap ── */
+    .roadmap-section { background: #0d0f15; border-top: 1px solid var(--border); }
+    .current-badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
+      background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 99px; font-size: 12px; color: #22c55e; margin-bottom: 16px;
+    }
+    .roadmap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 48px; }
+    .roadmap-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+    .roadmap-card.now { border-color: rgba(34,197,94,0.3); }
+    .roadmap-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+    .roadmap-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .roadmap-list li { font-size: 13.5px; color: var(--text-dim); display: flex; align-items: flex-start; gap: 10px; }
+    .roadmap-list li::before { content: "─"; color: var(--text-muted); flex-shrink: 0; margin-top: 2px; }
+    .phases { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .phase-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .phase-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px; }
+    .phase-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+    .phase-when { font-size: 11.5px; color: var(--text-muted); margin-bottom: 12px; }
+    .phase-items { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+    .phase-items li { font-size: 12px; color: var(--text-muted); }
+    .phase-items li::before { content: "· "; }
+
+    /* ── CTA ── */
+    .cta-section {
+      border-top: 1px solid var(--border); text-align: center; padding: 80px 24px;
+      background: radial-gradient(ellipse 70% 80% at 50% 50%, rgba(99,102,241,0.07), transparent 70%);
+    }
+    .cta-title { font-size: 32px; font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; }
+    .cta-sub { font-size: 16px; color: var(--text-dim); margin-bottom: 40px; }
+    .cta-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary { padding: 13px 28px; background: var(--accent); color: #fff; border-radius: 10px; font-weight: 600; font-size: 15px; transition: background .2s; box-shadow: 0 0 32px rgba(99,102,241,0.35); }
+    .btn-primary:hover { background: var(--accent-dim); color: #fff; text-decoration: none; }
+    .btn-ghost { padding: 13px 28px; background: transparent; color: var(--text-dim); border: 1px solid var(--border); border-radius: 10px; font-weight: 600; font-size: 15px; transition: background .2s, color .2s; }
+    .btn-ghost:hover { background: var(--bg-card); color: var(--text); text-decoration: none; }
+
+    /* ── Footer ── */
+    footer { border-top: 1px solid var(--border); padding: 32px 24px; text-align: center; font-size: 13px; color: var(--text-muted); }
+    footer strong { color: var(--text-dim); }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .hierarchy-wrap { grid-template-columns: 1fr; }
+      .roadmap-grid { grid-template-columns: 1fr; }
+      .phases { grid-template-columns: 1fr 1fr; }
+      .pipeline { flex-direction: column; }
+      .pipe-step { border-right: none; border-bottom: 1px solid var(--border); }
+      .pipe-step:last-child { border-bottom: none; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 480px) {
+      .why-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr; }
+      .phases { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 <body>
 
-<!-- NAV -->
+<!-- Nav -->
 <nav>
-  <div class="nav-logo">
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <rect width="28" height="28" rx="8" fill="url(#navGrad)"/>
-      <path d="M8 14c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="white" stroke-width="2" stroke-linecap="round"/>
-      <circle cx="14" cy="17" r="3" fill="white"/>
-      <defs>
-        <linearGradient id="navGrad" x1="0" y1="0" x2="28" y2="28">
-          <stop offset="0%" stop-color="#4f8ef7"/>
-          <stop offset="100%" stop-color="#8b5cf6"/>
-        </linearGradient>
-      </defs>
-    </svg>
-    SPECODE
-  </div>
+  <span class="nav-logo">✦ SPECODE</span>
   <ul class="nav-links">
-    <li><a href="#features">핵심 기능</a></li>
-    <li><a href="#workflow">워크플로우</a></li>
-    <li><a href="#status">상태 관리</a></li>
-    <li><a href="#ai">AI 연동</a></li>
-    <li><a href="#tech">기술 스택</a></li>
-    <li><a href="#cta" class="nav-cta">도입 문의</a></li>
+    <li><a href="#why">배경</a></li>
+    <li><a href="#domain">도메인 구조</a></li>
+    <li><a href="#features">주요 기능</a></li>
+    <li><a href="#pipeline">AI 파이프라인</a></li>
+    <li><a href="#roadmap">로드맵</a></li>
   </ul>
 </nav>
 
-<!-- HERO -->
+<main>
+
+<!-- Hero -->
 <section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-content">
-    <div class="hero-badge">
-      <span class="badge-dot"></span>
-      AI-Powered SI Development Platform
-    </div>
-
-    <h1>
-      <span class="line1">SI 개발의 새로운 기준</span>
-      <span class="line2">AI와 함께 설계하고 구현하다</span>
+  <div class="container">
+    <div class="hero-badge">✦ AI Dev Hub &nbsp;—&nbsp; SI 프로젝트를 위한 협업 플랫폼</div>
+    <h1 class="hero-title">
+      인간이 방향을 잡고,<br>
+      <span>AI가 구체화한다.</span>
     </h1>
-
-    <p class="hero-desc">
-      요구사항 분석부터 코드 구현까지, AI가 함께하는 스마트 개발 자동화 플랫폼.
-      반복적인 설계 작업을 AI에게 맡기고, 당신은 더 중요한 것에 집중하세요.
+    <p class="hero-subtitle">
+      SI 프로젝트의 기획·설계·개발 과정에서 생기는 모든 산출물을
+      계층적으로 연결하고, 각 단계마다 AI가 실질적인 도움을 주는 협업 플랫폼.
     </p>
+    <a href="#why" class="hero-cta">더 알아보기 →</a>
 
-    <div class="hero-actions">
-      <a href="#workflow" class="btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polygon points="5 3 19 12 5 21 5 3"/>
-        </svg>
-        워크플로우 보기
-      </a>
-      <a href="#features" class="btn-secondary">
-        핵심 기능 살펴보기 →
-      </a>
-    </div>
-
-    <div class="hero-stats">
-      <div class="stat">
-        <div class="stat-num">10</div>
-        <div class="stat-label">단계 기능 상태 관리</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">6</div>
-        <div class="stat-label">AI 작업 유형</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">AI</div>
-        <div class="stat-label">폴링 기반 자동 연동</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">∞</div>
-        <div class="stat-label">계층 구조 관리</div>
-      </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-icon">🏗️</span><span class="stat-num">6</span><span class="stat-label">계층 구조</span></div>
+      <div class="stat"><span class="stat-icon">🤖</span><span class="stat-num">4</span><span class="stat-label">AI 태스크 유형</span></div>
+      <div class="stat"><span class="stat-icon">⚡</span><span class="stat-num">비동기</span><span class="stat-label">AI 처리 방식</span></div>
+      <div class="stat"><span class="stat-icon">📦</span><span class="stat-num">PRD</span><span class="stat-label">자동 내보내기</span></div>
+      <div class="stat"><span class="stat-icon">🔌</span><span class="stat-num">MCP</span><span class="stat-label">외부 AI 연동</span></div>
     </div>
   </div>
 </section>
 
-<!-- APP PREVIEW -->
-<section class="preview-section">
-  <div class="preview-wrapper">
-    <div class="preview-glow"></div>
-    <div class="app-mockup reveal">
-      <div class="mockup-titlebar">
-        <div class="titlebar-dot dot-red"></div>
-        <div class="titlebar-dot dot-yellow"></div>
-        <div class="titlebar-dot dot-green"></div>
-        <div class="titlebar-url">localhost:3000 — AI Dev Hub</div>
+<div class="divider"></div>
+
+<!-- Why -->
+<section id="why">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Why SPECODE</p>
+      <h2 class="section-title">SI 프로젝트의 고질적인 문제들</h2>
+      <p class="section-desc">코딩이 아닌 기획과 설계 단계에서 생산성이 가장 많이 사라집니다.</p>
+    </div>
+
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon">🌫️</div>
+        <div class="why-title">요구사항이 모호하다</div>
+        <div class="why-desc">RFP 문장 하나가 개발팀에 전달될 때쯤이면 원래 의도가 희석되거나 변형되어 있습니다.</div>
       </div>
-      <div class="mockup-body">
-        <!-- Sidebar -->
-        <div class="mock-sidebar">
-          <div class="mock-logo">
-            <div class="mock-logo-icon">🤖</div>
-            <span class="mock-logo-text">AI Dev Hub</span>
+      <div class="why-card">
+        <div class="why-icon">📭</div>
+        <div class="why-title">명세가 부족하다</div>
+        <div class="why-desc">기능을 등록하지만 "어떻게 동작해야 하는가"에 대한 설명이 빈약합니다. 개발자가 스스로 해석하다 보면 방향이 달라집니다.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">🔍</div>
+        <div class="why-title">추적이 안 된다</div>
+        <div class="why-desc">RFP의 어느 요구사항이 어느 화면으로 구현됐는지, 어느 기능이 어떤 상태인지 한눈에 보기 어렵습니다.</div>
+      </div>
+      <div class="why-card">
+        <div class="why-icon">⏰</div>
+        <div class="why-title">설계 비용이 크다</div>
+        <div class="why-desc">상세 설계 문서를 작성하는 데 많은 시간이 걸립니다. 결국 대충 넘어가거나 생략됩니다.</div>
+      </div>
+    </div>
+
+    <div class="quote-box">
+      SPECODE는 <strong>계층 구조로 모든 것을 연결</strong>하고, AI가 각 단계를 보조하게 합니다.<br>
+      기능 하나를 보면 그게 어느 요구사항에서 나왔는지, 어느 RFP 항목을 구현하는 것인지 바로 추적할 수 있습니다.
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Domain -->
+<section id="domain" class="hierarchy-section">
+  <div class="container">
+    <div class="section-header">
+      <p class="section-label">Domain Structure</p>
+      <h2 class="section-title">도메인 계층 구조</h2>
+      <p class="section-desc">과업에서 기능까지 단방향으로 연결된 6계층 구조. 모든 설계 산출물이 하나의 트리 안에 있습니다.</p>
+    </div>
+
+    <div class="hierarchy-wrap">
+      <div class="tree">
+        <div class="tree-title">계층 트리</div>
+        <div class="tree-line"><span class="tree-node t-task">📋 과업 (Task)</span></div>
+        <div class="tree-line"><span class="tree-indent">&nbsp;&nbsp;└─ </span><span class="tree-node t-req">📌 요구사항 (Requirement)</span></div>
+        <div class="tree-line"><span class="tree-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ </span><span class="tree-node t-story">👤 사용자 스토리 (UserStory)</span></div>
+        <div class="tree-line"><span class="tree-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ </span><span class="tree-node t-uw">🔷 단위업무 (UnitWork)</span></div>
+        <div class="tree-line"><span class="tree-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ </span><span class="tree-node t-screen">🖥️ 화면 (Screen)</span></div>
+        <div class="tree-line"><span class="tree-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ </span><span class="tree-node t-area">▦ 영역 (Area)</span></div>
+        <div class="tree-line"><span class="tree-indent">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ </span><span class="tree-node t-func">⚙️ 기능 (Function)<span class="tree-ai-tag">AI</span></span></div>
+      </div>
+
+      <div class="domain-cards">
+        <div class="domain-card" style="border-left-color:#f59e0b">
+          <div class="domain-card-header">
+            <span class="domain-name t-task">과업</span>
+            <span class="domain-tag" style="background:rgba(245,158,11,.1);color:#f59e0b">Task</span>
           </div>
-          <div class="mock-nav-item active">
-            <div class="mock-nav-dot"></div>대시보드
-          </div>
-          <div class="mock-nav-item">
-            <div class="mock-nav-dot"></div>요구사항
-          </div>
-          <div class="mock-nav-item">
-            <div class="mock-nav-dot"></div>표준가이드
-          </div>
-          <div class="mock-nav-item">
-            <div class="mock-nav-dot"></div>화면
-          </div>
-          <div class="mock-nav-item">
-            <div class="mock-nav-dot"></div>기능
-          </div>
-          <div class="mock-nav-item">
-            <div class="mock-nav-dot"></div>트리 뷰
-          </div>
-          <div class="mock-nav-item">
-            <div class="mock-nav-dot"></div>AI 현황
-          </div>
+          <div class="domain-desc">RFP의 대항목. "회원관리 기능 개발" 등 과업 하나가 여러 요구사항을 담습니다.</div>
         </div>
-        <!-- Main -->
-        <div class="mock-main">
-          <div class="mock-header">
-            대시보드
-            <span style="font-size:12px;color:var(--text3)">30초마다 자동 갱신</span>
+        <div class="domain-card" style="border-left-color:#6366f1">
+          <div class="domain-card-header">
+            <span class="domain-name" style="color:#818cf8">요구사항</span>
+            <span class="domain-tag" style="background:rgba(99,102,241,.1);color:#818cf8">Requirement</span>
           </div>
-          <div class="mock-cards">
-            <div class="mock-card">
-              <div class="mock-card-num" style="color:#94a3b8">24</div>
-              <div class="mock-card-label">설계중</div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-num" style="color:var(--primary2)">12</div>
-              <div class="mock-card-label">검토요청</div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-num" style="color:var(--amber)">18</div>
-              <div class="mock-card-label">검토완료</div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-num" style="color:var(--purple2)">3</div>
-              <div class="mock-card-label" style="display:flex;align-items:center;gap:4px">
-                AI구현중
-                <div class="ai-dot ai-dot-purple" style="width:5px;height:5px"></div>
-              </div>
-            </div>
-            <div class="mock-card">
-              <div class="mock-card-num" style="color:var(--green)">47</div>
-              <div class="mock-card-label">구현완료</div>
-            </div>
+          <div class="domain-desc">"시스템은 ~해야 한다"는 단위. 원문(계약서/RFP)과 현행화된 내용을 구분 관리합니다. 원래 계약 근거는 항상 보존됩니다.</div>
+        </div>
+        <div class="domain-card" style="border-left-color:#06b6d4">
+          <div class="domain-card-header">
+            <span class="domain-name" style="color:#22d3ee">단위업무</span>
+            <span class="domain-tag" style="background:rgba(6,182,212,.1);color:#22d3ee">UnitWork</span>
           </div>
-          <div class="mock-table">
-            <div class="mock-table-head">
-              <span>기능 ID</span><span>코드</span><span>기능명</span><span>상태</span><span>AI 결과</span>
-            </div>
-            <div class="mock-table-row">
-              <span style="color:var(--primary2)">FID-00012</span>
-              <span>BGT-001-04</span>
-              <span>사용자 검색</span>
-              <span><div class="mock-tag tag-blue">검토요청</div></span>
-              <span>-</span>
-            </div>
-            <div class="mock-table-row">
-              <span style="color:var(--primary2)">FID-00011</span>
-              <span>BGT-001-03</span>
-              <span>목록 조회</span>
-              <span><div class="mock-tag tag-purple">
-                <span class="mock-ai-badge"><span class="ai-dot ai-dot-purple"></span>AI검토중</span>
-              </div></span>
-              <span>-</span>
-            </div>
-            <div class="mock-table-row">
-              <span style="color:var(--primary2)">FID-00010</span>
-              <span>BGT-001-02</span>
-              <span>데이터 저장</span>
-              <span><div class="mock-tag tag-amber">검토완료</div></span>
-              <span><div class="mock-tag tag-green">✅ 성공</div></span>
-            </div>
-            <div class="mock-table-row">
-              <span style="color:var(--primary2)">FID-00009</span>
-              <span>BGT-001-01</span>
-              <span>엑셀 다운로드</span>
-              <span><div class="mock-tag tag-green">컨펌</div></span>
-              <span><div class="mock-tag tag-teal">🔧 자동수정</div></span>
-            </div>
+          <div class="domain-desc">화면들의 묶음. "주문 처리" 단위업무 아래 주문목록·상세·취소 화면이 묶입니다. 요구사항을 실제 개발 단위로 쪼개는 중간 계층.</div>
+        </div>
+        <div class="domain-card" style="border-left-color:#3b82f6">
+          <div class="domain-card-header">
+            <span class="domain-name" style="color:#60a5fa">화면</span>
+            <span class="domain-tag" style="background:rgba(59,130,246,.1);color:#60a5fa">Screen</span>
           </div>
+          <div class="domain-desc">사용자가 실제로 보는 UI 페이지. LIST / DETAIL / POPUP / TAB 유형. 대·중·소분류로 메뉴 체계 구성.</div>
+        </div>
+        <div class="domain-card" style="border-left-color:#22c55e">
+          <div class="domain-card-header">
+            <span class="domain-name" style="color:#4ade80">영역</span>
+            <span class="domain-tag" style="background:rgba(34,197,94,.1);color:#4ade80">Area</span>
+          </div>
+          <div class="domain-desc">화면 내의 논리적 구획. SEARCH / GRID / FORM / INFO_CARD / TAB / FULL_SCREEN 유형. Excalidraw 도안 지원.</div>
+        </div>
+        <div class="domain-card" style="border-left-color:#a855f7">
+          <div class="domain-card-header">
+            <span class="domain-name" style="color:#c084fc">기능 ⭐</span>
+            <span class="domain-tag" style="background:rgba(168,85,247,.1);color:#c084fc">Function</span>
+          </div>
+          <div class="domain-desc">SPECODE에서 가장 중요한 단위. 전체 시스템 상호작용의 80%가 기능 단위로 발생. AI가 검토·설계·구현 가이드를 생성합니다.</div>
         </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- PROBLEM -->
-<section class="problem-section" id="problem">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-badge badge-purple">Problem</div>
-      <h2 class="section-title">SI 개발, 왜 이렇게 <span>비효율적</span>일까요?</h2>
-      <p class="section-desc">전통적인 SI 개발 방식이 가진 고질적인 문제들</p>
-    </div>
-    <div class="pain-points">
-      <div class="pain-card reveal reveal-delay-1">
-        <span class="pain-icon">📄</span>
-        <div class="pain-title">반복되는 문서 작업</div>
-        <div class="pain-desc">요구사항 분석, 화면 설계, 기능 명세서 작성... 비슷한 작업을 수백 번 반복하며 시간을 낭비합니다.</div>
-      </div>
-      <div class="pain-card reveal reveal-delay-2">
-        <span class="pain-icon">🔍</span>
-        <div class="pain-title">설계 검토의 한계</div>
-        <div class="pain-desc">사람이 직접 검토하면 누락되는 충돌 기능, 영향도 분석 오류, 일관성 문제가 발생합니다.</div>
-      </div>
-      <div class="pain-card reveal reveal-delay-3">
-        <span class="pain-icon">📊</span>
-        <div class="pain-title">진행 현황 파악 어려움</div>
-        <div class="pain-desc">수백 개 기능의 개발 진행 상태를 한눈에 파악하기 어렵고, 병목 구간을 찾는 것도 어렵습니다.</div>
+    <div class="states-flow">
+      <div style="font-size:13px;font-weight:700;margin-bottom:20px;color:var(--text-dim)">⚙️ 기능(Function) 상태 흐름</div>
+      <div class="states-row">
+        <span class="state-badge s-draft">DRAFT</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-review">검토 요청</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-ai">AI 처리 중</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-review">검토 완료</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-design">설계 요청</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-ai">AI 처리 중</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-design">설계 완료</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-confirm">컨펌</span>
+        <span class="state-arrow">→</span>
+        <span class="state-badge s-impl">구현 완료</span>
       </div>
     </div>
   </div>
 </section>
 
-<!-- FEATURES -->
-<section class="features-section" id="features">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-badge badge-blue">Core Features</div>
-      <h2 class="section-title">개발 사이클 전체를 <span>하나로</span></h2>
-      <p class="section-desc">요구사항부터 구현까지, 모든 것을 하나의 플랫폼에서 관리하세요</p>
+<div class="divider"></div>
+
+<!-- Features -->
+<section id="features" class="features-section">
+  <div class="container-wide">
+    <div class="section-header" style="max-width:960px;margin-left:auto;margin-right:auto;padding:0 24px;">
+      <p class="section-label">Features</p>
+      <h2 class="section-title">주요 기능</h2>
+      <p class="section-desc">AI가 각 단계를 보조하는 11가지 핵심 기능.</p>
     </div>
+
     <div class="features-grid">
-      <div class="feature-card feat-blue reveal reveal-delay-1">
-        <div class="feature-icon icon-blue">📋</div>
-        <div class="feature-title">계층 구조 관리</div>
-        <div class="feature-desc">요구사항 → 화면 → 기능의 명확한 계층 구조로 프로젝트 전체를 체계적으로 관리합니다. 트리 뷰로 전체 구조를 한눈에 파악할 수 있습니다.</div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(168,85,247,0.12)">🤖</div>
+        <div class="feature-name">AI 자동화 파이프라인</div>
+        <div class="feature-desc">기능의 상태가 바뀌면 AI 태스크가 자동 생성됩니다. 검토 → 상세 설계 → 구현 가이드 → 목업 순으로 진행. 이미지 첨부 시 화면 레이아웃도 반영. 모든 처리는 비동기.</div>
+        <div class="feature-tags"><span class="ftag">INSPECT</span><span class="ftag">DESIGN</span><span class="ftag">IMPLEMENT</span><span class="ftag">MOCKUP</span></div>
       </div>
-      <div class="feature-card feat-purple reveal reveal-delay-2">
-        <div class="feature-icon icon-purple">🤖</div>
-        <div class="feature-title">AI 설계 자동화</div>
-        <div class="feature-desc">기능 명세 작성 후 AI에게 검토 요청 한 번으로 설계 오류 탐지, 충돌 기능 분석, 영향도 평가, 상세설계 생성까지 자동으로 처리됩니다.</div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(99,102,241,0.12)">📊</div>
+        <div class="feature-name">기획 보드 (PlanningBoard)</div>
+        <div class="feature-desc">여러 요구사항을 묶어서 IA(정보구조), 프로세스 흐름도(Mermaid), HTML 목업을 AI가 생성. 생성된 기획을 화면으로 승격해서 실제 설계로 연결.</div>
+        <div class="feature-tags"><span class="ftag">IA</span><span class="ftag">PROCESS · Mermaid</span><span class="ftag">MOCKUP</span></div>
       </div>
-      <div class="feature-card feat-teal reveal reveal-delay-3">
-        <div class="feature-icon icon-teal">🔄</div>
-        <div class="feature-title">10단계 상태 관리</div>
-        <div class="feature-desc">설계중부터 구현완료까지 10단계 상태 워크플로우로 모든 기능의 진행 현황을 정밀하게 추적합니다. AI 처리 중에는 자동 상태 전이가 이루어집니다.</div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(59,130,246,0.12)">🖥️</div>
+        <div class="feature-name">일괄 설계 (BulkDesign)</div>
+        <div class="feature-desc">화면→영역→기능 계층을 탐색하면서 명세를 한 곳에서 편집. 연결된 요구사항 원문을 참고하면서 AI 설계 태스크를 선택 범위 기준으로 일괄 생성.</div>
+        <div class="feature-tags"><span class="ftag">계층 탐색</span><span class="ftag">일괄 편집</span><span class="ftag">AI 일괄 요청</span></div>
       </div>
-      <div class="feature-card feat-amber reveal reveal-delay-1">
-        <div class="feature-icon icon-amber">📡</div>
-        <div class="feature-title">폴링 기반 AI 연동</div>
-        <div class="feature-desc">AI 서비스가 30초마다 폴링하여 대기 중인 작업을 가져가는 방식으로 방화벽 환경에서도 안정적으로 동작합니다. 완료 시 자동으로 결과가 반영됩니다.</div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,158,11,0.12)">📄</div>
+        <div class="feature-name">PRD 내보내기</div>
+        <div class="feature-desc">설계가 완료된 단위업무·화면·영역·기능을 마크다운 PRD 문서로 내보내기. 마지막 다운로드 이후 변경된 내용이 상단에 자동 표시(Diff 기반 변경 노트).</div>
+        <div class="feature-tags"><span class="ftag">Markdown PRD</span><span class="ftag">Diff 변경 노트</span></div>
       </div>
-      <div class="feature-card feat-green reveal reveal-delay-2">
-        <div class="feature-icon icon-green">📖</div>
-        <div class="feature-title">표준가이드 AI 검토</div>
-        <div class="feature-desc">코딩 표준, 설계 패턴, 보안 가이드를 등록하고 AI가 준수 여부를 자동으로 검토합니다. 일관된 코드 품질을 유지하는 가장 스마트한 방법입니다.</div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(34,197,94,0.12)">🔌</div>
+        <div class="feature-name">MCP 서버</div>
+        <div class="feature-desc">Claude Code, claude.ai, 다른 AI 도구가 SPECODE 데이터에 직접 접근. 화면·영역·기능 데이터를 읽고, AI 작업을 요청하고, 결과를 저장할 수 있습니다.</div>
+        <div class="feature-tags"><span class="ftag">Claude Code</span><span class="ftag">HTTP MCP</span><span class="ftag">외부 AI 연동</span></div>
       </div>
-      <div class="feature-card feat-red reveal reveal-delay-3">
-        <div class="feature-icon icon-red">⚡</div>
-        <div class="feature-title">실시간 현황 대시보드</div>
-        <div class="feature-desc">전체 기능의 상태 분포, AI 작업 진행 현황, 최근 AI 활동 피드를 실시간으로 모니터링합니다. 30초마다 자동 갱신으로 항상 최신 상태를 유지합니다.</div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(6,182,212,0.12)">⬇️</div>
+        <div class="feature-name">AI 설계 가져오기</div>
+        <div class="feature-desc">Claude와 대화로 화면 설계 → JSON → SPECODE 일괄 등록. 단위업무/화면/영역/기능 또는 과업/요구사항/사용자스토리 두 방향 모두 지원. systemId가 있으면 수정, 없으면 신규 등록.</div>
+        <div class="feature-tags"><span class="ftag">JSON Import</span><span class="ftag">Claude 파트너</span><span class="ftag">Upsert</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(239,68,68,0.12)">📚</div>
+        <div class="feature-name">표준 가이드 (StandardGuide)</div>
+        <div class="feature-desc">UI, API, 보안, DB, 파일, 인증, 에러 처리 등 카테고리별 가이드 문서 관리. AI가 기능 설계 시 이 표준을 참조해서 일관성 있는 결과를 생성합니다.</div>
+        <div class="feature-tags"><span class="ftag">카테고리 관리</span><span class="ftag">AI 참조</span><span class="ftag">AI 검토</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(168,85,247,0.12)">🔁</div>
+        <div class="feature-name">변경 이력 (ContentVersion)</div>
+        <div class="feature-desc">요구사항, 기능 명세 등 중요한 텍스트 필드가 변경될 때마다 이전 내용을 저장. Diff 뷰어로 이전/현재 내용을 비교해서 설계 변경 이력을 추적.</div>
+        <div class="feature-tags"><span class="ftag">자동 버전 저장</span><span class="ftag">Diff 뷰어</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(99,102,241,0.12)">🗂️</div>
+        <div class="feature-name">요구사항 허브 (ReqHub)</div>
+        <div class="feature-desc">요구사항 하나를 중심으로 연결된 단위업무·화면·기능 전체를 한눈에. "이 요구사항이 실제로 어디서 구현되고 있는가"를 즉시 확인할 수 있습니다.</div>
+        <div class="feature-tags"><span class="ftag">통합 뷰</span><span class="ftag">양방향 추적</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(59,130,246,0.12)">🗃️</div>
+        <div class="feature-name">DB 스키마 관리</div>
+        <div class="feature-desc">개발 중인 시스템의 테이블 DDL을 SPECODE에서 관리. 컬럼 메타데이터 파싱, 관계도 시각화. AI가 기능 설계 시 실제 DB 구조를 참고합니다.</div>
+        <div class="feature-tags"><span class="ftag">DDL 파싱</span><span class="ftag">관계도</span><span class="ftag">AI 참조</span></div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(34,197,94,0.12)">📈</div>
+        <div class="feature-name">대시보드 &amp; 개발 현황판</div>
+        <div class="feature-desc">기능 상태별 건수, 오늘의 AI 처리 건수, 최근 AI 활동 피드. 단계별 진행률(설계율·구현율), 기능별 상태 테이블로 프로젝트 현황을 파악합니다.</div>
+        <div class="feature-tags"><span class="ftag">실시간 현황</span><span class="ftag">AI 활동 피드</span><span class="ftag">진행률</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- WORKFLOW -->
-<section class="workflow-section" id="workflow">
+<div class="divider"></div>
+
+<!-- Pipeline -->
+<section id="pipeline" class="pipeline-section">
   <div class="container">
-    <div class="section-header reveal">
-      <div class="section-badge badge-teal">Workflow</div>
-      <h2 class="section-title">AI와 함께하는 <span>5단계 개발 사이클</span></h2>
-      <p class="section-desc">처음 한 번만 설정하면, AI가 알아서 이어받아 진행합니다</p>
+    <div class="section-header">
+      <p class="section-label">AI Pipeline</p>
+      <h2 class="section-title">AI 워커 동작 방식</h2>
+      <p class="section-desc">폴링 기반 비동기 큐로 AI 태스크를 처리합니다. 요청만 해두면 백그라운드에서 처리되고 결과가 자동으로 저장됩니다.</p>
     </div>
-    <div class="workflow-steps reveal">
-      <div class="workflow-step">
-        <div class="step-num step-1">1</div>
-        <div class="step-content">
-          <div class="step-title">요구사항 & 화면 등록</div>
-          <div class="step-desc">고객의 RFQ(입찰요청서)를 시스템에 등록하고 GS가 분석 내용을 작성합니다. 화면 유형(목록/상세/팝업/탭)과 레이아웃을 시각적으로 설계합니다.</div>
-          <div class="step-tags">
-            <span class="step-tag">요구사항 등록</span>
-            <span class="step-tag">화면 설계</span>
-            <span class="step-tag">레이아웃 에디터</span>
-          </div>
-        </div>
+
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-num">STEP 01</div>
+        <div class="pipe-icon">🔔</div>
+        <div class="pipe-name">태스크 생성</div>
+        <div class="pipe-desc">기능 상태 변경 시 AI 태스크가 자동 생성됩니다.</div>
+        <div class="pipe-status" style="background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.3)">NONE</div>
       </div>
-      <div class="workflow-step">
-        <div class="step-num step-2">2</div>
-        <div class="step-content">
-          <div class="step-title">기능 명세 작성</div>
-          <div class="step-desc">각 화면별 기능을 등록하고 마크다운으로 상세 명세를 작성합니다. 데이터 흐름(READ/WRITE 대상 테이블), 관련 파일, 참조 프로그램도 함께 기록합니다.</div>
-          <div class="step-tags">
-            <span class="step-tag">기능 명세 (Markdown)</span>
-            <span class="step-tag">데이터 흐름</span>
-            <span class="step-tag">참조 프로그램</span>
-          </div>
-        </div>
+      <div class="pipe-step">
+        <div class="pipe-num">STEP 02</div>
+        <div class="pipe-icon">🔍</div>
+        <div class="pipe-name">폴링 조회</div>
+        <div class="pipe-desc">AI 워커가 주기적으로 대기 태스크를 조회합니다.</div>
+        <div class="pipe-status" style="background:rgba(99,102,241,.1);color:#818cf8;border:1px solid rgba(99,102,241,.3)">GET /api/ai/tasks</div>
       </div>
-      <div class="workflow-step">
-        <div class="step-num step-3">3</div>
-        <div class="step-content">
-          <div class="step-title">AI 검토 요청 → 자동 처리</div>
-          <div class="step-desc">상태를 <strong style="color:var(--primary2)">검토요청</strong>으로 변경하면 AI 작업이 자동 생성됩니다. AI가 설계 오류, 충돌 기능, 영향도를 분석하여 마크다운 형태의 검토 결과를 반환합니다.</div>
-          <div class="step-tags">
-            <span class="step-tag">AI 설계 검토 (REVIEW)</span>
-            <span class="step-tag">충돌 기능 탐지</span>
-            <span class="step-tag">영향도 분석</span>
-          </div>
-        </div>
+      <div class="pipe-step">
+        <div class="pipe-num">STEP 03</div>
+        <div class="pipe-icon">⚡</div>
+        <div class="pipe-name">AI 분석·생성</div>
+        <div class="pipe-desc">태스크를 시작하고 spec 분석, 이미지 분석(첨부 시), 설계 문서를 생성합니다.</div>
+        <div class="pipe-status" style="background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">RUNNING</div>
       </div>
-      <div class="workflow-step">
-        <div class="step-num step-4">4</div>
-        <div class="step-content">
-          <div class="step-title">AI 상세설계 생성 → GS 컨펌</div>
-          <div class="step-desc">검토 결과를 확인 후 <strong style="color:var(--teal2)">설계요청</strong>으로 변경합니다. AI가 상세 설계 문서를 자동 생성하면, GS가 내용을 검토하고 수정한 뒤 컨펌합니다.</div>
-          <div class="step-tags">
-            <span class="step-tag">AI 상세설계 (DESIGN)</span>
-            <span class="step-tag">GS 수정/보완</span>
-            <span class="step-tag">컨펌 승인</span>
-          </div>
-        </div>
+      <div class="pipe-step">
+        <div class="pipe-num">STEP 04</div>
+        <div class="pipe-icon">✅</div>
+        <div class="pipe-name">완료 훅 실행</div>
+        <div class="pipe-desc">AI 결과를 해당 기능·영역·화면에 자동 저장하고 상태를 업데이트합니다.</div>
+        <div class="pipe-status" style="background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)">SUCCESS</div>
       </div>
-      <div class="workflow-step">
-        <div class="step-num step-5">5</div>
-        <div class="step-content">
-          <div class="step-title">AI 코드 구현 → 완료</div>
-          <div class="step-desc"><strong style="color:var(--green)">구현요청</strong>으로 변경하면 AI가 실제 코드를 생성합니다. GitLab MR URL이 연동되고 구현 피드백, 이슈 파일 목록이 자동으로 기능에 캐싱됩니다.</div>
-          <div class="step-tags">
-            <span class="step-tag">AI 코드 구현 (IMPLEMENT)</span>
-            <span class="step-tag">GitLab MR 연동</span>
-            <span class="step-tag">구현 완료</span>
-          </div>
-        </div>
-      </div>
+    </div>
+
+    <div class="code-block">
+<span class="code-comment"># 현재 AI 워커: Claude Code 슬래시 커맨드 (수동 실행)</span>
+<span style="color:#818cf8">$ /run-claude-tasks</span>
+
+<span class="code-amber">1.</span> <span class="code-step">기능 상태 변경</span> <span class="code-arrow">→</span> <span class="code-step">AI 태스크 자동 생성</span> <span style="color:#94a3b8">(NONE)</span>
+<span class="code-amber">2.</span> <span class="code-step">워커가 대기 태스크 조회</span> <span class="code-arrow">→</span> <span class="code-step">시작</span> <span style="color:#f59e0b">(RUNNING)</span>
+<span class="code-amber">3.</span> <span class="code-step">spec 분석 + 이미지 분석</span> <span class="code-arrow">→</span> <span class="code-step">마크다운 결과 생성</span>
+<span class="code-amber">4.</span> <span class="code-step">결과 저장</span> <span class="code-arrow">→</span> <span class="code-green">SUCCESS</span>
+<span class="code-amber">5.</span> <span class="code-step">완료 훅: 기능 상태 자동 업데이트</span> <span class="code-arrow">→</span> <span class="code-green">DESIGN_DONE</span>
+
+<span class="code-comment"># 태스크 유형별 분석 지침: docs/prompts/{table}-{type}.md</span>
     </div>
   </div>
 </section>
 
-<!-- STATUS FLOW -->
-<section class="status-section" id="status">
+<div class="divider"></div>
+
+<!-- Roadmap -->
+<section id="roadmap" class="roadmap-section">
   <div class="container">
-    <div class="section-header reveal">
-      <div class="section-badge badge-blue">Status Machine</div>
-      <h2 class="section-title">정밀한 <span>10단계 상태 관리</span></h2>
-      <p class="section-desc">기능 하나하나의 개발 진행 상태를 놓치지 않습니다</p>
+    <div class="section-header">
+      <p class="section-label">Roadmap</p>
+      <h2 class="section-title">현재 상태와 앞으로의 계획</h2>
     </div>
 
-    <div class="reveal">
-      <div class="status-flow">
-        <div class="status-item">
-          <div class="status-pill s-slate">설계중</div>
-          <span class="status-arrow">→</span>
+    <div class="roadmap-grid">
+      <div class="roadmap-card now">
+        <div class="current-badge">
+          <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block"></span>
+          현재 — 단일 테넌트
         </div>
-        <div class="status-item">
-          <div class="status-pill s-blue">검토요청</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-purple">AI검토중 ✦</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-amber">검토완료</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-teal">설계요청</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-teal">설계완료</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-green">컨펌 ✓</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-orange">구현요청</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-purple">AI구현중 ✦</div>
-          <span class="status-arrow">→</span>
-        </div>
-        <div class="status-item">
-          <div class="status-pill s-emerald">구현완료 🎉</div>
-        </div>
+        <div class="roadmap-title">단일 팀 · 단일 프로젝트</div>
+        <ul class="roadmap-list">
+          <li>한 팀이 사용하는 단일 프로젝트 구조</li>
+          <li>로그인·권한 관리 없이 하나의 데이터 공간 공유</li>
+          <li>Claude Code 슬래시 커맨드로 AI 워커 수동 실행</li>
+          <li>SQLite → PostgreSQL 호환 스키마</li>
+        </ul>
       </div>
+      <div class="roadmap-card">
+        <div class="roadmap-title" style="color:var(--accent)">목표 — 멀티 테넌트 SaaS</div>
+        <ul class="roadmap-list">
+          <li>프로젝트: 팀마다 독립된 데이터 공간</li>
+          <li>사용자 &amp; 로그인: 이메일 / Google / GitHub</li>
+          <li>역할: OWNER / ADMIN / PM / DESIGNER / DEVELOPER / VIEWER</li>
+          <li>구독 플랜: FREE → STARTER → PRO → ENTERPRISE</li>
+        </ul>
+      </div>
+    </div>
 
-      <div class="status-legend" style="max-width:700px;margin:40px auto 0;">
-        <div class="legend-item">
-          <div class="legend-dot" style="background:var(--purple2)"></div>
-          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">✦ AI 자동 처리</strong> — 상태 변경 시 AI 작업 자동 생성 및 완료 후 상태 자동 전이</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background:var(--green)"></div>
-          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">일괄 작업 지원</strong> — 여러 기능을 선택해 검토요청/컨펌을 한 번에 처리</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background:var(--primary2)"></div>
-          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">GS 코멘트</strong> — AI 요청 시 추가 지시사항을 함께 전달 가능</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-dot" style="background:var(--amber)"></div>
-          <span style="color:var(--text2);font-size:13px"><strong style="color:var(--text)">결과 캐싱</strong> — AI 피드백이 기능에 자동 저장되어 언제든 조회 가능</span>
-        </div>
+    <div class="phases">
+      <div class="phase-card" style="border-top:2px solid #ef4444">
+        <div class="phase-label">P0 · 즉시</div>
+        <div class="phase-title">기반 구축</div>
+        <div class="phase-when">JWT 인증 + 프로젝트 개념 도입</div>
+        <ul class="phase-items"><li>JWT 인증</li><li>프로젝트 컨테이너</li><li>데이터 격리</li></ul>
+      </div>
+      <div class="phase-card" style="border-top:2px solid #f59e0b">
+        <div class="phase-label">P1 · 1개월</div>
+        <div class="phase-title">팀 협업</div>
+        <div class="phase-when">멤버 초대 + 역할 권한</div>
+        <ul class="phase-items"><li>멤버 초대</li><li>역할 기반 권한</li><li>회원가입/로그인 UI</li></ul>
+      </div>
+      <div class="phase-card" style="border-top:2px solid #6366f1">
+        <div class="phase-label">P2 · 3개월</div>
+        <div class="phase-title">수익화</div>
+        <div class="phase-when">AI 사용량 추적 + 결제</div>
+        <ul class="phase-items"><li>AI 사용량 추적</li><li>구독 플랜</li><li>결제 연동</li></ul>
+      </div>
+      <div class="phase-card" style="border-top:2px solid #a855f7">
+        <div class="phase-label">P3 · 6개월</div>
+        <div class="phase-title">엔터프라이즈</div>
+        <div class="phase-when">대규모 팀을 위한 기능</div>
+        <ul class="phase-items"><li>SSO</li><li>전용 AI 키</li><li>감사 로그</li></ul>
       </div>
     </div>
   </div>
 </section>
 
-<!-- AI INTEGRATION -->
-<section class="ai-section" id="ai">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-badge badge-purple">AI Integration</div>
-      <h2 class="section-title">방화벽도 문제없는 <span>폴링 기반 AI 연동</span></h2>
-      <p class="section-desc">AI 서비스가 능동적으로 작업을 가져가는 안전하고 안정적인 구조</p>
-    </div>
-
-    <div class="ai-diagram reveal">
-      <!-- GS / System -->
-      <div class="ai-box">
-        <div class="ai-box-title gs-color">SPECODE 시스템</div>
-        <div class="ai-flow-item">
-          <div class="flow-num">1</div>
-          GS가 기능 상태 → 검토요청 변경
-        </div>
-        <div class="ai-flow-item">
-          <div class="flow-num">2</div>
-          AI 작업(AiTask) 자동 생성 (NONE 상태)
-        </div>
-        <div class="ai-flow-item">
-          <div class="flow-num">5</div>
-          AI 결과를 기능 피드백 필드에 저장
-        </div>
-        <div class="ai-flow-item">
-          <div class="flow-num">6</div>
-          기능 상태 자동 전이 (검토완료/구현완료 등)
-        </div>
-      </div>
-
-      <!-- Arrow -->
-      <div class="ai-arrow-center">
-        <div class="arrow-label">30초<br>폴링</div>
-        <div class="poll-indicator">
-          <div class="poll-line"></div>
-        </div>
-        <div class="arrow-icon">⇄</div>
-        <div class="poll-indicator">
-          <div class="poll-line"></div>
-        </div>
-        <div class="arrow-label">완료<br>콜백</div>
-      </div>
-
-      <!-- AI Service -->
-      <div class="ai-box">
-        <div class="ai-box-title ai-color">AI 서비스 (OpenClaw)</div>
-        <div class="ai-flow-item">
-          <div class="flow-num" style="background:rgba(139,92,246,0.2);color:var(--purple2)">3</div>
-          GET /api/ai/tasks 로 대기 작업 조회
-        </div>
-        <div class="ai-flow-item">
-          <div class="flow-num" style="background:rgba(139,92,246,0.2);color:var(--purple2)">4</div>
-          spec + comment 기반으로 AI 처리 수행
-        </div>
-        <div class="ai-flow-item">
-          <div class="flow-num" style="background:rgba(139,92,246,0.2);color:var(--purple2)">→</div>
-          POST /api/ai/tasks/{id}/complete 호출
-        </div>
-        <div style="margin-top:16px;padding:10px 12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:8px;">
-          <div style="font-size:11px;color:var(--text3);margin-bottom:6px;font-weight:600">지원 작업 유형</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            <span class="mock-tag tag-purple" style="font-size:11px">REVIEW</span>
-            <span class="mock-tag tag-blue" style="font-size:11px">DESIGN</span>
-            <span class="mock-tag tag-teal" style="font-size:11px">IMPLEMENT</span>
-            <span class="mock-tag tag-amber" style="font-size:11px">IMPACT</span>
-            <span class="mock-tag tag-green" style="font-size:11px">INSPECT</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- TECH STACK -->
-<section class="tech-section" id="tech">
-  <div class="container">
-    <div class="section-header reveal">
-      <div class="section-badge badge-teal">Tech Stack</div>
-      <h2 class="section-title">검증된 <span>최신 기술 스택</span></h2>
-      <p class="section-desc">안정성과 개발 생산성을 동시에 갖춘 현대적인 기술 조합</p>
-    </div>
-
-    <div class="tech-grid reveal">
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#000;border:2px solid #fff"></div>
-        Next.js 16
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#61dafb"></div>
-        React 19
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#3178c6"></div>
-        TypeScript 5
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#06b6d4"></div>
-        Tailwind CSS v4
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#5a67d8"></div>
-        Prisma 6
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#336791"></div>
-        PostgreSQL
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#ff4154"></div>
-        TanStack Query
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#ff4154"></div>
-        TanStack Table
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#8b5cf6"></div>
-        Radix UI
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#0a2540"></div>
-        Supabase
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#1a1a1a"></div>
-        Tiptap
-      </div>
-      <div class="tech-pill">
-        <div class="tech-dot" style="background:#e535ab"></div>
-        Framer Motion
-      </div>
-    </div>
-  </div>
-</section>
+<div class="divider"></div>
 
 <!-- CTA -->
-<section class="cta-section" id="cta">
-  <div class="container">
-    <div class="cta-inner reveal">
-      <div class="section-badge badge-blue" style="margin-bottom:24px">Get Started</div>
-      <h2 class="cta-title">
-        지금 바로 <span style="background:linear-gradient(135deg,var(--primary2),var(--purple2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">AI 개발 자동화</span>를<br>경험해보세요
-      </h2>
-      <p class="cta-desc">
-        반복적인 설계 작업은 AI에게 맡기고, 당신은 더 창의적인 업무에 집중하세요.
-        SPECODE가 SI 개발의 패러다임을 바꿉니다.
-      </p>
-      <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
-        <a href="#" class="btn-primary" style="font-size:16px;padding:16px 36px">
-          🚀 지금 시작하기
-        </a>
-        <a href="#workflow" class="btn-secondary" style="font-size:16px;padding:16px 36px">
-          워크플로우 다시 보기
-        </a>
-      </div>
-      <div style="margin-top:40px;padding-top:32px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:center;gap:48px;flex-wrap:wrap;">
-        <div style="text-align:center">
-          <div style="font-size:13px;color:var(--text3);margin-bottom:4px">기반 프레임워크</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text2)">Next.js 16 App Router</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:13px;color:var(--text3);margin-bottom:4px">AI 연동 방식</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text2)">폴링 기반 (방화벽 친화)</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:13px;color:var(--text3);margin-bottom:4px">데이터베이스</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text2)">PostgreSQL / Supabase</div>
-        </div>
-      </div>
-    </div>
+<div class="cta-section">
+  <div class="cta-title">SI 프로젝트를 다르게 시작하세요.</div>
+  <div class="cta-sub">인간이 방향을 잡고, AI가 구체화합니다.<br>그 결과물이 항상 추적 가능하고, 다음 단계로 이어집니다.</div>
+  <div class="cta-buttons">
+    <a href="https://github.com" class="btn-primary">GitHub →</a>
+    <a href="#why" class="btn-ghost">처음부터 읽기</a>
   </div>
-</section>
+</div>
 
-<!-- FOOTER -->
 <footer>
-  <div class="container">
-    <div class="footer-inner">
-      <div class="footer-logo">SPECODE</div>
-      <div class="footer-text">© 2026 SPECODE — AI Dev Hub. Built with Next.js & Prisma.</div>
-      <ul class="footer-links">
-        <li><a href="#features">Features</a></li>
-        <li><a href="#workflow">Workflow</a></li>
-        <li><a href="#ai">AI Integration</a></li>
-        <li><a href="#tech">Tech Stack</a></li>
-      </ul>
-    </div>
-  </div>
+  <strong>SPECODE</strong> — AI Dev Hub &nbsp;·&nbsp; 최종 수정: 2026-03-20 &nbsp;·&nbsp; Built for SI teams
 </footer>
 
+</main>
+
 <script>
-  // Scroll reveal
-  const reveals = document.querySelectorAll('.reveal');
-  const observer = new IntersectionObserver((entries) => {
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  const obs = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (e.isIntersecting) {
-        e.target.classList.add('visible');
+        navLinks.forEach(a => a.style.color = '');
+        const a = document.querySelector(`.nav-links a[href="#${e.target.id}"]`);
+        if (a) a.style.color = '#e2e8f0';
       }
     });
-  }, { threshold: 0.1 });
-
-  reveals.forEach(el => observer.observe(el));
-
-  // Counter animation
-  function animateCounter(el, target) {
-    let current = 0;
-    const duration = 1500;
-    const step = target / (duration / 16);
-    const timer = setInterval(() => {
-      current += step;
-      if (current >= target) {
-        current = target;
-        clearInterval(timer);
-      }
-      el.textContent = Math.floor(current).toLocaleString();
-    }, 16);
-  }
-
-  // Nav smooth active
-  const sections = document.querySelectorAll('section[id]');
-  const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
-
-  window.addEventListener('scroll', () => {
-    let current = '';
-    sections.forEach(s => {
-      if (window.scrollY >= s.offsetTop - 100) current = s.id;
-    });
-    navLinks.forEach(a => {
-      a.style.color = a.getAttribute('href') === '#' + current
-        ? 'var(--text)' : '';
-    });
-  });
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  sections.forEach(s => obs.observe(s));
 </script>
 </body>
 </html>

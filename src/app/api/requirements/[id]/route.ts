@@ -59,9 +59,35 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // ── systemId 변경 요청 처리 ──────────────────────────────
+    let newSystemId: string | undefined;
+    if (parsed.systemId) {
+      const match = parsed.systemId.match(/^RQ-(\d+)$/);
+      if (!match) return apiError("VALIDATION_ERROR", "ID 형식이 올바르지 않습니다. (예: RQ-00001)");
+
+      const newNum = parseInt(match[1], 10);
+
+      // 최대값(시퀀스) 초과 여부 확인
+      const seq = await prisma.sequence.findUnique({ where: { prefix: "RQ" } });
+      if (seq && newNum > seq.lastValue) {
+        return apiError("VALIDATION_ERROR", `ID 숫자는 현재 최대값(${seq.lastValue})을 초과할 수 없습니다.`);
+      }
+
+      // 중복 확인 (자기 자신 제외)
+      const conflict = await prisma.requirement.findFirst({
+        where: { systemId: parsed.systemId, requirementId: { not: numId } },
+      });
+      if (conflict) {
+        return apiError("VALIDATION_ERROR", `이미 사용 중인 ID입니다: ${parsed.systemId}`);
+      }
+
+      newSystemId = parsed.systemId;
+    }
+
     const data = await prisma.requirement.update({
       where: { requirementId: numId },
       data: {
+        ...(newSystemId && { systemId: newSystemId }),
         name:            parsed.name,
         originalContent: parsed.originalContent ?? null,
         currentContent:  parsed.currentContent  ?? null,
@@ -94,7 +120,11 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     );
   }
 
-  await prisma.requirement.delete({ where: { requirementId: numId } });
+  // 사용자스토리 → 요구사항 순서로 삭제 (인수기준은 스토리 내 JSON 필드라 별도 삭제 불필요)
+  await prisma.$transaction([
+    prisma.userStory.deleteMany({ where: { requirementId: numId } }),
+    prisma.requirement.delete({ where: { requirementId: numId } }),
+  ]);
 
   return apiSuccess({ deleted: true });
 }

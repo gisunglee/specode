@@ -105,7 +105,7 @@ export default function ScreensPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["screens", page, search, filterReqId],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "10" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "25" });
       if (search) params.set("search", search);
       if (filterReqId) params.set("unitWorkId", filterReqId);
       const res = await fetch(`/api/screens?${params}`);

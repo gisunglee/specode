@@ -119,8 +119,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
           const Icon = icons[item.icon];
           const isActive =
-            item.href === "/"
-              ? pathname === "/"
+            item.href === "/" || item.href === "/ai-import"
+              ? pathname === item.href
               : pathname.startsWith(item.href);
 
           return (

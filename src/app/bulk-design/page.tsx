@@ -577,18 +577,22 @@ function BulkDesignContent() {
 
   // ── 스크롤 방향 감지 → 패널 접기/펼치기 ──────────────────
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const lastScrollY   = useRef(0);
+  const lastScrollY          = useRef(0);
+  const isProgrammaticScroll = useRef(false);
   const [panelsExpanded, setPanelsExpanded] = useState(true);
+  const [panelsPinned, setPanelsPinned]     = useState(false);
 
   const handleScroll = useCallback(() => {
+    if (isProgrammaticScroll.current) return; // 자동 스크롤은 무시
+    if (panelsPinned) return;                 // 고정 모드에선 접기 안 함
     const el = scrollAreaRef.current;
     if (!el) return;
     const currentY = el.scrollTop;
     if (currentY > lastScrollY.current + 10 && currentY > 40) {
-      setPanelsExpanded(false); // 아래로 스크롤 → 접기
+      setPanelsExpanded(false);
     }
     lastScrollY.current = currentY;
-  }, []);
+  }, [panelsPinned]);
 
   useEffect(() => {
     const el = scrollAreaRef.current;
@@ -666,8 +670,47 @@ function BulkDesignContent() {
   const isSelected = (type: "screen" | "area" | "function", id: number) =>
     selected?.type === type && selected.id === id;
 
-  const handleSelect = (type: "screen" | "area" | "function", id: number) =>
+  const programmaticTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSelect = (type: "screen" | "area" | "function", id: number) => {
+    // 클릭 즉시 플래그 켜기 — 레이아웃 변화로 인한 scroll 이벤트 차단
+    isProgrammaticScroll.current = true;
+    if (programmaticTimer.current) clearTimeout(programmaticTimer.current);
+    programmaticTimer.current = setTimeout(() => {
+      isProgrammaticScroll.current = false;
+    }, 1200);
     setSelected(s => (s?.type === type && s.id === id) ? null : { type, id });
+  };
+
+  // 하위 항목 강조 (선택 → 자식)
+  const isChildArea = (a: AreaListItem) =>
+    selected?.type === "screen" && a.screenId === selected.id;
+
+  const isChildFunc = (f: FuncListItem) => {
+    if (!selected) return false;
+    if (selected.type === "area") return f.areaId === selected.id;
+    if (selected.type === "screen") {
+      return allAreas.find(a => a.areaId === f.areaId)?.screenId === selected.id;
+    }
+    return false;
+  };
+
+  // 상위 항목 강조 (선택 → 부모)
+  const isParentScreen = (s: ScreenListItem) => {
+    if (!selected) return false;
+    if (selected.type === "area") {
+      return allAreas.find(a => a.areaId === selected.id)?.screenId === s.screenId;
+    }
+    if (selected.type === "function") {
+      const func = allFuncs.find(f => f.functionId === selected.id);
+      return allAreas.find(a => a.areaId === func?.areaId)?.screenId === s.screenId;
+    }
+    return false;
+  };
+
+  const isParentArea = (a: AreaListItem) =>
+    selected?.type === "function" &&
+    allFuncs.find(f => f.functionId === selected.id)?.areaId === a.areaId;
 
   return (
     <div className="-mx-6 -mt-6 flex flex-col h-[calc(100vh-48px)]">
@@ -739,15 +782,29 @@ function BulkDesignContent() {
         <>
           {/* ── 목록 패널 + 토글 버튼 ────────────────────────── */}
           <div className="shrink-0 border-b border-border bg-card relative">
-            {/* 접기/펼치기 트리거 (패널 하단 중앙) */}
-            <button
-              onClick={() => setPanelsExpanded(v => !v)}
-              className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-3 py-0.5 text-xs text-muted-foreground bg-background border border-border rounded-full shadow-sm hover:bg-muted transition-colors"
-            >
-              {panelsExpanded
-                ? <><ChevronUp className="h-3 w-3" />목록 접기</>
-                : <><ChevronDown className="h-3 w-3" />목록 펼치기</>}
-            </button>
+            {/* 접기/펼치기 + 고정 트리거 (패널 하단 중앙) */}
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1">
+              <button
+                onClick={() => setPanelsExpanded(v => !v)}
+                className="flex items-center gap-1 px-3 py-0.5 text-xs text-muted-foreground bg-background border border-border rounded-full shadow-sm hover:bg-muted transition-colors"
+              >
+                {panelsExpanded
+                  ? <><ChevronUp className="h-3 w-3" />목록 접기</>
+                  : <><ChevronDown className="h-3 w-3" />목록 펼치기</>}
+              </button>
+              <button
+                onClick={() => setPanelsPinned(v => !v)}
+                title={panelsPinned ? "고정 해제 — 스크롤 시 자동으로 접힙니다" : "고정 — 스크롤해도 목록이 닫히지 않습니다"}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-0.5 text-xs rounded-full shadow-sm border transition-colors",
+                  panelsPinned
+                    ? "bg-blue-500 border-blue-500 text-white hover:bg-blue-600"
+                    : "bg-background border-border text-muted-foreground hover:bg-muted"
+                )}
+              >
+                📌 {panelsPinned ? "고정됨" : "고정"}
+              </button>
+            </div>
 
             <div className={cn(
               "grid grid-cols-3 overflow-hidden transition-all duration-300",
@@ -760,7 +817,8 @@ function BulkDesignContent() {
                 {allScreens.map(s => (
                   <button key={s.screenId} onClick={() => handleSelect("screen", s.screenId)}
                     className={cn("w-full flex items-center gap-2 px-4 py-2 border-b border-border/50 text-left hover:bg-muted/40 transition-colors",
-                      isSelected("screen", s.screenId) && "bg-blue-50 border-l-2 border-l-blue-400"
+                      isSelected("screen", s.screenId) && "bg-blue-200 border-l-2 border-l-blue-500",
+                      !isSelected("screen", s.screenId) && isParentScreen(s) && "bg-blue-100 border-l-2 border-l-blue-400"
                     )}
                   >
                     <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{s.systemId}</span>
@@ -782,7 +840,9 @@ function BulkDesignContent() {
                 {allAreas.map(a => (
                   <button key={a.areaId} onClick={() => handleSelect("area", a.areaId)}
                     className={cn("w-full flex items-center gap-2 px-4 py-2 border-b border-border/50 text-left hover:bg-muted/40 transition-colors",
-                      isSelected("area", a.areaId) && "bg-green-50 border-l-2 border-l-green-400"
+                      isSelected("area", a.areaId) && "bg-green-200 border-l-2 border-l-green-500",
+                      !isSelected("area", a.areaId) && isChildArea(a) && "bg-blue-100 border-l-2 border-l-blue-400",
+                      !isSelected("area", a.areaId) && !isChildArea(a) && isParentArea(a) && "bg-green-100 border-l-2 border-l-green-400"
                     )}
                   >
                     <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">{a.areaCode}</span>
@@ -804,7 +864,12 @@ function BulkDesignContent() {
                 {allFuncs.map(f => (
                   <button key={f.functionId} onClick={() => handleSelect("function", f.functionId)}
                     className={cn("w-full flex items-center gap-2 px-4 py-2 border-b border-border/50 text-left hover:bg-muted/40 transition-colors",
-                      isSelected("function", f.functionId) && "bg-purple-50 border-l-2 border-l-purple-400"
+                      isSelected("function", f.functionId) && "bg-purple-200 border-l-2 border-l-purple-500",
+                      !isSelected("function", f.functionId) && isChildFunc(f) && (
+                        selected?.type === "area"
+                          ? "bg-green-100 border-l-2 border-l-green-400"
+                          : "bg-blue-100/80 border-l-2 border-l-blue-300"
+                      )
                     )}
                   >
                     <span className="font-mono text-xs text-muted-foreground w-24 shrink-0">{f.systemId}</span>

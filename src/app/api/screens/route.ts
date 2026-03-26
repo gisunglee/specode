@@ -81,13 +81,17 @@ export async function POST(request: NextRequest) {
 
     const systemId = await generateSystemId("PID");
 
+    if (!parsed.requirementId) {
+      return apiError("VALIDATION_ERROR", "소속 요구사항(requirementId)은 필수입니다.");
+    }
+
     const data = await prisma.screen.create({
       data: {
         systemId,
         name: parsed.name,
         displayCode: parsed.displayCode ?? null,
         screenType: parsed.screenType ?? null,
-        requirementId: parsed.requirementId,
+        requirementId: parsed.requirementId as number,
         unitWorkId: body.unitWorkId ? parseInt(body.unitWorkId) : null,
       },
       include: {

@@ -26,6 +26,7 @@ export const taskSchema = z.object({
 
 export const requirementSchema = z.object({
   name:            z.string().min(1, "요구사항명은 필수입니다."),
+  systemId:        z.string().optional().nullable(),   // ID 변경 시 전달
   originalContent: z.string().optional().nullable(), // 요구사항 원문 보존용
   currentContent:  z.string().optional().nullable(), // 협의/변경 최종본
   detailSpec:      z.string().optional().nullable(), // 요구사항 명세서

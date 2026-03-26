@@ -75,7 +75,7 @@ interface FunctionRow {
     areaId: number;
     name: string;
     areaCode: string;
-    screen?: { screenId: number; name: string; systemId: string; categoryL?: string | null };
+    screen?: { screenId: number; unitWorkId: number | null; name: string; systemId: string; categoryL?: string | null };
   } | null;
   latestTask: {
     taskStatus: string;
@@ -184,7 +184,7 @@ function FunctionsContent() {
     queryFn: async () => {
       const params = new URLSearchParams({
         page: String(page),
-        pageSize: "10",
+        pageSize: "20",
       });
       if (search) params.set("search", search);
       if (statusFilter) params.set("status", statusFilter);
@@ -392,7 +392,10 @@ function FunctionsContent() {
             variant="ghost"
             size="icon"
             title="시스템 일괄 설계"
-            onClick={() => router.push("/bulk-design")}
+            onClick={() => {
+              const uwId = row.original.area?.screen?.unitWorkId;
+              router.push(uwId ? `/bulk-design?unitWorkId=${uwId}` : "/bulk-design");
+            }}
           >
             <LayoutDashboard className="h-4 w-4 text-violet-500" />
           </Button>

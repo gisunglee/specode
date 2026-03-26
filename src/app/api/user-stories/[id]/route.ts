@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { userStorySchema } from "@/lib/validators";
 import { apiSuccess, apiError } from "@/lib/utils";
@@ -46,8 +47,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         persona: parsed.persona ?? null,
         scenario: parsed.scenario ?? null,
         acceptanceCriteria: parsed.acceptanceCriteria
-          ? (parsed.acceptanceCriteria as object[])
-          : null,
+          ? (parsed.acceptanceCriteria as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
     });
 

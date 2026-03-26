@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { apiFetch, cn, formatDate } from "@/lib/utils";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, Download } from "lucide-react";
 import { DataGrid } from "@/components/common/DataGrid";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { MarkdownEditor } from "@/components/common/MarkdownEditor";
@@ -36,41 +36,115 @@ import {
 } from "@/components/ui/tabs";
 import { PRIORITIES } from "@/lib/constants";
 import type { ColumnDef } from "@tanstack/react-table";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+/* ─── 요구사항 명세서 템플릿 / 예시 ─────────────────────── */
+const DETAIL_SPEC_TEMPLATE = `### 요구사항 설명
+-
+
+### 주 사용자
+-
+
+### 메뉴
+-
+
+### 기능 설명
+1. -
+2. -
+3. -
+
+### 처리 규칙
+-
+
+### 제약/비고
+-
+`;
+
+const DETAIL_SPEC_EXAMPLE = `## 기능 개요
+다양한 유형의 게시판(공지, 자료실, 묻고답하기 등)을 단일 구조로 통합 관리하며,
+관리자가 게시판 유형과 속성을 직접 설정할 수 있는 기능을 제공한다.
+
+## 메뉴 위치
+- 사용자: 정보마당 > 게시판
+- 관리자: 시스템관리 > 게시판관리
+
+## 사용 대상 / 권한
+| 구분 | 대상 | 접근 범위 |
+|------|------|-----------|
+| 일반사용자 | 로그인 사용자 전체 | 조회, 글쓰기, 댓글 |
+| 비로그인 | 일반 방문자 | 조회만 가능 (게시판별 설정) |
+| 게시판 관리자 | 지정된 담당자 | 글 관리, 공지 지정, 첨부 삭제 |
+| 시스템 관리자 | 관리자 | 게시판 생성/수정/삭제, 권한 설정 |
+
+## 제공 화면 목록
+| 화면명 | 설명 |
+|--------|------|
+| 게시판 목록 | 게시글 목록 조회, 검색, 페이징 |
+| 게시글 상세 | 본문, 첨부파일, 댓글 표시 |
+| 게시글 등록/수정 | 에디터 포함, 첨부파일 업로드 |
+| 게시판 관리 | 관리자용 게시판 유형/속성 설정 |
+| 게시글 관리 | 관리자용 전체 글 목록, 일괄 처리 |
+
+## 기능 상세
+| 기능명 | 설명 | 비고 |
+|--------|------|------|
+| 게시판 유형 설정 | 공지/자료실/QnA 등 유형별 속성 ON/OFF | 관리자 전용 |
+| 게시글 CRUD | 등록, 수정, 삭제, 조회 | 권한별 차등 |
+| 공지 고정 | 상단 고정 공지 지정 | 게시판관리자 이상 |
+| 첨부파일 | 다중 파일 업로드, 확장자/용량 제한 설정 | 게시판별 설정 |
+| 댓글 | 댓글 등록/삭제, 대댓글 1단계 지원 | 게시판별 ON/OFF |
+| 검색 | 제목, 내용, 작성자 검색 | |
+| 조회수 | 게시글 조회 시 자동 카운트 | 관리자 조회 제외 |
+| 답글 (QnA) | 원글에 대한 답변 글 연결 표시 | QnA 유형만 해당 |
+
+## 업무 처리 순서
+1. 관리자가 게시판 유형/속성 생성 (댓글 허용 여부, 첨부 허용 여부 등 설정)
+2. 사용자가 게시글 등록 (에디터 작성 + 첨부파일 업로드)
+3. 게시판 관리자가 필요 시 공지 지정 또는 글 숨김 처리
+4. 일반 사용자 목록 조회 → 상세 조회 → 댓글 작성
+5. QnA 유형의 경우 담당자가 답글 등록 → 작성자에게 알림 (알림 연계 시)
+
+## 제외 범위 / 제약 사항 / 협의 사항
+- (제외) 이메일 알림 연계는 본 범위 제외
+- (제약) 첨부파일 확장자는 보안지침상 exe, sh 등 실행파일 불가
+- (협의) 익명 게시 기능은 추후 결정
+`;
 
 /* ─────────────────────────────────────────────── types ── */
 interface RequirementRow {
-  requirementId:   number;
-  systemId:        string;
-  name:            string;
+  requirementId: number;
+  systemId: string;
+  name: string;
   originalContent: string | null;
-  currentContent:  string | null;
-  detailSpec:      string | null;
-  priority:        string | null;
-  taskId:          number | null;
-  source:          string;
-  discussionMd:    string | null;
-  task:            { taskId: number; systemId: string; name: string } | null;
-  screenCount:     number;
-  functionCount:   number;
-  userStoryCount:  number;
-  updatedAt:       string;
+  currentContent: string | null;
+  detailSpec: string | null;
+  priority: string | null;
+  taskId: number | null;
+  source: string;
+  discussionMd: string | null;
+  task: { taskId: number; systemId: string; name: string } | null;
+  screenCount: number;
+  functionCount: number;
+  userStoryCount: number;
+  updatedAt: string;
 }
 
 interface TaskOption {
-  taskId:   number;
+  taskId: number;
   systemId: string;
-  name:     string;
+  name: string;
 }
 
 interface InitialState {
-  name:            string;
-  priority:        string;
-  taskId:          string;
-  source:          string;
+  name: string;
+  priority: string;
+  taskId: string;
+  source: string;
   originalContent: string;
-  currentContent:  string;
-  detailSpec:      string;
-  discussionMd:    string;
+  currentContent: string;
+  detailSpec: string;
+  discussionMd: string;
 }
 
 /* ── 최종본/명세서 이력 목록 다이얼로그 (아코디언 스타일) ── */
@@ -79,21 +153,21 @@ interface HistoryVersion { versionId: number; changedBy: string; aiTaskId: numbe
 const formatFullDate = (iso: string) => {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 function HistoryListDialog({ requirementId, fieldName, label, onClose }: {
   requirementId: number; fieldName: string; label: string; onClose: () => void;
 }) {
-  const [versions, setVersions]   = useState<HistoryVersion[]>([]);
+  const [versions, setVersions] = useState<HistoryVersion[]>([]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [contents, setContents]   = useState<Record<number, string>>({});
+  const [contents, setContents] = useState<Record<number, string>>({});
 
   useEffect(() => {
     fetch(`/api/content-versions?refTableName=tb_requirement&refPkId=${requirementId}&fieldName=${encodeURIComponent(fieldName)}`)
       .then(r => r.json())
       .then(json => { if (json.data) setVersions(json.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, [requirementId, fieldName]);
 
   const handleExpand = (vId: number) => {
@@ -103,7 +177,7 @@ function HistoryListDialog({ requirementId, fieldName, label, onClose }: {
     fetch(`/api/content-versions?refTableName=tb_requirement&refPkId=${requirementId}&fieldName=${encodeURIComponent(fieldName)}&versionId=${vId}`)
       .then(r => r.json())
       .then(json => { if (json.data?.content !== undefined) setContents(prev => ({ ...prev, [vId]: json.data.content })); })
-      .catch(() => {});
+      .catch(() => { });
   };
 
   const total = versions.length;
@@ -135,7 +209,7 @@ function HistoryListDialog({ requirementId, fieldName, label, onClose }: {
                     {contents[v.versionId] === undefined
                       ? <p className="text-xs text-muted-foreground py-2">로딩 중...</p>
                       : <div className="prose prose-sm max-w-none text-sm rounded border border-border bg-card p-3"
-                          dangerouslySetInnerHTML={{ __html: contents[v.versionId] }} />
+                        dangerouslySetInnerHTML={{ __html: contents[v.versionId] }} />
                     }
                   </div>
                 )}
@@ -153,38 +227,94 @@ function HistoryListDialog({ requirementId, fieldName, label, onClose }: {
 
 /* ────────────────────────────────────────────── page ── */
 export default function RequirementsPage() {
-  const router       = useRouter();
-  const queryClient  = useQueryClient();
+  const router = useRouter();
+  const queryClient = useQueryClient();
 
   /* ── 목록 필터 ── */
-  const [page,          setPage]          = useState(1);
-  const [search,        setSearch]        = useState("");
-  const [filterTaskId,  setFilterTaskId]  = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [filterTaskId, setFilterTaskId] = useState<string>("all");
+
+  /* ── 다운로드 드롭다운 ── */
+  const [downloadOpen, setDownloadOpen] = useState(false);
+
+  const downloadRequirements = async (type: 1 | 2 | 3 | 4) => {
+    setDownloadOpen(false);
+    try {
+      const params = new URLSearchParams({ pageSize: "9999" });
+      if (search.trim()) params.set("search", search.trim());
+      if (filterTaskId !== "all") params.set("taskId", filterTaskId);
+
+      const json = await (await fetch(`/api/requirements?${params}`)).json();
+      const rows: RequirementRow[] = json.data ?? [];
+
+      if (rows.length === 0) { toast.info("다운로드할 요구사항이 없습니다."); return; }
+
+      let md = `# 요구사항 목록\n> 총 ${rows.length}건\n\n`;
+
+      for (const r of rows) {
+        md += `## ${r.systemId} ${r.name}\n`;
+        if (r.task) md += `> 과업: ${r.task.systemId} ${r.task.name}\n`;
+        md += "\n";
+
+        if (type >= 2) {
+          const content = r.currentContent ?? r.originalContent;
+          if (content) md += `### 최종본\n\n${content}\n\n`;
+        }
+        if (type >= 3 && r.detailSpec) {
+          md += `### 요구사항 명세서\n\n${r.detailSpec}\n\n`;
+        }
+        if (type >= 4 && r.discussionMd) {
+          md += `### 상세 협의 내용 (AI 참조용)\n\n${r.discussionMd}\n\n`;
+        }
+        md += "---\n\n";
+      }
+
+      const blob = new Blob(["\uFEFF" + md], { type: "text/markdown;charset=utf-8" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href     = url;
+      a.download = `requirements_${new Date().toISOString().slice(0, 10)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`${rows.length}건 다운로드 완료`);
+    } catch {
+      toast.error("다운로드에 실패했습니다.");
+    }
+  };
 
   /* ── 다이얼로그 제어 ── */
-  const [dialogOpen,  setDialogOpen]  = useState(false);
-  const [editItem,    setEditItem]    = useState<RequirementRow | null>(null);
-  const [deleteItem,  setDeleteItem]  = useState<RequirementRow | null>(null);
-  const [activeTab,   setActiveTab]   = useState<string>("original");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState<RequirementRow | null>(null);
+  const [deleteItem, setDeleteItem] = useState<RequirementRow | null>(null);
+  const [activeTab, setActiveTab] = useState<string>("original");
 
   /* ── 폼 필드 (전부 state → dirty 체크 용이) ── */
-  const [formName,         setFormName]         = useState("");
-  const [formPriority,     setFormPriority]     = useState("MEDIUM");
-  const [formTaskId,       setFormTaskId]       = useState("");
-  const [formSource,       setFormSource]       = useState("RFP");
-  const [originalContent,  setOriginalContent]  = useState("");
-  const [currentContent,   setCurrentContent]   = useState("");
-  const [detailSpec,       setDetailSpec]       = useState("");
-  const [discussionMd,     setDiscussionMd]     = useState("");
-  const [editorKey,        setEditorKey]        = useState(0);
+  const [formName, setFormName] = useState("");
+  const [formPriority, setFormPriority] = useState("MEDIUM");
+  const [formTaskId, setFormTaskId] = useState("");
+  const [formSource, setFormSource] = useState("RFP");
+  const [originalContent, setOriginalContent] = useState("");
+  const [currentContent, setCurrentContent] = useState("");
+  const [detailSpec, setDetailSpec] = useState("");
+  const [discussionMd, setDiscussionMd] = useState("");
+  const [editorKey, setEditorKey] = useState(0);
+  const [specPreview, setSpecPreview] = useState<{ label: string; content: string } | null>(null);
+
+  /* ── systemId 인라인 편집 ── */
+  const [formSystemId, setFormSystemId] = useState("");
+  const [systemIdEditing, setSystemIdEditing] = useState(false);
+  const [systemIdError, setSystemIdError] = useState("");
 
   /* ── 저장 플로우 다이얼로그 ── */
   const [showOriginalConfirm, setShowOriginalConfirm] = useState(false);
-  const [showHistoryAsk,      setShowHistoryAsk]      = useState(false);
+  const [showHistoryAsk, setShowHistoryAsk] = useState(false);
 
   /* ── 이력 저장 체크박스 (최종본 / 명세서 / 협의내용) ── */
   type HistoryFieldEntry = { dirty: boolean; selected: boolean };
-  type HistoryFieldMap   = { current_content: HistoryFieldEntry; detail_spec: HistoryFieldEntry; discussion_md: HistoryFieldEntry };
+  type HistoryFieldMap = { current_content: HistoryFieldEntry; detail_spec: HistoryFieldEntry; discussion_md: HistoryFieldEntry };
   const [historyFields, setHistoryFields] = useState<HistoryFieldMap | null>(null);
 
   /* ── 이력 보기 팝업 ── */
@@ -201,30 +331,31 @@ export default function RequirementsPage() {
     const i = initialStateRef.current;
     if (!i) return false;
     return (
-      formName        !== i.name            ||
-      formPriority    !== i.priority        ||
-      formTaskId      !== i.taskId          ||
-      formSource      !== i.source          ||
+      formSystemId !== editItem.systemId ||
+      formName !== i.name ||
+      formPriority !== i.priority ||
+      formTaskId !== i.taskId ||
+      formSource !== i.source ||
       originalContent !== i.originalContent ||
-      currentContent  !== i.currentContent  ||
-      detailSpec      !== i.detailSpec      ||
-      discussionMd    !== i.discussionMd
+      currentContent !== i.currentContent ||
+      detailSpec !== i.detailSpec ||
+      discussionMd !== i.discussionMd
     );
-  }, [editItem, formName, formPriority, formTaskId, formSource,
-      originalContent, currentContent, detailSpec, discussionMd]);
+  }, [editItem, formSystemId, formName, formPriority, formTaskId, formSource,
+    originalContent, currentContent, detailSpec, discussionMd]);
 
   /* ─────────────────────────────────── queries ── */
   const { data: tasksData } = useQuery({
     queryKey: ["tasks-simple"],
-    queryFn:  async () => (await fetch("/api/tasks?pageSize=200")).json(),
+    queryFn: async () => (await fetch("/api/tasks?pageSize=200")).json(),
   });
   const taskOptions: TaskOption[] = tasksData?.data ?? [];
 
   const { data, isLoading } = useQuery({
     queryKey: ["requirements", page, search, filterTaskId],
-    queryFn:  async () => {
+    queryFn: async () => {
       const p = new URLSearchParams({ page: String(page), pageSize: "20" });
-      if (search)                 p.set("search", search);
+      if (search) p.set("search", search);
       if (filterTaskId !== "all") p.set("taskId", filterTaskId);
       return (await fetch(`/api/requirements?${p}`)).json();
     },
@@ -232,7 +363,7 @@ export default function RequirementsPage() {
 
   const { data: reqDetail } = useQuery({
     queryKey: ["requirement-detail", editItem?.requirementId],
-    queryFn:  async () =>
+    queryFn: async () =>
       (await fetch(`/api/requirements/${editItem!.requirementId}`)).json(),
     enabled: !!editItem,
   });
@@ -241,9 +372,9 @@ export default function RequirementsPage() {
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       apiFetch("/api/requirements", {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(body),
+        body: JSON.stringify(body),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requirements"] });
@@ -254,12 +385,20 @@ export default function RequirementsPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...body }: { id: number } & Record<string, unknown>) =>
-      apiFetch(`/api/requirements/${id}`, {
-        method:  "PUT",
+      apiFetch<{ success: boolean; error?: { message: string } }>(`/api/requirements/${id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(body),
+        body: JSON.stringify(body),
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res.success) {
+        toast.error(res.error?.message ?? "수정에 실패했습니다.");
+        if (res.error?.message?.includes("ID")) {
+          setSystemIdError(res.error.message);
+          setSystemIdEditing(true);
+        }
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["requirements"] });
       toast.success("요구사항이 수정되었습니다.");
       setDialogOpen(false);
@@ -279,14 +418,16 @@ export default function RequirementsPage() {
 
   /* ─────────────────────────────────── save flow ── */
   const buildBody = (saveHistoryFields: string[] = []) => ({
-    name:              formName,
-    priority:          formPriority,
-    originalContent:   originalContent || null,
-    currentContent:    currentContent  || null,
-    detailSpec:        detailSpec      || null,
-    taskId:            formTaskId ? parseInt(formTaskId) : null,
-    source:            formSource || "RFP",
-    discussionMd:      discussionMd    || null,
+    name: formName,
+    // systemId 변경 시에만 포함 (editItem이 있고 변경된 경우)
+    ...(editItem && formSystemId !== editItem.systemId && { systemId: formSystemId }),
+    priority: formPriority,
+    originalContent: originalContent || null,
+    currentContent: currentContent || null,
+    detailSpec: detailSpec || null,
+    taskId: formTaskId ? parseInt(formTaskId) : null,
+    source: formSource || "RFP",
+    discussionMd: discussionMd || null,
     saveHistoryFields: saveHistoryFields.length > 0 ? saveHistoryFields : undefined,
   });
 
@@ -303,8 +444,8 @@ export default function RequirementsPage() {
     const i = initialStateRef.current;
     setHistoryFields({
       current_content: { dirty: currentContent !== (i?.currentContent ?? ""), selected: currentContent !== (i?.currentContent ?? "") },
-      detail_spec:     { dirty: detailSpec      !== (i?.detailSpec      ?? ""), selected: detailSpec      !== (i?.detailSpec      ?? "") },
-      discussion_md:   { dirty: discussionMd    !== (i?.discussionMd    ?? ""), selected: discussionMd    !== (i?.discussionMd    ?? "") },
+      detail_spec: { dirty: detailSpec !== (i?.detailSpec ?? ""), selected: detailSpec !== (i?.detailSpec ?? "") },
+      discussion_md: { dirty: discussionMd !== (i?.discussionMd ?? ""), selected: discussionMd !== (i?.discussionMd ?? "") },
     });
     setShowHistoryAsk(true);
   };
@@ -314,13 +455,20 @@ export default function RequirementsPage() {
       toast.error("요구사항 명을 입력해주세요.");
       return;
     }
+    if (editItem && formSystemId !== editItem.systemId) {
+      if (!/^RQ-\d{5}$/.test(formSystemId)) {
+        setSystemIdError("형식 오류 (예: RQ-00045)");
+        setSystemIdEditing(true);
+        return;
+      }
+    }
     if (!editItem) { doSave(); return; }
 
     const i = initialStateRef.current;
     const origDirty = originalContent !== (i?.originalContent ?? "");
-    const currDirty = currentContent  !== (i?.currentContent  ?? "");
-    const specDirty = detailSpec      !== (i?.detailSpec      ?? "");
-    const discDirty = discussionMd    !== (i?.discussionMd    ?? "");
+    const currDirty = currentContent !== (i?.currentContent ?? "");
+    const specDirty = detailSpec !== (i?.detailSpec ?? "");
+    const discDirty = discussionMd !== (i?.discussionMd ?? "");
 
     if (origDirty) {
       setShowOriginalConfirm(true);
@@ -335,8 +483,8 @@ export default function RequirementsPage() {
     setShowOriginalConfirm(false);
     const i = initialStateRef.current;
     const currDirty = currentContent !== (i?.currentContent ?? "");
-    const specDirty = detailSpec     !== (i?.detailSpec     ?? "");
-    const discDirty = discussionMd   !== (i?.discussionMd   ?? "");
+    const specDirty = detailSpec !== (i?.detailSpec ?? "");
+    const discDirty = discussionMd !== (i?.discussionMd ?? "");
     if (currDirty || specDirty || discDirty) {
       openHistoryAsk();
     } else {
@@ -363,23 +511,26 @@ export default function RequirementsPage() {
 
   const openEdit = (row: RequirementRow) => {
     setEditItem(row);
+    setFormSystemId(row.systemId);
+    setSystemIdEditing(false);
+    setSystemIdError("");
     setFormName(row.name);
     setFormPriority(row.priority || "MEDIUM");
     setOriginalContent(row.originalContent || "");
-    setCurrentContent(row.currentContent   || "");
-    setDetailSpec(row.detailSpec           || "");
+    setCurrentContent(row.currentContent || "");
+    setDetailSpec(row.detailSpec || "");
     setFormTaskId(row.taskId ? String(row.taskId) : "");
     setFormSource(row.source || "RFP");
     setDiscussionMd(row.discussionMd || "");
     initialStateRef.current = {
-      name:            row.name,
-      priority:        row.priority        || "MEDIUM",
-      taskId:          row.taskId ? String(row.taskId) : "",
-      source:          row.source          || "RFP",
+      name: row.name,
+      priority: row.priority || "MEDIUM",
+      taskId: row.taskId ? String(row.taskId) : "",
+      source: row.source || "RFP",
       originalContent: row.originalContent || "",
-      currentContent:  row.currentContent  || "",
-      detailSpec:      row.detailSpec      || "",
-      discussionMd:    row.discussionMd    || "",
+      currentContent: row.currentContent || "",
+      detailSpec: row.detailSpec || "",
+      discussionMd: row.discussionMd || "",
     };
     setActiveTab("current");
     setEditorKey((k) => k + 1);
@@ -390,12 +541,14 @@ export default function RequirementsPage() {
     setDialogOpen(false);
     setEditItem(null);
     setShowDiffViewForDiscussion(false);
+    setSystemIdEditing(false);
+    setSystemIdError("");
   }, []);
 
   /* ─────────────────────────────────── columns ── */
   const columns: ColumnDef<RequirementRow, unknown>[] = [
-    { accessorKey: "systemId", header: "ID", size: 100 },
-    { accessorKey: "name",     header: "요구사항 명" },
+    { accessorKey: "systemId", header: "ID", size: 80 },
+    { accessorKey: "name", header: "요구사항 명", size: 200 },
     {
       id: "taskBadge",
       header: "과업",
@@ -404,12 +557,13 @@ export default function RequirementsPage() {
         const t = getValue() as TaskOption | null;
         if (!t) return <span className="text-muted-foreground text-xs">-</span>;
         return (
-          <span className="text-xs font-mono bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded whitespace-nowrap">
-            {t.systemId}
-          </span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-mono text-[10px] text-primary leading-tight">{t.systemId}</span>
+            <span className="text-xs text-muted-foreground truncate">{t.name}</span>
+          </div>
         );
       },
-      size: 90,
+      size: 160,
     },
     {
       accessorKey: "source",
@@ -417,7 +571,7 @@ export default function RequirementsPage() {
       cell: ({ getValue }) => (
         <span className="text-xs text-muted-foreground">{(getValue() as string) ?? "-"}</span>
       ),
-      size: 65,
+      size: 70,
     },
     {
       accessorKey: "priority",
@@ -430,7 +584,7 @@ export default function RequirementsPage() {
           </span>
         );
       },
-      size: 80,
+      size: 70,
     },
     {
       accessorKey: "screenCount",
@@ -456,7 +610,7 @@ export default function RequirementsPage() {
       cell: ({ getValue }) => (
         <span className="text-sm text-muted-foreground">{formatDate(getValue() as string)}</span>
       ),
-      size: 80,
+      size: 75,
     },
     {
       id: "actions",
@@ -470,7 +624,7 @@ export default function RequirementsPage() {
           <Trash2 className="h-4 w-4 text-muted-foreground" />
         </Button>
       ),
-      size: 50,
+      size: 40,
       enableSorting: false,
     },
   ];
@@ -482,10 +636,57 @@ export default function RequirementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">요구사항 관리</h1>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4 mr-1" />
-          요구사항 등록
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* 다운로드 드롭다운 */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setDownloadOpen((v) => !v)}
+              onBlur={() => setTimeout(() => setDownloadOpen(false), 150)}
+            >
+              <Download className="h-4 w-4" />
+              다운로드
+            </Button>
+            {downloadOpen && (
+              <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-md shadow-lg py-1 w-64">
+                <button
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors"
+                  onMouseDown={() => downloadRequirements(1)}
+                >
+                  <span className="font-medium">제목만</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">systemId + 요구사항명</p>
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors"
+                  onMouseDown={() => downloadRequirements(2)}
+                >
+                  <span className="font-medium">제목 + 최종본</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">+ 요구사항 최종본 (currentContent)</p>
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors"
+                  onMouseDown={() => downloadRequirements(3)}
+                >
+                  <span className="font-medium">제목 + 최종본 + 명세서</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">+ 요구사항 명세서 (detailSpec)</p>
+                </button>
+                <button
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors"
+                  onMouseDown={() => downloadRequirements(4)}
+                >
+                  <span className="font-medium">전체 (협의 내용 포함)</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">+ 상세 협의 내용 (discussionMd)</p>
+                </button>
+              </div>
+            )}
+          </div>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4 mr-1" />
+            요구사항 등록
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
@@ -527,28 +728,75 @@ export default function RequirementsPage() {
           등록 / 수정 다이얼로그
           ════════════════════════════════════════════════════════ */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-        <DialogContent className="w-[98vw] max-w-[100rem] h-[96vh] flex flex-col gap-0 p-0 overflow-hidden">
+        <DialogContent className="w-[98vw] max-w-[100rem] h-[calc(100vh-32px)] my-4 flex flex-col gap-0 p-0 overflow-hidden">
 
           {/* ── 상단 헤더: 1행 Grid (ID / 이름 / 과업 / 우선순위 / 출처) ── */}
           <DialogHeader className="shrink-0 border-b border-border">
-            <div className="flex items-center gap-3 px-3 py-2 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-2 pr-10">
               {editItem ? (
-                <span className="font-mono text-xs text-muted-foreground bg-secondary px-2 py-1 rounded shrink-0">
-                  {editItem.systemId}
-                </span>
+                <div className="relative shrink-0">
+                  {systemIdEditing ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        autoFocus
+                        value={formSystemId}
+                        onChange={(e) => {
+                          setFormSystemId(e.target.value.toUpperCase());
+                          setSystemIdError("");
+                        }}
+                        onBlur={() => {
+                          if (!systemIdError) setSystemIdEditing(false);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            if (!/^RQ-\d{5}$/.test(formSystemId)) {
+                              setSystemIdError("형식 오류 (예: RQ-00045)");
+                            } else {
+                              setSystemIdEditing(false);
+                            }
+                          }
+                          if (e.key === "Escape") {
+                            setFormSystemId(editItem.systemId);
+                            setSystemIdError("");
+                            setSystemIdEditing(false);
+                          }
+                        }}
+                        className={cn("h-7 w-28 font-mono text-xs text-center px-2", systemIdError && "border-destructive")}
+                      />
+                      {systemIdError && (
+                        <span className="text-[10px] text-destructive whitespace-nowrap">{systemIdError}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      title="클릭하여 ID 수정"
+                      onClick={() => setSystemIdEditing(true)}
+                      className={cn(
+                        "font-mono text-xs px-2 py-1 rounded border transition-colors",
+                        formSystemId !== editItem.systemId
+                          ? "bg-amber-50 border-amber-300 text-amber-700"
+                          : "bg-secondary border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                      )}
+                    >
+                      {formSystemId}
+                      <span className="ml-1 text-[9px] opacity-50">✎</span>
+                    </button>
+                  )}
+                </div>
               ) : (
                 <span className="text-xs font-semibold text-muted-foreground shrink-0 bg-secondary px-2 py-1 rounded">
                   신규
                 </span>
               )}
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 <Label className="text-sm text-muted-foreground whitespace-nowrap shrink-0">요구사항 명</Label>
                 <Input
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="요구사항 명 *"
-                  className="w-120 h-7 text-base min-w-0"
+                  className="flex-1 h-7 text-sm min-w-0"
                 />
               </div>
 
@@ -558,7 +806,7 @@ export default function RequirementsPage() {
                   value={formTaskId || "none"}
                   onValueChange={(v) => setFormTaskId(v === "none" ? "" : v)}
                 >
-                  <SelectTrigger className="h-7 w-120 text-xs">
+                  <SelectTrigger className="h-7 w-56 text-xs">
                     <SelectValue placeholder="과업 선택" />
                   </SelectTrigger>
                   <SelectContent>
@@ -603,14 +851,14 @@ export default function RequirementsPage() {
             </div>
           </DialogHeader>
 
-          {/* ── 본문 ── */}
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {/* ── 본문 — 스크롤 가능 ── */}
+          <div className="flex-1 overflow-y-auto min-h-0">
 
-            {/* 중단: 50:50 Split */}
-            <div className="flex-[4] flex min-h-0">
+            {/* 중단: 50:50 Split — 고정 높이로 편집 공간 확보 */}
+            <div className="flex h-[62vh] border-b border-border">
 
               {/* 좌측: 원본 / 최종본 탭 */}
-              <div className="w-1/2 flex flex-col min-h-0 border-r border-border">
+              <div className="w-1/2 flex flex-col overflow-hidden border-r border-border">
                 <Tabs
                   value={activeTab}
                   onValueChange={setActiveTab}
@@ -631,7 +879,7 @@ export default function RequirementsPage() {
 
                   <TabsContent
                     value="original"
-                    className="flex-1 min-h-0 mt-0 p-4 overflow-hidden data-[state=inactive]:hidden"
+                    className="flex-1 min-h-0 mt-0 p-4 overflow-y-auto data-[state=inactive]:hidden"
                   >
                     <RichTextEditor
                       key={`orig-${editorKey}`}
@@ -644,7 +892,7 @@ export default function RequirementsPage() {
 
                   <TabsContent
                     value="current"
-                    className="flex-1 min-h-0 mt-0 p-4 overflow-hidden data-[state=inactive]:hidden"
+                    className="flex-1 min-h-0 mt-0 p-4 overflow-y-auto data-[state=inactive]:hidden"
                   >
                     <RichTextEditor
                       key={`curr-${editorKey}`}
@@ -658,43 +906,51 @@ export default function RequirementsPage() {
               </div>
 
               {/* 우측: 요구사항 명세서 */}
-              <div className="w-1/2 flex flex-col min-h-0 p-4 overflow-hidden">
-                <div className="shrink-0 flex items-center justify-between mb-1.5">
-                  <Label className="text-xs">요구사항 명세서</Label>
-                  {editItem && (
-                    <Button variant="outline" size="sm" className="h-6 text-xs px-2"
-                      onClick={() => setHistoryViewInfo({ requirementId: editItem.requirementId, fieldName: "detail_spec", label: "요구사항 명세서" })}>
-                      이력
-                    </Button>
-                  )}
-                </div>
-                <RichTextEditor
+              <div className="w-1/2 flex flex-col overflow-hidden p-4">
+                <MarkdownEditor
                   key={`spec-${editorKey}`}
+                  label="요구사항 명세서"
                   value={detailSpec}
                   onChange={setDetailSpec}
                   fillHeight
                   placeholder="요구사항 명세 내용을 입력하세요..."
+                  headerExtra={
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setSpecPreview({ label: "템플릿", content: DETAIL_SPEC_TEMPLATE })}>
+                        템플릿
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setSpecPreview({ label: "예시", content: DETAIL_SPEC_EXAMPLE })}>
+                        예시
+                      </Button>
+                      {editItem && (
+                        <Button variant="outline" size="sm" className="h-6 text-xs px-2"
+                          onClick={() => setHistoryViewInfo({ requirementId: editItem.requirementId, fieldName: "detail_spec", label: "요구사항 명세서" })}>
+                          이력
+                        </Button>
+                      )}
+                    </div>
+                  }
                 />
               </div>
             </div>
 
             {/* 하단: 상세 협의 내용 (전체 너비) */}
-            <div className="flex-[4] min-h-0 flex flex-col border-t border-border p-4">
-              <div className="shrink-0 flex items-center justify-between mb-1.5">
-                <Label className="text-xs">상세 협의 내용 (AI 참조용)</Label>
-                {editItem && (
+            <div className="flex flex-col h-[65vh] border-t border-border p-4">
+              <MarkdownEditor
+                key={`disc-${editorKey}`}
+                label="상세 협의 내용 (AI 참조용)"
+                value={discussionMd}
+                onChange={setDiscussionMd}
+                fillHeight
+                placeholder="고객 인터뷰 내용, 추가 맥락 등 AI가 참조할 내용을 자유롭게 기록합니다."
+                headerExtra={editItem && (
                   <Button variant="outline" size="sm" className="h-6 text-xs px-2"
                     onClick={() => setShowDiffViewForDiscussion(true)}>
                     이력
                   </Button>
                 )}
-              </div>
-              <MarkdownEditor
-                key={`disc-${editorKey}`}
-                value={discussionMd}
-                onChange={setDiscussionMd}
-                fillHeight
-                placeholder="고객 인터뷰 내용, 추가 맥락 등 AI가 참조할 내용을 자유롭게 기록합니다."
               />
             </div>
           </div>
@@ -775,8 +1031,8 @@ export default function RequirementsPage() {
           <div className="space-y-2 py-3">
             {([
               { key: "current_content" as const, label: "최종본" },
-              { key: "detail_spec"     as const, label: "명세서" },
-              { key: "discussion_md"   as const, label: "협의내용" },
+              { key: "detail_spec" as const, label: "명세서" },
+              { key: "discussion_md" as const, label: "협의내용" },
             ]).map(({ key, label }) => {
               const entry = historyFields?.[key];
               return (
@@ -820,8 +1076,8 @@ export default function RequirementsPage() {
               onClick={() => {
                 const fieldsToSave = historyFields
                   ? (Object.entries(historyFields) as [string, { dirty: boolean; selected: boolean }][])
-                      .filter(([, v]) => v.selected)
-                      .map(([k]) => k)
+                    .filter(([, v]) => v.selected)
+                    .map(([k]) => k)
                   : [];
                 setShowHistoryAsk(false);
                 doSave(fieldsToSave);
@@ -853,6 +1109,53 @@ export default function RequirementsPage() {
           onClose={() => setShowDiffViewForDiscussion(false)}
         />
       )}
+
+      {/* ── 템플릿 / 예시 미리보기 팝업 ── */}
+      <Dialog open={!!specPreview} onOpenChange={(open) => { if (!open) setSpecPreview(null); }}>
+        <DialogContent className="w-[70vw] max-w-4xl h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="shrink-0 px-6 py-4 border-b border-border">
+            <DialogTitle>요구사항 명세서 {specPreview?.label}</DialogTitle>
+          </DialogHeader>
+
+          {/* 탭: 미리보기 / 마크다운 원문 */}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            <Tabs defaultValue="preview" className="flex flex-col h-full">
+              <div className="shrink-0 px-6 pt-3">
+                <TabsList className="h-8">
+                  <TabsTrigger value="preview" className="text-xs">미리보기</TabsTrigger>
+                  <TabsTrigger value="raw" className="text-xs">마크다운 원문</TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="preview" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+                <div className="markdown-body text-sm">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {specPreview?.content ?? ""}
+                  </ReactMarkdown>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="raw" className="flex-1 overflow-y-auto px-6 py-4 mt-0">
+                <pre className="text-xs font-mono bg-muted/30 rounded-md p-4 whitespace-pre-wrap leading-relaxed text-muted-foreground">
+                  {specPreview?.content ?? ""}
+                </pre>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          <div className="shrink-0 flex items-center justify-end gap-2 px-6 py-3 border-t border-border bg-muted/20">
+            <Button variant="outline" size="sm" onClick={() => setSpecPreview(null)}>
+              닫기
+            </Button>
+            <Button size="sm" onClick={() => {
+              if (specPreview) setDetailSpec(specPreview.content);
+              setSpecPreview(null);
+            }}>
+              이걸로 적용
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── 삭제 확인 ── */}
       <ConfirmDialog

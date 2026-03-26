@@ -551,10 +551,10 @@ export default function UserStoriesPage() {
         onOpenChange={() => setDeleteItem(null)}
         title="사용자 스토리 삭제"
         description={
-          <div className="space-y-2">
-            <p>"{deleteItem?.name}"을(를) 삭제하시겠습니까?</p>
-            <p className="text-muted-foreground">이 스토리와 화면 매핑 정보만 삭제되며, 화면·기능 등 다른 데이터는 영향받지 않습니다.</p>
-          </div>
+          <>
+            <span className="block">"{deleteItem?.name}"을(를) 삭제하시겠습니까?</span>
+            <span className="block mt-2 text-muted-foreground">이 스토리와 화면 매핑 정보만 삭제되며, 화면·기능 등 다른 데이터는 영향받지 않습니다.</span>
+          </>
         }
         variant="destructive"
         confirmLabel="삭제"

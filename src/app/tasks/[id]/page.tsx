@@ -15,8 +15,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   ChevronRight, ChevronDown, Plus, Pencil, Trash2,
-  ArrowLeft, Monitor, BookMarked,
+  ArrowLeft, Monitor, BookMarked, Eye, ExternalLink,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { apiFetch, formatDate } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { RichTextEditor } from "@/components/common/RichTextEditor";
@@ -79,6 +81,26 @@ interface RequirementOption {
   systemId:      string;
   name:          string;
 }
+interface RequirementDetail {
+  requirementId:   number;
+  systemId:        string;
+  name:            string;
+  source:          string;
+  priority:        string | null;
+  originalContent: string | null;
+  currentContent:  string | null;
+  detailSpec:      string | null;
+  screens: { screenId: number; systemId: string; name: string; _count: { areas: number } }[];
+}
+interface StoryDetail {
+  userStoryId:        number;
+  systemId:           string;
+  name:               string;
+  persona:            string | null;
+  scenario:           string | null;
+  acceptanceCriteria: { text: string }[] | null;
+  requirement:        { requirementId: number; systemId: string; name: string };
+}
 
 // ─── 메인 컴포넌트 ────────────────────────────────────────────
 
@@ -114,6 +136,10 @@ export default function TaskDetailPage() {
   // 추적성 아코디언 열린 요구사항 ID
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
+  // 팝업 상세보기
+  const [reqDetailId,   setReqDetailId]   = useState<number | null>(null);
+  const [storyDetailId, setStoryDetailId] = useState<number | null>(null);
+
   // ── 과업 상세 조회 ──────────────────────────────────────────
   const { data: taskData, isLoading } = useQuery({
     queryKey: ["task-detail", id],
@@ -124,6 +150,28 @@ export default function TaskDetailPage() {
     enabled: !!id,
   });
   const task: TaskDetail | undefined = taskData?.data;
+
+  // ── 요구사항 상세 (팝업용) ─────────────────────────────────
+  const { data: reqDetailData } = useQuery({
+    queryKey: ["req-detail", reqDetailId],
+    queryFn: async () => {
+      const res = await fetch(`/api/requirements/${reqDetailId}`);
+      return res.json();
+    },
+    enabled: !!reqDetailId,
+  });
+  const reqDetail: RequirementDetail | undefined = reqDetailData?.data;
+
+  // ── 스토리 상세 (팝업용) ──────────────────────────────────
+  const { data: storyDetailData } = useQuery({
+    queryKey: ["story-detail", storyDetailId],
+    queryFn: async () => {
+      const res = await fetch(`/api/user-stories/${storyDetailId}`);
+      return res.json();
+    },
+    enabled: !!storyDetailId,
+  });
+  const storyDetail: StoryDetail | undefined = storyDetailData?.data;
 
   // ── 요구사항 목록 (등록 폼용 — 기존 요구사항 없음, 신규만) ──
   // 과업 필터용 requirements는 task.requirements로 충분
@@ -366,16 +414,16 @@ export default function TaskDetailPage() {
         </div>
 
         {/* ── 우측: 연결 요구사항 + 추적성 ── */}
-        <div className="col-span-7 space-y-3">
+        <div className="col-span-7 rounded-lg border border-border bg-card overflow-hidden">
 
-          {/* 섹션 헤더 */}
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-base">
-              연결된 요구사항
-              <span className="ml-2 text-sm text-muted-foreground font-normal">
-                ({task.requirements.length}건)
-              </span>
-            </h2>
+          {/* 섹션 헤더 — 좌측 카드 헤더와 동일한 높이/스타일 */}
+          <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
+            <div className="space-y-0">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">연결된 요구사항</p>
+              <p className="text-xs text-muted-foreground">
+                {task.requirements.length}건
+              </p>
+            </div>
             <Button size="sm" onClick={() => { resetReqForm(); setReqDialogOpen(true); }}>
               <Plus className="h-3.5 w-3.5 mr-1" />
               요구사항 등록
@@ -383,6 +431,7 @@ export default function TaskDetailPage() {
           </div>
 
           {/* 요구사항 카드 목록 */}
+          <div className="p-3">
           {task.requirements.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border p-8 text-center text-base text-muted-foreground">
               연결된 요구사항이 없습니다.
@@ -401,35 +450,41 @@ export default function TaskDetailPage() {
                     className="rounded-lg border border-border bg-card overflow-hidden"
                   >
                     {/* 요구사항 헤더 */}
-                    <div
-                      className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-colors"
-                      onClick={() => hasTrace && toggleExpand(req.requirementId)}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        {/* 펼침 아이콘 */}
+                    <div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/40 transition-colors">
+                      {/* 왼쪽: 펼침 + ID + 이름 */}
+                      <div
+                        className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer"
+                        onClick={() => hasTrace && toggleExpand(req.requirementId)}
+                      >
                         {hasTrace ? (
                           isExpanded
                             ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                             : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         ) : (
-                          <span className="w-4" />
+                          <span className="w-4 shrink-0" />
                         )}
-
-                        <span className="text-sm font-mono text-muted-foreground shrink-0">
+                        <span className="text-xs font-mono text-muted-foreground shrink-0">
                           {req.systemId}
                         </span>
-                        <span className="text-base font-medium truncate">{req.name}</span>
+                        <span className="text-sm font-medium truncate">{req.name}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0 ml-3">
-                        {/* 출처 뱃지 */}
+                      {/* 오른쪽: 뱃지 + 카운트 + 액션 버튼 */}
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
                           {req.source}
                         </span>
-                        {/* 카운트 */}
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
                           화면 {req._count.screens} · 스토리 {req._count.userStories}
                         </span>
+                        {/* 상세보기 팝업 */}
+                        <button
+                          onClick={() => setReqDetailId(req.requirementId)}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                          title="상세 보기"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
 
@@ -438,15 +493,20 @@ export default function TaskDetailPage() {
                       <div className="border-t border-border px-4 py-3 space-y-2 bg-muted/20">
                         {req.userStories.map((story) => (
                           <div key={story.userStoryId} className="space-y-1">
-                            {/* 사용자 스토리 */}
-                            <div className="flex items-start gap-2">
-                              <BookMarked className="h-3 w-3 text-primary shrink-0 mt-0.5" />
-                              <div className="min-w-0">
-                                <span className="text-xs font-mono text-muted-foreground mr-1.5">
+                            {/* 사용자 스토리 — 클릭 시 상세 팝업 */}
+                            <div className="flex items-center gap-2 group">
+                              <BookMarked className="h-3 w-3 text-primary shrink-0" />
+                              <button
+                                className="flex items-center gap-1.5 min-w-0 text-left hover:text-primary transition-colors"
+                                onClick={() => setStoryDetailId(story.userStoryId)}
+                              >
+                                <span className="text-xs font-mono text-muted-foreground group-hover:text-primary/70 shrink-0">
                                   {story.systemId}
                                 </span>
-                                <span className="text-xs">{story.name}</span>
-                              </div>
+                                <span className="text-xs truncate">{story.name}</span>
+                              </button>
+                              <Eye className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 shrink-0 cursor-pointer transition-opacity"
+                                onClick={() => setStoryDetailId(story.userStoryId)} />
                             </div>
 
                             {/* 연결 화면 */}
@@ -471,6 +531,7 @@ export default function TaskDetailPage() {
               })}
             </div>
           )}
+          </div>
         </div>
       </div>
 
@@ -537,10 +598,10 @@ export default function TaskDetailPage() {
         onOpenChange={setConfirmSaveOpen}
         title="정말 수정할까요?"
         description={
-          <div className="space-y-2">
-            <p>정보를 수정할라고 하면 이거 진짜? 수정할꺼야?</p>
-            <p className="font-semibold text-destructive">이력 관리 되지 않는다. 조심해</p>
-          </div>
+          <>
+            <span className="block">정보를 수정할라고 하면 이거 진짜? 수정할꺼야?</span>
+            <span className="block mt-2 font-semibold text-destructive">이력 관리 되지 않는다. 조심해</span>
+          </>
         }
         confirmLabel="네, 저장합니다"
         onConfirm={handleSaveTask}
@@ -623,21 +684,191 @@ export default function TaskDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ══ 요구사항 상세 팝업 ══ */}
+      <Dialog open={!!reqDetailId} onOpenChange={(o) => !o && setReqDetailId(null)}>
+        <DialogContent className="w-[90vw] max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="flex-shrink-0 px-5 pt-5 pb-3 border-b border-border">
+            <div className="space-y-0.5 min-w-0 pr-8">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-mono text-muted-foreground shrink-0">
+                  {reqDetail?.systemId}
+                </span>
+                {reqDetail?.priority && (
+                  <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
+                    {reqDetail.priority === "HIGH" ? "상" : reqDetail.priority === "MEDIUM" ? "중" : "하"}
+                  </span>
+                )}
+                <span className="text-xs bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded">
+                  {reqDetail?.source}
+                </span>
+              </div>
+              <DialogTitle className="text-base leading-snug">{reqDetail?.name ?? "로딩 중..."}</DialogTitle>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {!reqDetail ? (
+              <p className="text-sm text-muted-foreground text-center py-8">로딩 중...</p>
+            ) : (
+              <>
+                {/* 요구사항 원문 */}
+                {reqDetail.originalContent && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">요구사항 원문</p>
+                    <div className="text-sm leading-relaxed bg-muted/30 rounded-md p-3 whitespace-pre-wrap">
+                      {reqDetail.originalContent}
+                    </div>
+                  </div>
+                )}
+
+                {/* 현재 내용 (협의/변경본) */}
+                {reqDetail.currentContent && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">현재 내용</p>
+                    <div className="text-sm leading-relaxed bg-muted/30 rounded-md p-3 whitespace-pre-wrap">
+                      {reqDetail.currentContent}
+                    </div>
+                  </div>
+                )}
+
+                {/* 요구사항 명세서 — 마크다운 렌더 */}
+                {reqDetail.detailSpec && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">요구사항 명세서</p>
+                    <div className="markdown-body text-sm bg-muted/30 rounded-md p-3">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {reqDetail.detailSpec}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {/* 연결 화면 */}
+                {reqDetail.screens.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      연결 화면 ({reqDetail.screens.length}건)
+                    </p>
+                    <div className="space-y-1">
+                      {reqDetail.screens.map((sc) => (
+                        <div key={sc.screenId} className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/30 text-sm">
+                          <Monitor className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-mono text-xs text-muted-foreground shrink-0">{sc.systemId}</span>
+                          <span className="truncate">{sc.name}</span>
+                          <span className="ml-auto text-xs text-muted-foreground shrink-0">영역 {sc._count.areas}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 아무 내용도 없을 때 */}
+                {!reqDetail.originalContent && !reqDetail.currentContent && !reqDetail.detailSpec && reqDetail.screens.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-6">등록된 상세 내용이 없습니다.</p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex-shrink-0 px-5 py-3 border-t border-border flex items-center justify-between">
+            <button
+              onClick={() => router.push("/requirements")}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              요구사항 관리로 이동
+            </button>
+            <Button variant="outline" size="sm" onClick={() => setReqDetailId(null)}>닫기</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ 스토리 상세 팝업 ══ */}
+      <Dialog open={!!storyDetailId} onOpenChange={(o) => !o && setStoryDetailId(null)}>
+        <DialogContent className="w-[90vw] max-w-xl max-h-[80vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="flex-shrink-0 px-5 pt-5 pb-3 border-b border-border">
+            <div className="space-y-0.5">
+              <span className="text-xs font-mono text-muted-foreground">{storyDetail?.systemId}</span>
+              <DialogTitle className="text-base leading-snug">{storyDetail?.name ?? "로딩 중..."}</DialogTitle>
+              {storyDetail?.requirement && (
+                <p className="text-xs text-muted-foreground">
+                  요구사항:{" "}
+                  <span className="font-mono text-foreground">{storyDetail.requirement.systemId}</span>{" "}
+                  {storyDetail.requirement.name}
+                </p>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {!storyDetail ? (
+              <p className="text-sm text-muted-foreground text-center py-8">로딩 중...</p>
+            ) : (
+              <>
+                {/* 페르소나 */}
+                {storyDetail.persona && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">페르소나</p>
+                    <p className="text-sm bg-muted/30 rounded-md px-3 py-2">{storyDetail.persona}</p>
+                  </div>
+                )}
+
+                {/* 시나리오 */}
+                {storyDetail.scenario && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">시나리오</p>
+                    <div className="text-sm leading-relaxed bg-muted/30 rounded-md p-3 whitespace-pre-wrap">
+                      {storyDetail.scenario}
+                    </div>
+                  </div>
+                )}
+
+                {/* 인수 조건 */}
+                {storyDetail.acceptanceCriteria && storyDetail.acceptanceCriteria.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      인수 조건 ({storyDetail.acceptanceCriteria.length}개)
+                    </p>
+                    <ul className="space-y-1">
+                      {storyDetail.acceptanceCriteria.map((ac, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm px-3 py-1.5 rounded-md bg-muted/30">
+                          <span className="text-muted-foreground shrink-0 mt-0.5 text-xs">{i + 1}.</span>
+                          <span className="leading-relaxed">{ac.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 아무 내용도 없을 때 */}
+                {!storyDetail.persona && !storyDetail.scenario && (!storyDetail.acceptanceCriteria || storyDetail.acceptanceCriteria.length === 0) && (
+                  <p className="text-sm text-muted-foreground text-center py-6">등록된 상세 내용이 없습니다.</p>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="flex-shrink-0 px-5 py-3 border-t border-border flex justify-end">
+            <Button variant="outline" size="sm" onClick={() => setStoryDetailId(null)}>닫기</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ══ 과업 삭제 확인 ══ */}
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="과업 삭제"
         description={
-          <div className="space-y-2">
-            <p>"{task.name}"을(를) 삭제하시겠습니까?</p>
+          <>
+            <span className="block">"{task.name}"을(를) 삭제하시겠습니까?</span>
             {task.requirements.length > 0 && (
-              <p className="text-muted-foreground">
+              <span className="block mt-2 text-muted-foreground">
                 연결된 요구사항 {task.requirements.length}건이 있습니다.
                 삭제해도 요구사항은 유지되며, 과업 연결만 해제됩니다.
-              </p>
+              </span>
             )}
-          </div>
+          </>
         }
         variant="destructive"
         confirmLabel="삭제"

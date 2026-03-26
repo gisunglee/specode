@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { generateSystemId } from "@/lib/sequence";
 import { userStorySchema } from "@/lib/validators";
@@ -90,8 +91,8 @@ export async function POST(request: NextRequest) {
         scenario: parsed.scenario ?? null,
         // Prisma Json 타입: null 처리 포함
         acceptanceCriteria: parsed.acceptanceCriteria
-          ? (parsed.acceptanceCriteria as object[])
-          : null,
+          ? (parsed.acceptanceCriteria as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
     });
 

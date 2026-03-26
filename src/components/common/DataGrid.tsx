@@ -62,6 +62,32 @@ export function DataGrid<T>({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border overflow-hidden">
+        {pagination && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
+            <p className="text-xs text-muted-foreground">
+              총 {pagination.total}건 중 {(pagination.page - 1) * pagination.pageSize + 1}-{Math.min(pagination.page * pagination.pageSize, pagination.total)}건
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline" size="sm" className="h-6 w-6 p-0"
+                onClick={() => onPageChange?.(pagination.page - 1)}
+                disabled={pagination.page <= 1}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs text-muted-foreground px-1">
+                {pagination.page} / {pagination.totalPages}
+              </span>
+              <Button
+                variant="outline" size="sm" className="h-6 w-6 p-0"
+                onClick={() => onPageChange?.(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
         <table className="w-full text-sm table-fixed">
           <thead>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -140,35 +166,6 @@ export function DataGrid<T>({
         </table>
       </div>
 
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between px-2">
-          <p className="text-sm text-muted-foreground">
-            총 {pagination.total}건 중 {(pagination.page - 1) * pagination.pageSize + 1}-
-            {Math.min(pagination.page * pagination.pageSize, pagination.total)}건
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange?.(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              {pagination.page} / {pagination.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange?.(pagination.page + 1)}
-              disabled={pagination.page >= pagination.totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

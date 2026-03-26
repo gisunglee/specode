@@ -13,7 +13,7 @@
  */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Plus, Search, Trash2, Pencil, ScanSearch, ChevronDown, ChevronRight } from "lucide-react";
@@ -92,9 +92,17 @@ const EMPTY_FORM = {
   status: "",
 };
 
-/* ─── 메인 컴포넌트 ─────────────────────────────────────────── */
+/* ─── 메인 컴포넌트 (Suspense 경계 래핑) ───────────────────── */
 
 export default function StandardGuidesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-muted-foreground">로딩 중...</div>}>
+      <StandardGuidesContent />
+    </Suspense>
+  );
+}
+
+function StandardGuidesContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();

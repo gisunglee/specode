@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     prisma.task.findMany({
       where,
       include: { _count: { select: { requirements: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: { systemId: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

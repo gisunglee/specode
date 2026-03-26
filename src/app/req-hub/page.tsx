@@ -518,12 +518,15 @@ export default function ReqHubPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pt-0.5">
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); openEditTask(task); }}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); openEditTask(task); } }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
                     >
                       <Pencil className="h-2.5 w-2.5" />
-                    </button>
+                    </div>
                   </div>
                 </div>
               </button>
@@ -611,18 +614,24 @@ export default function ReqHubPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pt-0.5">
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); openEditReq(req); }}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); openEditReq(req); } }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
                     >
                       <Pencil className="h-2.5 w-2.5" />
-                    </button>
-                    <button
+                    </div>
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); setDeleteReqItem(req); }}
-                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setDeleteReqItem(req); } }}
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive cursor-pointer"
                     >
                       <Trash2 className="h-2.5 w-2.5" />
-                    </button>
+                    </div>
                   </div>
                 </div>
               </button>

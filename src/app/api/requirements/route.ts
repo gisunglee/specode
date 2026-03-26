@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         },
         task: { select: { taskId: true, systemId: true, name: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { systemId: "asc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),

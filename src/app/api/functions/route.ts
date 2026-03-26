@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
             screen: {
               select: {
                 screenId: true,
+                unitWorkId: true,
                 name: true,
                 systemId: true,
                 categoryL: true,

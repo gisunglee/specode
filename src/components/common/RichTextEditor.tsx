@@ -124,7 +124,8 @@ export function RichTextEditor({
                 canvas.height = Math.round(img.height * ratio);
                 canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const resized = canvas.toDataURL("image/jpeg", 0.82);
-                editor?.chain().focus().setImage({ src: resized }).run();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (editor?.chain().focus() as any).setImage({ src: resized }).run();
               };
               img.src = src;
             };

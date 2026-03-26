@@ -88,7 +88,9 @@ interface AreaInput {
   areaCode?: string;
   name: string;
   areaType?: string;
+  type?: string;        // AI가 areaType 대신 type으로 출력하는 경우 허용
   spec?: string;
+  description?: string; // AI가 spec 대신 description으로 출력하는 경우 허용
   sortOrder?: number;
   functions?: FuncInput[];
 }
@@ -98,10 +100,13 @@ interface ScreenInput {
   name: string;
   displayCode?: string;
   screenType?: string;
+  type?: string;        // AI가 screenType 대신 type으로 출력하는 경우 허용
   categoryL?: string;
   categoryM?: string;
   categoryS?: string;
   spec?: string;
+  description?: string; // AI가 spec 대신 description으로 출력하는 경우 허용
+  route?: string;       // AI가 route 필드를 출력하는 경우 무시
   sortOrder?: number;
   areas?: AreaInput[];
 }
@@ -116,39 +121,83 @@ interface ImportPayload {
   screens?: ScreenInput[];
 }
 
+const VALID_SCREEN_TYPES = ["LIST", "DETAIL", "POPUP", "TAB"] as const;
+const VALID_AREA_TYPES   = ["SEARCH", "GRID", "FORM", "INFO_CARD", "TAB", "FULL_SCREEN"] as const;
+
+/** AI가 필드명을 다르게 출력하거나 허용되지 않는 값을 쓰는 경우를 정규화 */
+function normalizeScreenInput(s: ScreenInput): ScreenInput {
+  const rawScreenType = s.screenType || s.type || "";
+  const screenType = (VALID_SCREEN_TYPES as readonly string[]).includes(rawScreenType)
+    ? rawScreenType
+    : undefined; // 허용되지 않는 값(FORM 등)은 null로 저장
+
+  return {
+    ...s,
+    screenType,
+    spec: s.spec || s.description || undefined,
+    areas: (s.areas ?? []).map((a): AreaInput => {
+      const rawAreaType = a.areaType || a.type || "";
+      const areaType = (VALID_AREA_TYPES as readonly string[]).includes(rawAreaType)
+        ? rawAreaType
+        : "FORM"; // 영역 기본값
+      return {
+        ...a,
+        areaType,
+        spec: a.spec || a.description || undefined,
+      };
+    }),
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { requirementId, data }: { requirementId?: number; data: ImportPayload } = body;
+    const { requirementId }: { requirementId?: number } = body;
+    // AI가 type/description 등 비표준 필드를 출력하는 경우를 정규화
+    const raw: ImportPayload = body.data;
 
-    if (!data?.unitWork?.name?.trim()) {
+    if (!raw?.unitWork?.name?.trim()) {
       return apiError("VALIDATION_ERROR", "단위업무명은 필수입니다.");
     }
 
+    const data: ImportPayload = {
+      ...raw,
+      screens: (raw.screens ?? []).map(normalizeScreenInput),
+    };
+
     // ── 단위업무: 수정 또는 신규 ──────────────────────────────
-    let unitWorkId: number;
-    let uwSystemId: string;
+    let unitWorkId = 0;
+    let uwSystemId = "";
+    let screenRequirementId = 0; // 화면 생성 시 사용할 requirementId
     let isUwNew = false;
 
     if (data.unitWork.systemId) {
-      // 기존 수정
-      const existing = await prisma.$queryRawUnsafe<{ unit_work_id: number }[]>(
-        `SELECT unit_work_id FROM tb_unit_work WHERE system_id = '${data.unitWork.systemId.replace(/'/g, "''")}' AND use_yn = 'Y'`
+      // 기존 수정 시도
+      const existing = await prisma.$queryRawUnsafe<{ unit_work_id: number; requirement_id: number }[]>(
+        `SELECT unit_work_id, requirement_id FROM tb_unit_work WHERE system_id = '${data.unitWork.systemId.replace(/'/g, "''")}' AND use_yn = 'Y'`
       );
       if (!existing.length) {
-        return apiError("NOT_FOUND", `단위업무 ${data.unitWork.systemId}를 찾을 수 없습니다.`);
+        // AI가 존재하지 않는 systemId를 생성한 경우 → requirementId가 있으면 신규 등록으로 처리
+        if (!requirementId) {
+          return apiError("VALIDATION_ERROR", `단위업무 ${data.unitWork.systemId}를 찾을 수 없습니다. 신규 등록하려면 연결할 요구사항을 선택해 주세요.`);
+        }
+        // fall-through: 아래 신규 생성 블록에서 처리
+      } else {
+        unitWorkId = existing[0].unit_work_id;
+        screenRequirementId = existing[0].requirement_id;
+        uwSystemId = data.unitWork.systemId;
+        const uwName = data.unitWork.name.trim().replace(/'/g, "''");
+        const uwDesc = data.unitWork.description
+          ? `'${String(data.unitWork.description).replace(/'/g, "''")}'`
+          : "NULL";
+        const uwOrd = data.unitWork.sortOrder ?? 0;
+        await prisma.$queryRawUnsafe(
+          `UPDATE tb_unit_work SET name='${uwName}', description=${uwDesc}, sort_order=${uwOrd}, updated_at=NOW() WHERE unit_work_id=${unitWorkId}`
+        );
       }
-      unitWorkId = existing[0].unit_work_id;
-      uwSystemId = data.unitWork.systemId;
-      const uwName = data.unitWork.name.trim().replace(/'/g, "''");
-      const uwDesc = data.unitWork.description
-        ? `'${String(data.unitWork.description).replace(/'/g, "''")}'`
-        : "NULL";
-      const uwOrd = data.unitWork.sortOrder ?? 0;
-      await prisma.$queryRawUnsafe(
-        `UPDATE tb_unit_work SET name='${uwName}', description=${uwDesc}, sort_order=${uwOrd}, updated_at=NOW() WHERE unit_work_id=${unitWorkId}`
-      );
-    } else {
+    }
+
+    if (!unitWorkId) {
       // 신규 생성 — requirementId 필수
       if (!requirementId) {
         return apiError("VALIDATION_ERROR", "신규 단위업무 등록 시 요구사항 ID가 필요합니다.");
@@ -169,6 +218,7 @@ export async function POST(request: NextRequest) {
         RETURNING unit_work_id
       `);
       unitWorkId = uwRows[0].unit_work_id;
+      screenRequirementId = reqId;
       isUwNew = true;
     }
 
@@ -210,6 +260,7 @@ export async function POST(request: NextRequest) {
             name: screenData.name.trim(),
             displayCode: screenData.displayCode || null,
             screenType: screenData.screenType || null,
+            requirementId: screenRequirementId,
             unitWorkId,
             spec: screenData.spec || null,
             categoryL: screenData.categoryL || null,

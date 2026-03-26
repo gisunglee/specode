@@ -1,16 +1,15 @@
 "use client";
 
 import { Node, mergeAttributes, type CommandProps } from "@tiptap/core";
-import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
+import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { useRef, useState, useCallback } from "react";
-import type { NodeViewRendererProps } from "@tiptap/core";
 
 /* ── ResizableImageView: 선택 시 우하단 드래그 핸들 표시 ── */
 function ResizableImageView({
   node,
   updateAttributes,
   selected,
-}: NodeViewRendererProps & { selected: boolean }) {
+}: NodeViewProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const startXRef = useRef(0);
   const startWRef = useRef(0);
@@ -115,9 +114,10 @@ export const ResizableImage = Node.create({
     return {
       setImage:
         (attrs: Record<string, unknown>) =>
-        ({ commands }: CommandProps) =>
+        ({ commands }: { commands: { insertContent: (content: { type: string; attrs: Record<string, unknown> }) => boolean } }) =>
           commands.insertContent({ type: this.name, attrs }),
-    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
   },
 
   addNodeView() {

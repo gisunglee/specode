@@ -334,15 +334,15 @@ export default function TasksPage() {
         onOpenChange={() => setDeleteItem(null)}
         title="과업 삭제"
         description={
-          <div className="space-y-2">
-            <p>"{deleteItem?.name}"을(를) 삭제하시겠습니까?</p>
+          <>
+            <span className="block">"{deleteItem?.name}"을(를) 삭제하시겠습니까?</span>
             {deleteItem && deleteItem.requirementCount > 0 && (
-              <p className="text-muted-foreground">
+              <span className="block mt-2 text-muted-foreground">
                 연결된 요구사항 {deleteItem.requirementCount}건이 있습니다.
                 삭제해도 요구사항은 유지되며, 과업 연결만 해제됩니다.
-              </p>
+              </span>
             )}
-          </div>
+          </>
         }
         variant="destructive"
         confirmLabel="삭제"
